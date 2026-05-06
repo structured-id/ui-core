@@ -1,0 +1,81 @@
+# Release — semantic-release on push to main
+#
+# On every push to main:
+#   1. semantic-release analyzes conventional commits since last tag
+#   2. Determines next version (feat → minor, fix → patch, BREAKING → major)
+#   3. Updates CHANGELOG.md, package.json version, commits "chore(release): vX.Y.Z [skip ci]"
+#   4. Creates git tag vX.Y.Z + GitHub Release
+#   5. Publishes to npm via OIDC trusted publishing
+#
+# OIDC setup (one-time, manual):
+#   npmjs.com → @structured-id/ui-core → Settings → Publishing access
+#     → Trusted Publishers → Add GitHub Actions:
+#         Org: structured-id
+#         Repo: ui-core
+#         Workflow: release.yml
+#         Environment: release
+
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: semantic-release + npm publish
+    runs-on: ubuntu-latest
+    environment: release  # required for npm OIDC trusted publishing
+    permissions:
+      contents: write       # commit CHANGELOG + tag
+      issues: write
+      pull-requests: write
+      id-token: write       # npm provenance + OIDC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          # NO registry-url — it creates .npmrc with NODE_AUTH_TOKEN placeholder
+          # which overrides OIDC trusted publishing with an invalid token.
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Yarn
+        run: corepack prepare yarn@4.12.0 --activate
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate proto clients
+        run: yarn generate
+
+      - name: Build
+        run: yarn build
+
+      - name: Install semantic-release
+        run: |
+          npm install -g \
+            semantic-release@24 \
+            @semantic-release/changelog@6 \
+            @semantic-release/git@10 \
+            @semantic-release/github@11 \
+            @semantic-release/exec@7 \
+            conventional-changelog-conventionalcommits@8
+
+      - name: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release
