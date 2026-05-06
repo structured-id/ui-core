@@ -7,6 +7,12 @@
     "registry": "https://registry.npmjs.org"
   },
   "description": "Shared UI package for StructuredID — proto clients, Vue 3 composables, Pinia stores, components.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/structured-id/ui-core.git"
+  },
+  "homepage": "https://github.com/structured-id/ui-core",
+  "bugs": "https://github.com/structured-id/ui-core/issues",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
