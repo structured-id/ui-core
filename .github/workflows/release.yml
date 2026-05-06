@@ -73,7 +73,7 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Install semantic-release
+      - name: Install semantic-release (no @semantic-release/npm — OIDC via publishCmd)
         run: |
           npm install -g \
             semantic-release@24 \
