@@ -1,0 +1,91 @@
+# Release Please — accumulative release PR workflow
+#
+# On every push to main:
+#   1. Creates/updates a release PR with version bump + CHANGELOG
+#   2. When the release PR is merged → creates GitHub release + tag
+#   3. Post-release: builds + publishes to npm via OIDC trusted publishing
+#
+# OIDC setup (one-time, manual):
+#   npmjs.com → @structured-id/ui-core → Settings → Publishing access
+#     → Trusted Publishers → Add GitHub Actions:
+#         Org: structured-id
+#         Repo: ui-core
+#         Workflow: release-please.yml
+#         Environment: release
+
+name: Release
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      release-version: ${{ steps.release.outputs.version }}
+      release-tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: release-please
+    environment: release  # required for npm OIDC trusted publishing
+    if: needs.release-please.outputs.release-created == 'true'
+    permissions:
+      contents: read
+      id-token: write  # npm provenance + OIDC
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release-please.outputs.release-tag }}
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          # NO registry-url — it creates .npmrc with NODE_AUTH_TOKEN placeholder
+          # which overrides OIDC trusted publishing with an invalid token.
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Yarn
+        run: corepack prepare yarn@4.12.0 --activate
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate proto clients
+        run: yarn generate
+
+      - name: Build
+        run: yarn build
+
+      # OIDC trusted publishing: no NPM_TOKEN secret needed.
+      - name: Publish to npm
+        run: |
+          VERSION="${{ needs.release-please.outputs.release-version }}"
+          if npm view "@structured-id/ui-core@${VERSION}" version >/dev/null 2>&1; then
+            echo "Version ${VERSION} already published; skipping."
+            exit 0
+          fi
+          npm publish --provenance --access public

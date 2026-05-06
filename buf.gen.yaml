@@ -1,0 +1,9 @@
+version: v2
+plugins:
+  - local: protoc-gen-ts
+    out: src/generated
+    opt:
+      - client_generic
+      - generate_dependencies
+inputs:
+  - directory: proto

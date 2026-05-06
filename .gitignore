@@ -1,0 +1,12 @@
+node_modules/
+dist/
+src/generated/
+*.tsbuildinfo
+.DS_Store
+coverage/
+.env
+.env.local
+.yarn/install-state.gz
+
+# Claude Code local config
+.claude
