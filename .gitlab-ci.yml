@@ -1,0 +1,72 @@
+stages:
+  - generate
+  - test
+  - publish
+
+variables:
+  NODE_IMAGE: node:22-alpine
+
+# --- Proto codegen ---
+# Requires CI job token access to structured-id/proto project.
+# Settings → CI/CD → Job token permissions → Add structured-id/proto
+generate:
+  stage: generate
+  image: $NODE_IMAGE
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_FORCE_HTTPS: "true"
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+  script:
+    - yarn generate
+  artifacts:
+    paths:
+      - src/generated/
+    expire_in: 1 hour
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# --- Tests + typecheck ---
+test:
+  stage: test
+  image: $NODE_IMAGE
+  needs:
+    - job: generate
+      optional: true
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+  script:
+    - yarn typecheck
+    - yarn test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# --- Publish to GitLab npm registry ---
+publish:
+  stage: publish
+  image: $NODE_IMAGE
+  needs:
+    - job: generate
+      optional: true
+    - job: test
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+  script:
+    - yarn build
+    # Configure GitLab npm registry
+    - |
+      cat > .npmrc <<EOF
+      @structured-id:registry=https://git.private.systems/api/v4/projects/${CI_PROJECT_ID}/packages/npm/
+      //git.private.systems/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}
+      EOF
+    - npm publish
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - package.json
