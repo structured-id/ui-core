@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/structured-id/ui-core/compare/v1.0.0...v1.0.1) (2026-05-06)
+
+### Bug Fixes
+
+* **npm:** add repository field for provenance verification ([019015f](https://github.com/structured-id/ui-core/commit/019015f10daf14ea583540a94b7b6025fc015af5))
+
 ## 1.0.0 (2026-05-06)
 
 ### Features
