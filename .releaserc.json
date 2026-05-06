@@ -23,11 +23,8 @@
       "changelogFile": "CHANGELOG.md"
     }],
     ["@semantic-release/exec", {
-      "prepareCmd": "npm pkg set version=${nextRelease.version}"
-    }],
-    ["@semantic-release/npm", {
-      "npmPublish": true,
-      "tarballDir": "dist-tarball"
+      "prepareCmd": "npm pkg set version=${nextRelease.version}",
+      "publishCmd": "npm publish --provenance --access public"
     }],
     ["@semantic-release/git", {
       "assets": ["CHANGELOG.md", "package.json"],
