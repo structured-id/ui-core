@@ -73,6 +73,7 @@
           :disable="loading"
           :label="identifierLabel"
           :lazy-rules="false"
+          :min-username-length="usernameMinLength"
           @update:principal-type="principalType = $event"
         />
 
@@ -215,6 +216,9 @@ const props = withDefaults(
     passwordMinLength?: number;
     /** Show confirm-password field with match validation. Default true. */
     showConfirmPassword?: boolean;
+    /** Min username length. Registration default 6 (premium feature gating);
+     *  login flow can pass 3 since short usernames are valid post-registration. */
+    usernameMinLength?: number;
   }>(),
   {
     title: "Create account",
@@ -240,6 +244,7 @@ const props = withDefaults(
     inviteRequired: false,
     initialInviteCode: "",
     showConfirmPassword: true,
+    usernameMinLength: 6,
   },
 );
 
@@ -298,7 +303,10 @@ async function onSubmit() {
   error.value = null;
 
   try {
-    const normalized = normalizePrincipal(identifier.value);
+    const normalized = normalizePrincipal(
+      identifier.value,
+      props.usernameMinLength,
+    );
     await props.registerFn(
       normalized.value,
       password.value,
