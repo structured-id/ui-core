@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/structured-id/ui-core/compare/v1.1.0...v1.2.0) (2026-05-07)
+
+### Features
+
+* **profile:** enforce 6-char min username on registration ([5808c55](https://github.com/structured-id/ui-core/commit/5808c554ecacdecb17723edf40b57c66fbef0968))
+
 ## [1.1.0](https://github.com/structured-id/ui-core/compare/v1.0.1...v1.1.0) (2026-05-07)
 
 ### Features
