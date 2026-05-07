@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/structured-id/ui-core/compare/v1.0.1...v1.1.0) (2026-05-07)
+
+### Features
+
+* **profile:** add showConfirmPassword prop to SidRegistrationForm ([12efca1](https://github.com/structured-id/ui-core/commit/12efca1341a213f6b7c08da594b143d530f22d56))
+
 ## [1.0.1](https://github.com/structured-id/ui-core/compare/v1.0.0...v1.0.1) (2026-05-06)
 
 ### Bug Fixes
