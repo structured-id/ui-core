@@ -102,6 +102,7 @@
         </q-input>
 
         <q-input
+          v-if="showConfirmPassword"
           ref="confirmRef"
           v-model="confirmPassword"
           :type="showPassword ? 'text' : 'password'"
@@ -128,7 +129,7 @@
           :disable="
             !identifier ||
             !password ||
-            !confirmPassword ||
+            (showConfirmPassword && !confirmPassword) ||
             (inviteRequired && !inviteCode)
           "
         />
@@ -212,6 +213,8 @@ const props = withDefaults(
     ) => Promise<void>;
     /** Min password length (default 12 — NIST SP 800-63B 4th draft baseline). */
     passwordMinLength?: number;
+    /** Show confirm-password field with match validation. Default true. */
+    showConfirmPassword?: boolean;
   }>(),
   {
     title: "Create account",
@@ -236,6 +239,7 @@ const props = withDefaults(
     loginUrl: undefined,
     inviteRequired: false,
     initialInviteCode: "",
+    showConfirmPassword: true,
   },
 );
 
@@ -285,7 +289,7 @@ const showInviteField = computed(
 );
 
 async function onSubmit() {
-  if (password.value !== confirmPassword.value) {
+  if (props.showConfirmPassword && password.value !== confirmPassword.value) {
     error.value = props.passwordsMismatchText;
     return;
   }
