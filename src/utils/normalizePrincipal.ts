@@ -14,7 +14,7 @@ export interface NormalizedPrincipal {
 }
 
 /**
- * Global username rules per arch/identity/identity-model.md:
+ * Global username rules:
  *   Display:    ^[a-zA-Z0-9_]{3,32}$ — user's original input, mixed case preserved
  *   Normalized: ^[a-z0-9_]{3,32}$    — lowercase, for storage + uniqueness + login
  *   - cannot start or end with underscore

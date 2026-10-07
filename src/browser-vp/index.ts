@@ -10,8 +10,6 @@
  * - **Strategy B (device-key):** Random WebCrypto key, wrapped for sync.
  *   Each browser = separate device. Fallback for non-PRF browsers.
  *
- * See arch/auth/browser-vp.md for full specification.
- *
  * Reference: Prudnikov, D. (2026). "Client-Side Verifiable Presentation System
  * with Passkey-Derived Persistent Keys and Pairwise Service Bindings."
  * doi:10.5281/zenodo.19387768 — https://doi.org/10.5281/zenodo.19387768

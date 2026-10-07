@@ -4,8 +4,6 @@
  * PRF (Pseudo-Random Function) extension allows deriving
  * deterministic secrets from a passkey. Same passkey on any
  * synced device produces the same PRF output → same keys.
- *
- * See arch/auth/browser-vp.md § Strategy A: Passkey-Derived PPK.
  */
 
 const PRF_EVAL_LABEL = "sid-ppk-v1";

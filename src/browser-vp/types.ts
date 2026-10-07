@@ -1,7 +1,5 @@
 /**
  * Browser VP types.
- *
- * See arch/auth/browser-vp.md for full specification.
  */
 
 /** VP strategy — automatically selected based on browser capabilities. */

@@ -2,7 +2,6 @@
  * Cryptographic primitives for Browser VP.
  *
  * All operations use Web Crypto API. Keys are non-extractable.
- * See arch/auth/browser-vp.md § Key derivation.
  */
 
 import type { DerivedKeys } from "./types";
