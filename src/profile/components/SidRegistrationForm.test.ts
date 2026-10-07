@@ -10,7 +10,9 @@ const quasarStubs = {
   "q-icon": { template: "<span />" },
   "q-chip": { template: "<span />" },
   "q-form": {
-    template: "<form @submit.prevent=\"$emit('submit')\"><slot /></form>",
+    // QForm emits submit with the DOM event; the form's .prevent needs it.
+    template:
+      "<form @submit.prevent=\"$emit('submit', $event)\"><slot /></form>",
     emits: ["submit"],
   },
   "q-input": {
@@ -66,6 +68,61 @@ describe("SidRegistrationForm", () => {
     // At minimum: invite, principal, password, confirm = 4 inputs.
     // (given_name dropped — handled via OrgClaimPolicy after first login.)
     expect(inputs.length).toBeGreaterThanOrEqual(4);
+  });
+
+  // While the installation has no administrator the claim token is the only
+  // admission: the form asks for it and never for an invite code.
+  it("asks for the claim token instead of an invite while unclaimed", () => {
+    const w = mountForm({ claimRequired: true, inviteRequired: true });
+    expect(w.text()).toContain("This installation has no administrator yet");
+    expect(w.text()).not.toContain("Registration requires an invite code");
+    // claim token, principal, password, confirm; no invite field
+    expect(w.findAll("input")).toHaveLength(4);
+  });
+
+  it("does not ask for the claim token once claimed", () => {
+    const w = mountForm({ claimRequired: false });
+    expect(w.text()).not.toContain(
+      "This installation has no administrator yet",
+    );
+    // principal, password, confirm
+    expect(w.findAll("input")).toHaveLength(3);
+  });
+
+  // The pasted token reaches registerFn trimmed, and no invite code with it.
+  it("submits the trimmed claim token", async () => {
+    registerFn.mockClear();
+    const w = mountForm({ claimRequired: true });
+    const [claim, principal, password, confirm] = w.findAll("input");
+    await claim.setValue("  sidclaim_abc \n");
+    await principal.setValue("owner@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+
+    expect(registerFn).toHaveBeenCalledWith(
+      "owner@example.com",
+      "Secret-Pass-123",
+      { claimToken: "sidclaim_abc" },
+      expect.any(Function),
+    );
+  });
+
+  it("submits the invite code when the installation is claimed", async () => {
+    registerFn.mockClear();
+    const w = mountForm({ initialInviteCode: "ABCD1234" });
+    const [, principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+
+    expect(registerFn).toHaveBeenCalledWith(
+      "user@example.com",
+      "Secret-Pass-123",
+      { inviteCode: "ABCD1234" },
+      expect.any(Function),
+    );
   });
 
   it("renders footer slot", () => {

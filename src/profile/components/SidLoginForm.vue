@@ -38,6 +38,7 @@
           v-model="identifier"
           :disable="loading"
           :label="identifierLabel"
+          data-test="principal"
           @update:principal-type="principalType = $event"
         />
 
@@ -48,6 +49,7 @@
           outlined
           :disable="loading"
           :rules="[(v: string) => !!v || passwordRequiredText]"
+          data-test="password"
         >
           <template v-slot:prepend>
             <q-icon name="sym_o_lock" />
@@ -70,6 +72,7 @@
           class="full-width"
           :loading="loading"
           :disable="!identifier || !password"
+          data-test="submit"
         />
       </q-form>
 
@@ -115,7 +118,7 @@
 import { ref } from "vue";
 import { SidPrincipalInput } from "../../quasar";
 import type { PrincipalType } from "../../quasar";
-import { normalizePrincipal } from "../../index";
+import { normalizePrincipal, refusalMessage } from "../../index";
 
 void SidPrincipalInput;
 
@@ -220,7 +223,7 @@ async function onSubmit() {
     emit("success", result);
   } catch (e) {
     const err = e instanceof Error ? e : new Error("Login failed");
-    error.value = err.message;
+    error.value = refusalMessage(e, "Login failed");
     emit("error", err);
   } finally {
     loading.value = false;

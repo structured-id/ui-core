@@ -33,6 +33,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { isValidPhoneNumber } from "libphonenumber-js";
+import { isValidEmail } from "../utils/validators";
 
 export type PrincipalType = "email" | "phone" | "username" | "unknown";
 
@@ -110,15 +111,13 @@ function onInput(value: string | number | null) {
 const requiredRule = (val: string) =>
   !props.required || !!val || "This field is required";
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 const typeRule = (val: string): string | true => {
   if (!val) return true; // required rule handles empty
   const type = detectType(val);
 
   switch (type) {
     case "email":
-      return emailRegex.test(val) || "Invalid email address";
+      return isValidEmail(val.trim()) || "Invalid email address";
     case "phone":
       return isValidPhoneNumber(val) || "Invalid phone number";
     case "username": {

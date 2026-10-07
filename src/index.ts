@@ -1,5 +1,4 @@
 // Composables
-export { useAuth } from "./composables/useAuth";
 export {
   useGrpc,
   initGrpc,
@@ -16,8 +15,15 @@ export {
   checkBffSession,
   startBffLogin,
   bffLogout,
+  bffCsrfToken,
   type BffUserInfo,
 } from "./composables/useBffAuth";
+export {
+  initAccountApi,
+  getAccountTransport,
+  closeAccountTransport,
+  type AccountApiConfig,
+} from "./composables/useAccountTransport";
 
 // Stores
 export { useAuthStore } from "./stores/auth";
@@ -48,17 +54,28 @@ export {
   type NormalizedPrincipal,
 } from "./utils/normalizePrincipal";
 
+export {
+  rpcRefusal,
+  rpcReason,
+  refusalMessage,
+  REFUSAL_TEXTS,
+  SID_ERROR_DOMAIN,
+  type RpcRefusal,
+} from "./utils/rpcRefusal";
+
 // Types
 export type { AuthState, SessionInfo, GrpcConfig } from "./types";
 
 // i18n key constants
-export { AUTH_KEYS, ERROR_KEYS, COMMON_KEYS } from "./i18n";
+export { AUTH_KEYS, COMMON_KEYS } from "./i18n";
 
 // Generated proto clients and types
 export { AuthServiceClient } from "./generated/sid/v1/authn/auth.client";
 export { IdentityServiceClient } from "./generated/sid/v1/identity/identity.client";
 export { AccountServiceClient } from "./generated/sid/v1/account/account.client";
 export { UpstreamServiceClient } from "./generated/sid/v1/federation/upstream.client";
+export { EnrollmentServiceClient } from "./generated/sid/v1/admin/enrollment.client";
+export type { InstanceStatus } from "./generated/sid/v1/admin/enrollment";
 
 // Re-export commonly used proto types
 export type {
@@ -103,8 +120,25 @@ export type {
   VerifyMagicLinkResponse,
   RequestPasswordResetResponse,
   VerifyPasswordResetResponse,
+  ExecutePasswordResetResponse,
   CompletePasswordResetResponse,
+  OpaqueZkppRegistrationStartResponse,
+  OpaqueZkppRegistrationFinishResponse,
+  PasswordChangeChallengeResponse,
+  PasswordChangeExecuteResponse,
+  PasswordChangeFinishResponse,
 } from "./generated/sid/v1/authn/auth";
+
+// Password operations: the history evaluator and the proof the finish carries
+export { PasswordHistoryEvaluatorServiceClient } from "./generated/sid/v1/authn/password_history.client";
+export type {
+  PasswordHistoryContext,
+  PasswordHistoryDomain,
+  PasswordHistoryEvaluation,
+  PasswordHistoryEvaluationProof,
+  PasswordRegistrationProof,
+} from "./generated/sid/v1/authn/password_history";
+export type { PasswordOperationId } from "./generated/sid/v1/ids/ids";
 
 export type {
   Profile,

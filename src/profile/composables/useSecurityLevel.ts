@@ -180,8 +180,12 @@ export function useSecurityLevel(
       methods.push("synced_passkey");
     }
 
+    // An email awaiting address confirmation receives no reset.
     const emails = identifiers.value.filter(
-      (i) => i.type === PrincipalType.EMAIL && i.verified,
+      (i) =>
+        i.type === PrincipalType.EMAIL &&
+        i.verified &&
+        !i.needsAddressConfirmation,
     );
     if (emails.length > 0) {
       methods.push("recovery_email");
@@ -235,10 +239,15 @@ export function useSecurityLevel(
       (c) => c.type === CredentialType.RECOVERY,
     );
     const verifiedEmails = identifiers.value.filter(
-      (i) => i.type === PrincipalType.EMAIL && i.verified,
+      (i) =>
+        i.type === PrincipalType.EMAIL &&
+        i.verified &&
+        !i.needsAddressConfirmation,
     );
     const unverifiedEmails = identifiers.value.filter(
-      (i) => i.type === PrincipalType.EMAIL && !i.verified,
+      (i) =>
+        i.type === PrincipalType.EMAIL &&
+        (!i.verified || i.needsAddressConfirmation),
     );
 
     if (!hasRecovery) {
