@@ -48,8 +48,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: "",
-  // Per arch/identity/identity-model.md §Principal: username regex is
-  // ^[a-z0-9_]{3,32}$ (display form ^[a-zA-Z0-9_]{3,32}$).
+  // Username rule: ^[a-z0-9_]{3,32}$ (display form ^[a-zA-Z0-9_]{3,32}$).
   minUsernameLength: 3,
   required: true,
   label: "Email, phone, or username",
@@ -81,8 +80,7 @@ function detectType(value: string): PrincipalType {
   // Email: contains @ (checked after phone to exclude edge cases)
   if (trimmed.includes("@")) return "email";
 
-  // Username per arch/identity/identity-model.md:
-  // ^[a-z0-9_]{3,32}$, no leading/trailing _, no __
+  // Username: ^[a-z0-9_]{3,32}$, no leading/trailing _, no __
   // Detection is relaxed: accepts uppercase (will normalize), checks min length
   const re = new RegExp(
     `^[a-zA-Z0-9_]{${props.minUsernameLength},${USERNAME_MAX_LENGTH}}$`,

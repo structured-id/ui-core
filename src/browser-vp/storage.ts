@@ -4,8 +4,6 @@
  * Database: sid-browser-vp
  *   ├── bindings       — per-service binding entries (key: service_sector)
  *   └── profile-state  — profile state + encrypted blob (key: profile_id)
- *
- * See arch/auth/browser-vp.md § IndexedDB Storage Schema.
  */
 
 import type { ProfileState, BindingEntry } from "./types";

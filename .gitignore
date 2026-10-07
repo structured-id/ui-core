@@ -7,6 +7,3 @@ coverage/
 .env
 .env.local
 .yarn/install-state.gz
-
-# Claude Code local config
-.claude

@@ -3,8 +3,6 @@
  *
  * Builds and signs VPs using cached keys and profile blob.
  * VP creation is fully offline (~50ms with biometric cache).
- *
- * See arch/auth/browser-vp.md § VP Creation.
  */
 
 import type { VpRequest, VerifiablePresentation, BindingEntry } from "./types";
