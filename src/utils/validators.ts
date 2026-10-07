@@ -1,6 +1,18 @@
-/** Email validation (RFC 5322 simplified). */
+/**
+ * Whether `value` has the shape of one mailbox: a local part and a domain
+ * around the last `@`, whitespace only inside a quoted local part. Advisory:
+ * the server's email policy decides admission (internal single-label domains
+ * and quoted local parts may be admitted), so this refuses only what can
+ * never be an address.
+ */
 export function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const at = value.lastIndexOf("@");
+  if (at <= 0 || at === value.length - 1) return false;
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  const quoted =
+    local.length > 1 && local.startsWith('"') && local.endsWith('"');
+  return !/\s/.test(domain) && (quoted || !/\s/.test(local));
 }
 
 /** Phone number validation (E.164 format). */

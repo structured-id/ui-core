@@ -19,17 +19,6 @@ export const AUTH_KEYS = {
   LOGOUT_SUBMIT: "auth.logout.submit",
 } as const;
 
-export const ERROR_KEYS = {
-  INVALID_CREDENTIALS: "errors.auth.invalid_credentials",
-  ACCOUNT_LOCKED: "errors.auth.account_locked",
-  SESSION_EXPIRED: "errors.auth.session_expired",
-  MFA_REQUIRED: "errors.auth.mfa_required",
-  PERMISSION_DENIED: "errors.rbac.permission_denied",
-  NOT_FOUND: "errors.general.not_found",
-  INTERNAL_ERROR: "errors.general.internal_error",
-  RATE_LIMITED: "errors.general.rate_limited",
-} as const;
-
 export const COMMON_KEYS = {
   SAVE: "common.buttons.save",
   CANCEL: "common.buttons.cancel",

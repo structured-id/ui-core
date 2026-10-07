@@ -1,15 +1,20 @@
 /**
  * Profile auth API composable.
  *
- * Wraps AuthServiceClient proto calls with Bearer auth.
  * Covers: OPAQUE, MFA, step-up, WebAuthn, magic link, OAuth2, CIBA, captcha, terms.
  *
- * OPAQUE gRPC calls are here (like all other auth RPCs).
- * OPAQUE client-side crypto orchestration lives in useOpaqueAuth.ts
- * (accepts OpaqueClientApi interface — no dependency on @structured-id/opaque).
+ * Two surfaces: sign-in ceremonies go to SID's sign-in surface
+ * (`getTransport`), where the IdP session lives; managing the signed-in
+ * user's factors from the account pages is the account API
+ * (`getAccountTransport`), through the BFF.
+ *
+ * OPAQUE gRPC calls are here (like all other auth RPCs). The password
+ * ceremonies over them (client-side crypto, proofs) live in useAuth.ts,
+ * behind the injected ZkppClientApi: no dependency on the client package.
  */
 import {
   getTransport,
+  getAccountTransport,
   AuthServiceClient,
   StepUpMethod,
   type OpaqueLoginStartResponse,
@@ -48,17 +53,43 @@ import {
   type RequestPasswordResetResponse,
   type VerifyPasswordResetResponse,
   type CompletePasswordResetResponse,
+  type ExecutePasswordResetResponse,
+  type OpaqueZkppRegistrationStartResponse,
+  type OpaqueZkppRegistrationFinishResponse,
+  type PasswordChangeChallengeResponse,
+  type PasswordChangeExecuteResponse,
+  type PasswordChangeFinishResponse,
+  type PasswordHistoryContext,
+  type PasswordHistoryEvaluation,
+  type PasswordRegistrationProof,
+  PasswordHistoryEvaluatorServiceClient,
 } from "../../index";
 import { authMeta } from "../auth";
 
+/** The history evaluator: in CE served beside the credential service. */
+function evaluator(): PasswordHistoryEvaluatorServiceClient {
+  return new PasswordHistoryEvaluatorServiceClient(getTransport());
+}
+
+/** The wire form of an operation id (16 UUIDv7 bytes). */
+function operation(id: Uint8Array): { value: Uint8Array } {
+  return { value: id };
+}
+
+/** The sign-in surface: ceremonies and the IdP session. */
 function client(): AuthServiceClient {
   return new AuthServiceClient(getTransport());
+}
+
+/** The account API: the signed-in user managing their own factors. */
+function account(): AuthServiceClient {
+  return new AuthServiceClient(getAccountTransport());
 }
 
 // ── MFA TOTP ──
 
 export async function startTotpEnrollment(): Promise<TotpEnrollmentChallenge> {
-  const { response } = await client().startTotpEnrollment(
+  const { response } = await account().startTotpEnrollment(
     {},
     { meta: authMeta() },
   );
@@ -68,7 +99,7 @@ export async function startTotpEnrollment(): Promise<TotpEnrollmentChallenge> {
 export async function finishTotpEnrollment(
   code: string,
 ): Promise<FinishTotpEnrollmentResponse> {
-  const { response } = await client().finishTotpEnrollment(
+  const { response } = await account().finishTotpEnrollment(
     { code },
     { meta: authMeta() },
   );
@@ -101,7 +132,7 @@ export async function resendSmsMfa(): Promise<ResendSmsMfaResponse> {
 // ── MFA Recovery ──
 
 export async function generateRecoveryCodes(): Promise<GenerateRecoveryCodesResponse> {
-  const { response } = await client().generateRecoveryCodes(
+  const { response } = await account().generateRecoveryCodes(
     {},
     { meta: authMeta() },
   );
@@ -199,7 +230,7 @@ export async function webAuthnAuthenticationFinish(
 export async function webAuthnRegistrationStart(
   label?: string,
 ): Promise<WebAuthnRegistrationStartResponse> {
-  const { response } = await client().webAuthnRegistrationStart(
+  const { response } = await account().webAuthnRegistrationStart(
     { label },
     { meta: authMeta() },
   );
@@ -210,7 +241,7 @@ export async function webAuthnRegistrationFinish(
   credential: Uint8Array,
   label?: string,
 ): Promise<WebAuthnRegistrationFinishResponse> {
-  const { response } = await client().webAuthnRegistrationFinish(
+  const { response } = await account().webAuthnRegistrationFinish(
     { credential, label },
     { meta: authMeta() },
   );
@@ -241,6 +272,10 @@ export async function oauth2Authorize(params: {
   codeChallenge?: string;
   codeChallengeMethod?: string;
   nonce?: string;
+  /** Issuer of the authorization request being completed (`/i/<handle>/oauth2/authorize`). */
+  issuerHandle: string;
+  /** RFC 8707 resource indicators of the request; empty selects the client's default. */
+  resource?: string[];
 }): Promise<{ authorizationCode?: string; error?: string; state?: string }> {
   const { response } = await client().oAuth2Authorize(
     {
@@ -252,6 +287,8 @@ export async function oauth2Authorize(params: {
       codeChallenge: params.codeChallenge,
       codeChallengeMethod: params.codeChallengeMethod,
       nonce: params.nonce,
+      issuerHandle: params.issuerHandle,
+      resource: params.resource ?? [],
     },
     { meta: authMeta() },
   );
@@ -455,7 +492,7 @@ export async function completeStepUp(
 export async function deleteMfaCredential(
   credentialId: string,
 ): Promise<DeleteMfaCredentialResponse> {
-  const { response } = await client().deleteMfaCredential(
+  const { response } = await account().deleteMfaCredential(
     { credentialId },
     { meta: authMeta() },
   );
@@ -502,29 +539,144 @@ export async function verifyPasswordReset(
   return response;
 }
 
+/**
+ * The OPAQUE start of the replacement password under the reset's operation
+ * (from `VerifyPasswordResetResponse.history`).
+ */
+export async function executePasswordReset(
+  operationId: Uint8Array,
+  registrationRequest: Uint8Array,
+): Promise<ExecutePasswordResetResponse> {
+  const { response } = await client().executePasswordReset({
+    operationId: operation(operationId),
+    registrationRequest,
+  });
+  return response;
+}
+
+/**
+ * Complete the reset with the replacement password's record and, when the
+ * client proved it, the proof; without a proof the password installs
+ * policy-unverified.
+ */
 export async function completePasswordReset(
   resetSessionId: string,
+  operationId: Uint8Array,
   registrationRecord: Uint8Array,
-  opts?: {
-    zkppProof?: Uint8Array;
-    zkppInstances?: Uint8Array[];
-    historyCommitment?: Uint8Array;
-    commitmentSalt?: Uint8Array;
-  },
+  proof?: PasswordRegistrationProof,
 ): Promise<CompletePasswordResetResponse> {
   const { response } = await client().completePasswordReset({
     resetSessionId,
+    operationId: operation(operationId),
     registrationRecord,
-    zkppProof: opts?.zkppProof ?? new Uint8Array(),
-    zkppInstances: opts?.zkppInstances ?? [],
-    historyCommitment: opts?.historyCommitment ?? new Uint8Array(),
-    commitmentSalt: opts?.commitmentSalt ?? new Uint8Array(),
+    proof,
   });
   return response;
 }
 
 // Recovery shard RPCs (downloadRecoveryShard, uploadRecoveryShard, getRecoveryInfo)
 // are EE/SaaS-only — defined in proto-ee, not in CE proto.
+
+// ── Password operations (OPAQUE-ZKPP) ──
+//
+// Registration, password change and reset install a password in one
+// server-side operation: the preparing RPC returns the operation's history
+// context, the evaluator answers the client's blinded history input, the
+// client proves, and the finish carries the record with the proof.
+
+/**
+ * Start a registration: the operation is prepared for the new account and its
+ * OPAQUE request answered. `claimToken` claims an installation that has no
+ * administrator yet.
+ */
+export async function opaqueZkppRegistrationStart(
+  principal: string,
+  registrationRequest: Uint8Array,
+  claimToken?: string,
+): Promise<OpaqueZkppRegistrationStartResponse> {
+  const { response } = await client().opaqueZkppRegistrationStart({
+    principal,
+    registrationRequest,
+    claimToken,
+  });
+  return response;
+}
+
+/** Finish a registration with the record and, when the client proved, the proof. */
+export async function opaqueZkppRegistrationFinish(
+  operationId: Uint8Array,
+  registrationRecord: Uint8Array,
+  proof?: PasswordRegistrationProof,
+): Promise<OpaqueZkppRegistrationFinishResponse> {
+  const { response } = await client().opaqueZkppRegistrationFinish({
+    operationId: operation(operationId),
+    registrationRecord,
+    proof,
+  });
+  return response;
+}
+
+/**
+ * The evaluator's answers to the blinded history input of the operation:
+ * one per comparison domain of its context, in that order.
+ */
+export async function evaluatePasswordHistory(
+  operationId: Uint8Array,
+  blindedInput: Uint8Array,
+): Promise<PasswordHistoryEvaluation[]> {
+  const { response } = await evaluator().evaluatePasswordHistory({
+    operationId: operation(operationId),
+    blindedInput,
+  });
+  return response.evaluations;
+}
+
+/** Prepare a change of the signed-in user's own password `credentialId`. */
+export async function passwordChangeChallenge(
+  credentialId: string,
+): Promise<PasswordChangeChallengeResponse> {
+  const { response } = await account().passwordChangeChallenge(
+    { credentialId },
+    { meta: authMeta() },
+  );
+  return response;
+}
+
+/** The OPAQUE start of the new password under the change's operation. */
+export async function passwordChangeExecute(
+  operationId: Uint8Array,
+  credentialId: string,
+  registrationRequest: Uint8Array,
+): Promise<PasswordChangeExecuteResponse> {
+  const { response } = await account().passwordChangeExecute(
+    {
+      operationId: operation(operationId),
+      credentialId,
+      registrationRequest,
+    },
+    { meta: authMeta() },
+  );
+  return response;
+}
+
+/** Finish the change with the new password's record and, when proved, the proof. */
+export async function passwordChangeFinish(
+  operationId: Uint8Array,
+  credentialId: string,
+  registrationRecord: Uint8Array,
+  proof?: PasswordRegistrationProof,
+): Promise<PasswordChangeFinishResponse> {
+  const { response } = await account().passwordChangeFinish(
+    {
+      operationId: operation(operationId),
+      credentialId,
+      registrationRecord,
+      proof,
+    },
+    { meta: authMeta() },
+  );
+  return response;
+}
 
 // ── OPAQUE ──
 
@@ -552,13 +704,20 @@ export async function opaqueLoginFinish(
   return response;
 }
 
+/**
+ * `claimToken`: the instance claim token (`sidclaim_...`) from the service log.
+ * Required while the installation has no administrator; the new profile then
+ * becomes its first administrator.
+ */
 export async function opaqueRegistrationStart(
   principal: string,
   registrationRequest: Uint8Array,
+  claimToken?: string,
 ): Promise<OpaqueRegistrationStartResponse> {
   const { response } = await client().opaqueRegistrationStart({
     principal,
     registrationRequest,
+    claimToken,
   });
   return response;
 }
@@ -613,5 +772,14 @@ export type {
   VerifyMagicLinkResponse,
   RequestPasswordResetResponse,
   VerifyPasswordResetResponse,
+  ExecutePasswordResetResponse,
   CompletePasswordResetResponse,
+  OpaqueZkppRegistrationStartResponse,
+  OpaqueZkppRegistrationFinishResponse,
+  PasswordChangeChallengeResponse,
+  PasswordChangeExecuteResponse,
+  PasswordChangeFinishResponse,
+  PasswordHistoryContext,
+  PasswordHistoryEvaluation,
+  PasswordRegistrationProof,
 };

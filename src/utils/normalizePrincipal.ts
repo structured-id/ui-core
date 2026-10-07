@@ -1,6 +1,7 @@
 import parsePhoneNumberFromString, {
   isValidPhoneNumber,
 } from "libphonenumber-js";
+import { isValidEmail } from "./validators";
 
 export type LoginInputType = "email" | "phone" | "username" | "unknown";
 
@@ -76,7 +77,7 @@ export function detectLoginInputType(
 /**
  * Normalize principal value for server submission.
  *
- * - Email: lowercase, strip dots before @, strip +aliases
+ * - Email: as typed (trimmed); the server applies the email policy
  * - Phone: E.164 format via libphonenumber-js
  * - Username: lowercase, validate per arch rules
  *
@@ -92,15 +93,12 @@ export function normalizePrincipal(
 
   switch (type) {
     case "email": {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(trimmed)) {
+      // Sent as typed: the server validates it, derives the lookup key and
+      // keeps this spelling as the address to mail.
+      if (!isValidEmail(trimmed)) {
         throw new Error("Invalid email address");
       }
-      // Remove dots before @, strip +alias, lowercase
-      const [localRaw, domain] = trimmed.split("@");
-      const local = localRaw.replace(/\./g, "").replace(/\+.*$/, "");
-      const normalized = `${local}@${domain}`.toLowerCase();
-      return { value: normalized, display: normalized, type: "email" };
+      return { value: trimmed, display: trimmed, type: "email" };
     }
 
     case "phone": {

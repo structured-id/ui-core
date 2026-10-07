@@ -103,6 +103,24 @@ describe("OPAQUE gRPC wrappers", () => {
       });
       expect(result).toBe(expected);
     });
+
+    // An unclaimed installation accepts only a registration carrying the
+    // claim token; the wrapper must put it on the wire unchanged.
+    it("sends the instance claim token when given", async () => {
+      mockOpaqueRegistrationStart.mockResolvedValue({ response: {} });
+
+      await opaqueRegistrationStart(
+        "owner@test.com",
+        new Uint8Array([1]),
+        "sidclaim_abc",
+      );
+
+      expect(mockOpaqueRegistrationStart).toHaveBeenCalledWith({
+        principal: "owner@test.com",
+        registrationRequest: new Uint8Array([1]),
+        claimToken: "sidclaim_abc",
+      });
+    });
   });
 
   describe("opaqueRegistrationFinish", () => {

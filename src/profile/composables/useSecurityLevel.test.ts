@@ -12,7 +12,6 @@ import {
   type Credential,
   type Principal,
 } from "../../index";
-import { PrincipalSubjectType } from "../../generated/sid/v1/identity/identity";
 
 // ── Helpers ──
 
@@ -50,8 +49,7 @@ function makePrincipal(type: PrincipalType, verified: boolean): Principal {
     value: "test",
     verified,
     isPrimary: false,
-    subjectType: PrincipalSubjectType.PROFILE,
-    subjectId: "",
+    needsAddressConfirmation: false,
   };
 }
 
@@ -160,6 +158,15 @@ describe("recoverability", () => {
   it("unverified email not counted", () => {
     const principals = ref([makePrincipal(PrincipalType.EMAIL, false)]);
     const { recoveryMethods } = useSecurityLevel(ref([]), principals);
+    expect(recoveryMethods.value).not.toContain("recovery_email");
+  });
+
+  // An email whose address awaits confirmation receives no reset, so it is
+  // no recovery channel even when it was once marked verified.
+  it("email awaiting address confirmation not counted", () => {
+    const pending = makePrincipal(PrincipalType.EMAIL, true);
+    pending.needsAddressConfirmation = true;
+    const { recoveryMethods } = useSecurityLevel(ref([]), ref([pending]));
     expect(recoveryMethods.value).not.toContain("recovery_email");
   });
 });

@@ -1,11 +1,12 @@
 /**
  * Profile account API composable.
  *
- * Wraps AccountServiceClient proto calls with Bearer auth.
+ * The account API through the BFF (`getAccountTransport`), which adds the
+ * session's Bearer token.
  * Covers: consents, activity, linked accounts, app launcher, passwordless.
  */
 import {
-  getTransport,
+  getAccountTransport,
   AccountServiceClient,
   type ConsentInfo,
   type ClaimConsent,
@@ -31,7 +32,7 @@ import {
 import { authMeta } from "../auth";
 
 function client(): AccountServiceClient {
-  return new AccountServiceClient(getTransport());
+  return new AccountServiceClient(getAccountTransport());
 }
 
 // ── Consents ──
@@ -129,7 +130,10 @@ export async function reportSuspiciousEvent(
 export type { LinkedAccount, ListLinkedAccountsResponse };
 
 export async function listLinkedAccounts(): Promise<ListLinkedAccountsResponse> {
-  const { response } = await client().listLinkedAccounts({}, { meta: authMeta() });
+  const { response } = await client().listLinkedAccounts(
+    {},
+    { meta: authMeta() },
+  );
   return response;
 }
 
@@ -164,12 +168,18 @@ export async function reauthenticateLink(
 export type { AvailableApp, PasswordlessStatus, DisablePasswordlessResponse };
 
 export async function listAvailableApps(): Promise<AvailableApp[]> {
-  const { response } = await client().listAvailableApps({}, { meta: authMeta() });
+  const { response } = await client().listAvailableApps(
+    {},
+    { meta: authMeta() },
+  );
   return response.apps;
 }
 
 export async function launchApp(appId: string): Promise<LaunchAppResponse> {
-  const { response } = await client().launchApp({ appId }, { meta: authMeta() });
+  const { response } = await client().launchApp(
+    { appId },
+    { meta: authMeta() },
+  );
   return response;
 }
 
@@ -188,7 +198,10 @@ export async function enablePasswordless(): Promise<void> {
 }
 
 export async function disablePasswordless(): Promise<DisablePasswordlessResponse> {
-  const { response } = await client().disablePasswordless({}, { meta: authMeta() });
+  const { response } = await client().disablePasswordless(
+    {},
+    { meta: authMeta() },
+  );
   return response;
 }
 

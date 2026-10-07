@@ -1,4 +1,3 @@
-export { useAuth } from "./useAuth";
 export {
   useGrpc,
   initGrpc,
@@ -7,4 +6,10 @@ export {
   getTransportType,
   type TransportType,
 } from "./useGrpc";
+export {
+  initAccountApi,
+  getAccountTransport,
+  closeAccountTransport,
+  type AccountApiConfig,
+} from "./useAccountTransport";
 export { useSession, type SessionCallbacks } from "./useSession";

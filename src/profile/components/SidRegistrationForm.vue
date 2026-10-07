@@ -11,7 +11,17 @@
 
     <q-card-section>
       <q-banner
-        v-if="inviteRequired && !inviteCode"
+        v-if="claimRequired"
+        class="bg-info text-white q-mb-md"
+        rounded
+        dense
+        icon="sym_o_admin_panel_settings"
+      >
+        {{ claimRequiredText }}
+      </q-banner>
+
+      <q-banner
+        v-if="inviteRequired && !inviteCode && !claimRequired"
         class="bg-warning text-dark q-mb-md"
         rounded
         dense
@@ -38,7 +48,48 @@
         {{ successText }}
       </q-banner>
 
+      <slot name="progress" :progress="progress">
+        <div v-if="progress" class="q-mb-md">
+          <q-linear-progress
+            :value="progress.fraction"
+            color="primary"
+            class="q-mb-sm"
+          />
+          <div class="text-caption text-center text-grey-7">
+            <q-icon name="sym_o_lock" size="xs" class="q-mr-xs" />
+            {{ progress.label }}
+          </div>
+        </div>
+      </slot>
+
       <q-form @submit.prevent="onSubmit" class="q-gutter-y-md">
+        <q-input
+          v-if="claimRequired"
+          v-model="claimToken"
+          :type="showClaimToken ? 'text' : 'password'"
+          :label="claimTokenLabel"
+          :hint="claimTokenHint"
+          outlined
+          autocomplete="off"
+          spellcheck="false"
+          :disable="loading"
+          :rules="[(v: string) => !!v.trim() || claimTokenRequiredText]"
+          data-test="claim-token"
+        >
+          <template v-slot:prepend>
+            <q-icon name="sym_o_key" />
+          </template>
+          <template v-slot:append>
+            <q-icon
+              :name="
+                showClaimToken ? 'sym_o_visibility_off' : 'sym_o_visibility'
+              "
+              class="cursor-pointer"
+              @click="showClaimToken = !showClaimToken"
+            />
+          </template>
+        </q-input>
+
         <q-input
           v-if="showInviteField"
           v-model="inviteCode"
@@ -74,6 +125,7 @@
           :label="identifierLabel"
           :lazy-rules="false"
           :min-username-length="usernameMinLength"
+          data-test="principal"
           @update:principal-type="principalType = $event"
         />
 
@@ -88,6 +140,7 @@
           :disable="loading"
           :lazy-rules="false"
           :rules="passwordRules"
+          data-test="password"
           @update:model-value="onPasswordInput"
         >
           <template v-slot:prepend>
@@ -115,6 +168,7 @@
             (v: string) => !!v || passwordRequiredText,
             (v: string) => v === password || passwordsMismatchText,
           ]"
+          data-test="confirm-password"
         >
           <template v-slot:prepend>
             <q-icon name="sym_o_lock" />
@@ -131,8 +185,10 @@
             !identifier ||
             !password ||
             (showConfirmPassword && !confirmPassword) ||
-            (inviteRequired && !inviteCode)
+            (claimRequired && !claimToken.trim()) ||
+            (inviteRequired && !claimRequired && !inviteCode)
           "
+          data-test="submit"
         />
       </q-form>
 
@@ -160,7 +216,21 @@ interface ValidatableInput {
   validate: () => boolean | Promise<boolean>;
 }
 import type { PrincipalType } from "../../quasar";
-import { normalizePrincipal } from "../../index";
+import { normalizePrincipal, refusalMessage } from "../../index";
+
+/** What the form collected besides the identifier and password. */
+export interface RegistrationExtras {
+  /** Invite code, when the enrollment policy asks for one. */
+  inviteCode?: string;
+  /** Instance claim token from the service log, while the installation has no administrator. */
+  claimToken?: string;
+}
+
+/** Progress of the registration (the password proof takes seconds): 0..1 and a label. */
+export interface RegistrationProgress {
+  fraction: number;
+  label: string;
+}
 
 void SidPrincipalInput;
 
@@ -206,11 +276,26 @@ const props = withDefaults(
     inviteRequired?: boolean;
     /** Pre-filled invite code (e.g. from URL) */
     initialInviteCode?: string;
-    /** External register function — receives (identifier, password, inviteCode?) */
+    /**
+     * The installation has no administrator yet (GetInstanceStatus). The form
+     * then asks for the claim token and the new account becomes administrator;
+     * the invite code is not asked for.
+     */
+    claimRequired?: boolean;
+    /** Claim token input label */
+    claimTokenLabel?: string;
+    /** Claim token hint text */
+    claimTokenHint?: string;
+    /** Claim token required validation text */
+    claimTokenRequiredText?: string;
+    /** Banner shown while the installation waits for its first administrator */
+    claimRequiredText?: string;
+    /** External register function; `onProgress` drives the progress gauge. */
     registerFn: (
       identifier: string,
       password: string,
-      inviteCode?: string,
+      extras: RegistrationExtras,
+      onProgress?: (p: RegistrationProgress) => void,
     ) => Promise<void>;
     /** Min password length (default 12 — NIST SP 800-63B 4th draft baseline). */
     passwordMinLength?: number;
@@ -243,6 +328,12 @@ const props = withDefaults(
     loginUrl: undefined,
     inviteRequired: false,
     initialInviteCode: "",
+    claimRequired: false,
+    claimTokenLabel: "Claim token",
+    claimTokenHint: "The sidclaim_ token from the service log",
+    claimTokenRequiredText: "Claim token required",
+    claimRequiredText:
+      "This installation has no administrator yet. Enter the claim token from the service log; the account you create becomes its administrator.",
     showConfirmPassword: true,
     usernameMinLength: 6,
   },
@@ -261,6 +352,7 @@ const showPassword = ref(false);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const success = ref(false);
+const progress = ref<RegistrationProgress | null>(null);
 
 const passwordRef = ref<ValidatableInput | null>(null);
 const confirmRef = ref<ValidatableInput | null>(null);
@@ -289,9 +381,13 @@ function onPasswordInput() {
 
 const inviteCode = ref(props.initialInviteCode);
 const inviteFromUrl = ref(!!props.initialInviteCode);
+// While unclaimed the claim token is the only admission, whatever the mode.
 const showInviteField = computed(
-  () => props.inviteRequired || !!inviteCode.value,
+  () => !props.claimRequired && (props.inviteRequired || !!inviteCode.value),
 );
+
+const claimToken = ref("");
+const showClaimToken = ref(false);
 
 async function onSubmit() {
   if (props.showConfirmPassword && password.value !== confirmPassword.value) {
@@ -307,11 +403,12 @@ async function onSubmit() {
       identifier.value,
       props.usernameMinLength,
     );
-    await props.registerFn(
-      normalized.value,
-      password.value,
-      inviteCode.value || undefined,
-    );
+    const extras: RegistrationExtras = props.claimRequired
+      ? { claimToken: claimToken.value.trim() }
+      : { inviteCode: inviteCode.value || undefined };
+    await props.registerFn(normalized.value, password.value, extras, (p) => {
+      progress.value = p;
+    });
     success.value = true;
     emit("success", {
       identifier: normalized.value,
@@ -320,10 +417,11 @@ async function onSubmit() {
   } catch (e) {
     success.value = false;
     const err = e instanceof Error ? e : new Error("Registration failed");
-    error.value = err.message;
+    error.value = refusalMessage(e, "Registration failed");
     emit("error", err);
   } finally {
     loading.value = false;
+    progress.value = null;
   }
 }
 </script>

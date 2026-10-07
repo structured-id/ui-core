@@ -99,11 +99,24 @@ describe("detectLoginInputType", () => {
 });
 
 describe("normalizePrincipal", () => {
-  it("normalizes email: lowercase + strip dots + strip alias", () => {
-    const result = normalizePrincipal("Alice.Bob+tag@Example.COM");
+  // Regression: the client folded the address (case, dots, +tag) before
+  // sending it, so the server never saw the mailbox the user typed and
+  // stored the folded key as the address to mail. The server derives the
+  // lookup key and keeps the spelling; the client sends it as typed.
+  it("sends an email as typed, only trimmed", () => {
+    const result = normalizePrincipal("  Alice.Bob+tag@Example.COM ");
     expect(result.type).toBe("email");
-    expect(result.value).toBe("alicebob@example.com");
-    expect(result.display).toBe("alicebob@example.com");
+    expect(result.value).toBe("Alice.Bob+tag@Example.COM");
+    expect(result.display).toBe("Alice.Bob+tag@Example.COM");
+  });
+
+  // Admission is the server's policy: an installation's internal mail
+  // domain and a quoted local part are not refused by the client.
+  it("leaves email admission to the server", () => {
+    expect(normalizePrincipal("admin@printer").value).toBe("admin@printer");
+    expect(normalizePrincipal('"a b"@example.com').value).toBe(
+      '"a b"@example.com',
+    );
   });
 
   it("normalizes phone to E.164", () => {
@@ -137,8 +150,9 @@ describe("normalizePrincipal", () => {
     expect(() => normalizePrincipal("alice", 6)).toThrow("Cannot determine");
   });
 
-  it("throws on invalid email", () => {
+  it("throws on an email with no local part or domain", () => {
     expect(() => normalizePrincipal("alice@")).toThrow("Invalid email");
+    expect(() => normalizePrincipal("@example.com")).toThrow("Invalid email");
   });
 
   it("throws on invalid phone", () => {

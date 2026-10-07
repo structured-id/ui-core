@@ -1,11 +1,13 @@
 /**
  * Profile identity API composable.
  *
- * Wraps IdentityServiceClient proto calls with Bearer auth.
- * Shared between profile-ui-ce, profile-ui-ee, and frontend.
+ * The account API through the BFF (`getAccountTransport`), which adds the
+ * session's Bearer token. Shared between profile-ui-ce, profile-ui-ee, and
+ * frontend.
  */
+import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import {
-  getTransport,
+  getAccountTransport,
   IdentityServiceClient,
   type Profile,
   type Session,
@@ -19,8 +21,8 @@ import {
 } from "../../index";
 import { authMeta } from "../auth";
 
-function client(): IdentityServiceClient {
-  return new IdentityServiceClient(getTransport());
+function client(transport?: RpcTransport): IdentityServiceClient {
+  return new IdentityServiceClient(transport ?? getAccountTransport());
 }
 
 // ── Profile ──
@@ -28,10 +30,17 @@ function client(): IdentityServiceClient {
 export type { Profile, Principal };
 
 export async function fetchCurrentProfile(): Promise<Profile> {
-  const { response } = await client().getCurrentProfile({}, { meta: authMeta() });
+  const { response } = await client().getCurrentProfile(
+    {},
+    { meta: authMeta() },
+  );
   return response.profile!;
 }
 
+/**
+ * `transport`: the sign-in surface's transport when a sign-in step (a
+ * required profile update) makes the call; the account API otherwise.
+ */
 export async function updateProfile(
   id: string,
   update: {
@@ -40,8 +49,9 @@ export async function updateProfile(
     middleName?: string;
     avatarUrl?: string;
   },
+  transport?: RpcTransport,
 ): Promise<Profile> {
-  const { response } = await client().updateProfile(
+  const { response } = await client(transport).updateProfile(
     {
       id,
       givenName: update.givenName,
