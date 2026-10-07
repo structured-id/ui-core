@@ -1,19 +1,12 @@
-# Release — semantic-release on push to main
+# Release: release-please keeps a release PR with the next version and
+# CHANGELOG from conventional commits; merging it tags vX.Y.Z, creates the
+# GitHub release, and the publish job then publishes that version to npm.
 #
-# On every push to main:
-#   1. semantic-release analyzes conventional commits since last tag
-#   2. Determines next version (feat → minor, fix → patch, BREAKING → major)
-#   3. Updates CHANGELOG.md, package.json version, commits "chore(release): vX.Y.Z [skip ci]"
-#   4. Creates git tag vX.Y.Z + GitHub Release
-#   5. Publishes to npm via OIDC trusted publishing
-#
-# OIDC setup (one-time, manual):
-#   npmjs.com → @structured-id/ui-core → Settings → Publishing access
-#     → Trusted Publishers → Add GitHub Actions:
-#         Org: structured-id
-#         Repo: ui-core
-#         Workflow: release.yml
-#         Environment: release
+# npm trusted publishing (OIDC) is configured for this workflow file and the
+# `release` environment:
+#   npmjs.com → @structured-id/ui-core → Settings → Trusted Publishers
+#     Org: structured-id, Repo: ui-core, Workflow: release.yml,
+#     Environment: release
 
 name: Release
 
@@ -26,37 +19,48 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: semantic-release + npm publish
+  release-please:
     runs-on: ubuntu-latest
-    environment: release  # required for npm OIDC trusted publishing
-    permissions:
-      contents: read
-      id-token: write       # npm provenance + OIDC + GitHub App token mint
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
     steps:
       - name: Generate release token
-        uses: actions/create-github-app-token@v3
         id: app-token
+        uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.RELEASER_APP_ID }}
+          client-id: ${{ vars.RELEASER_CLIENT_ID }}
           private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
 
-      - name: Checkout
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    environment: release # required for npm OIDC trusted publishing
+    permissions:
+      contents: read
+      id-token: write # npm provenance + OIDC
+    steps:
+      - name: Checkout the release tag
         uses: actions/checkout@v6
         with:
+          ref: ${{ needs.release-please.outputs.tag }}
           submodules: recursive
-          fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-          # NO registry-url — it creates .npmrc with NODE_AUTH_TOKEN placeholder
-          # which overrides OIDC trusted publishing with an invalid token.
+          # NO registry-url: it writes an .npmrc whose NODE_AUTH_TOKEN
+          # placeholder overrides OIDC trusted publishing.
 
       - name: Enable Corepack
         run: corepack enable
@@ -73,17 +77,18 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Install semantic-release (no @semantic-release/npm — OIDC via publishCmd)
-        run: |
-          npm install -g \
-            semantic-release@24 \
-            @semantic-release/changelog@6 \
-            @semantic-release/git@10 \
-            @semantic-release/github@11 \
-            @semantic-release/exec@7 \
-            conventional-changelog-conventionalcommits@8
-
-      - name: semantic-release
+      - name: Publish to npm
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: semantic-release
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          NAME="$(node -p "require('./package.json').name")"
+          PV="$(node -p "require('./package.json').version")"
+          if [ "${PV}" != "${TAG#v}" ]; then
+            echo "Release tag ${TAG} does not match package.json version ${PV}."
+            exit 1
+          fi
+          if npm view "${NAME}@${PV}" version >/dev/null 2>&1; then
+            echo "${NAME}@${PV} is already published; nothing to do."
+            exit 0
+          fi
+          npm publish --provenance --access public
