@@ -1,3 +1,22 @@
+## [1.3.0](https://github.com/structured-id/ui-core/compare/v1.2.0...v1.3.0) (2026-10-07)
+
+### ⚠ BREAKING CHANGES
+
+* useAuth (session state) and useOpaqueAuth are removed;
+use createAuth. completePasswordReset takes the operation id and a
+PasswordRegistrationProof. SidRegistrationForm registerFn receives
+(identifier, password, extras { inviteCode?, claimToken? }) and a progress
+callback. initBff takes no cookie name and bffCsrfToken answers after
+checkBffSession. Account composables need initAccountApi at startup;
+startBffLogin returns to a path. oauth2Authorize requires issuerHandle.
+passwordOperationMessage and ERROR_KEYS are removed; use refusalMessage
+and REFUSAL_TEXTS. The generated Principal no longer has subjectType or
+subjectId, and PrincipalSubjectType is gone.
+
+### Features
+
+* password ceremonies on the ZKPP client ([dbf129f](https://github.com/structured-id/ui-core/commit/dbf129fa4c4d2a1590860fd2161793ec7a626c64)), closes [structured-id/opaque#2](https://github.com/structured-id/opaque/issues/2)
+
 ## [1.2.0](https://github.com/structured-id/ui-core/compare/v1.1.0...v1.2.0) (2026-05-07)
 
 ### Features
