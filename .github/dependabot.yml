@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # One pull request per ecosystem and run, major updates included: related
+  # packages (vue and vite, protobuf-ts, vitest) move together.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      submodules:
+        patterns: ["*"]
