@@ -12,7 +12,8 @@ const created: Array<{
 }> = [];
 
 vi.mock("@protobuf-ts/grpcweb-transport", () => ({
-  GrpcWebFetchTransport: vi.fn().mockImplementation((options) => {
+  // Called with `new`: a constructor mock must be a `function`, not an arrow.
+  GrpcWebFetchTransport: vi.fn().mockImplementation(function (options) {
     created.push(options);
     return { type: "grpc-web-transport" };
   }),

@@ -61,8 +61,7 @@ export async function hasPrfSupport(): Promise<boolean> {
       result as PublicKeyCredential
     ).getClientExtensionResults() as Record<string, unknown>;
     const prfResults = ext?.prf as
-      | { results?: { first?: ArrayBuffer } }
-      | undefined;
+      { results?: { first?: ArrayBuffer } } | undefined;
 
     return prfResults?.results?.first != null;
   } catch {
@@ -108,8 +107,7 @@ export async function evaluatePrf(
       result as PublicKeyCredential
     ).getClientExtensionResults() as Record<string, unknown>;
     const prfResults = ext?.prf as
-      | { results?: { first?: ArrayBuffer } }
-      | undefined;
+      { results?: { first?: ArrayBuffer } } | undefined;
 
     return prfResults?.results?.first ?? null;
   } catch {
@@ -166,8 +164,7 @@ export async function createPasskeyWithPrf(
       unknown
     >;
     const prfResults = ext?.prf as
-      | { results?: { first?: ArrayBuffer } }
-      | undefined;
+      { results?: { first?: ArrayBuffer } } | undefined;
     const prfOutput = prfResults?.results?.first;
 
     if (!prfOutput) return null;

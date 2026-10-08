@@ -14,12 +14,15 @@ const mockOpaqueRegistrationFinish = vi.fn();
 
 vi.mock("../../index", () => ({
   getTransport: vi.fn(),
-  AuthServiceClient: vi.fn().mockImplementation(() => ({
-    opaqueLoginStart: mockOpaqueLoginStart,
-    opaqueLoginFinish: mockOpaqueLoginFinish,
-    opaqueRegistrationStart: mockOpaqueRegistrationStart,
-    opaqueRegistrationFinish: mockOpaqueRegistrationFinish,
-  })),
+  // Called with `new`: a constructor mock must be a `function`, not an arrow.
+  AuthServiceClient: vi.fn().mockImplementation(function () {
+    return {
+      opaqueLoginStart: mockOpaqueLoginStart,
+      opaqueLoginFinish: mockOpaqueLoginFinish,
+      opaqueRegistrationStart: mockOpaqueRegistrationStart,
+      opaqueRegistrationFinish: mockOpaqueRegistrationFinish,
+    };
+  }),
 }));
 
 // authMeta needs to be mocked since it uses useAuth() which needs Vue context

@@ -63,7 +63,7 @@ export { createVp, needsRenewal, getExpiringSoon } from "./vp";
 // ── Strategy selection ──
 
 import { hasPrfSupport } from "./prf";
-import { isIndexedDbAvailable } from "./storage";
+import { isIndexedDbAvailable, loadProfileState } from "./storage";
 import type { VpStrategy, BrowserVpContext } from "./types";
 
 /**
@@ -105,7 +105,6 @@ export async function initBrowserVp(
   const strategy = await detectStrategy();
   if (!strategy) return null;
 
-  const { loadProfileState } = await import("./storage");
   const state = await loadProfileState(profileId);
 
   return {
