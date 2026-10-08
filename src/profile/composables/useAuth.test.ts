@@ -100,12 +100,12 @@ function fakeClient(): ZkppClientApi {
 }
 
 let client: ZkppClientApi;
-let loader: Mock<[], Promise<ZkppClientApi>>;
+let loader: Mock<() => Promise<ZkppClientApi>>;
 
 beforeEach(() => {
   vi.clearAllMocks();
   client = fakeClient();
-  loader = vi.fn<[], Promise<ZkppClientApi>>().mockResolvedValue(client);
+  loader = vi.fn<() => Promise<ZkppClientApi>>().mockResolvedValue(client);
   api.evaluate.mockResolvedValue([ANSWER]);
 });
 

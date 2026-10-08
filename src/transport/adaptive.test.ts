@@ -23,24 +23,24 @@ class MockWebTransport {
 // Mock modules BEFORE importing the module under test
 // ---------------------------------------------------------------------------
 
-// Mock GrpcWebFetchTransport
+// Mock GrpcWebFetchTransport. Constructor mocks are `function`s: they are
+// called with `new`.
 vi.mock("@protobuf-ts/grpcweb-transport", () => ({
-  GrpcWebFetchTransport: vi
-    .fn()
-    .mockImplementation(() => createMockTransport()),
+  GrpcWebFetchTransport: vi.fn().mockImplementation(function () {
+    return createMockTransport();
+  }),
 }));
 
 // Mock WebTransportConnection and WebTransportRpcTransport
-const mockWtConnect = vi.fn<[], Promise<void>>();
+const mockWtConnect = vi.fn<() => Promise<void>>();
 const mockWtClose = vi.fn();
 let mockWtTransportInstance: RpcTransport;
 
 vi.mock("./webtransport", () => ({
-  WebTransportConnection: vi.fn().mockImplementation(() => ({
-    connect: mockWtConnect,
-    close: mockWtClose,
-  })),
-  WebTransportRpcTransport: vi.fn().mockImplementation(() => {
+  WebTransportConnection: vi.fn().mockImplementation(function () {
+    return { connect: mockWtConnect, close: mockWtClose };
+  }),
+  WebTransportRpcTransport: vi.fn().mockImplementation(function () {
     return mockWtTransportInstance;
   }),
 }));
