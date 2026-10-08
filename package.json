@@ -68,23 +68,23 @@
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/compiler-dom": "^3.5.31",
     "@vue/test-utils": "^2.4.6",
-    "eslint": "^9",
-    "jsdom": "^29.0.1",
-    "pinia": "^2.1.0",
+    "eslint": "^10",
+    "jsdom": "^30.1.2",
+    "pinia": "^4.0.3",
     "prettier": "^3.0.0",
     "tsup": "^8.5.0",
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.57.0",
-    "vitest": "^1.0.0",
+    "vitest": "^5.0.3",
     "vue": "^3.4.0",
-    "vue-router": "^4.2.0",
-    "vue-tsc": "^2.0.0"
+    "vue-router": "^5.3.1",
+    "vue-tsc": "^3.3.12"
   },
   "peerDependencies": {
-    "pinia": "^2.1.0",
+    "pinia": "^4.0.3",
     "quasar": "^2.17.0",
     "vue": "^3.4.0",
-    "vue-router": "^4.2.0"
+    "vue-router": "^5.3.1"
   },
   "peerDependenciesMeta": {
     "quasar": {
