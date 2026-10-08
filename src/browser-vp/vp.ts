@@ -7,7 +7,7 @@
 
 import type { VpRequest, VerifiablePresentation, BindingEntry } from "./types";
 import { sign } from "./crypto";
-import { loadBinding, saveBinding } from "./storage";
+import { listBindings, loadBinding, saveBinding } from "./storage";
 
 const encoder = new TextEncoder();
 
@@ -105,7 +105,6 @@ export function needsRenewal(binding: BindingEntry): boolean {
 export async function getExpiringSoon(): Promise<
   Array<{ serviceSector: string } & BindingEntry>
 > {
-  const { listBindings } = await import("./storage");
   const all = await listBindings();
   return all.filter((b) => needsRenewal(b));
 }

@@ -14,7 +14,7 @@ Shared UI package for StructuredID applications. Provides Vue 3 composables, Pin
 ```ts
 import { getTransport, initGrpc } from "@structured-id/ui-core";
 import { SidLoginForm, createAuth } from "@structured-id/ui-core/profile";
-import { loadZkppClient } from "@structured-id/opaque-zkpp";
+import { loadZkppClient } from "@structured-id/opaque";
 
 // Initialize gRPC transport
 initGrpc({ baseUrl: "http://localhost:9080" });
@@ -25,9 +25,12 @@ const { login } = createAuth(() => loadZkppClient());
 
 ## Development
 
+The package ships its TypeScript and Vue sources; the consuming application's
+bundler (Vite under Quasar) compiles them, so there is no build step.
+
 ```bash
 yarn install
-yarn build       # Build library
+yarn generate    # Proto clients into src/generated
 yarn test        # Run tests (vitest)
 yarn typecheck   # vue-tsc --noEmit
 ```

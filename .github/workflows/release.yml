@@ -74,9 +74,8 @@ jobs:
       - name: Generate proto clients
         run: yarn generate
 
-      - name: Build
-        run: yarn build
-
+      # The package ships its TypeScript and Vue sources; the consuming
+      # application's bundler compiles them.
       - name: Publish to npm
         env:
           TAG: ${{ needs.release-please.outputs.tag }}

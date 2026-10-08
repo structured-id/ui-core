@@ -143,9 +143,12 @@ describe("WebTransportConnection", () => {
       close: vi.fn(),
       createBidirectionalStream: vi.fn(),
     };
+    // `new WebTransport(...)`: a constructor mock must be a `function`.
     (globalThis as Record<string, unknown>).WebTransport = vi
       .fn()
-      .mockImplementation(() => mockWt);
+      .mockImplementation(function () {
+        return mockWt;
+      });
   });
 
   afterEach(() => {
@@ -332,7 +335,9 @@ describe("WebTransportConnection", () => {
     };
     (globalThis as Record<string, unknown>).WebTransport = vi
       .fn()
-      .mockImplementation(() => mockWt2);
+      .mockImplementation(function () {
+        return mockWt2;
+      });
 
     await conn.connect();
     expect(conn.connected).toBe(true);
@@ -365,7 +370,9 @@ describe("WebTransportRpcTransport", () => {
     };
     (globalThis as Record<string, unknown>).WebTransport = vi
       .fn()
-      .mockImplementation(() => mockWt);
+      .mockImplementation(function () {
+        return mockWt;
+      });
     conn = new WebTransportConnection({ url: "https://wt.sid.example.com" });
   });
 

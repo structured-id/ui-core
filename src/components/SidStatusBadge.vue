@@ -7,11 +7,7 @@
  */
 
 export type BadgeVariant =
-  | "active"
-  | "inactive"
-  | "pending"
-  | "error"
-  | "warning";
+  "active" | "inactive" | "pending" | "error" | "warning";
 
 const props = withDefaults(
   defineProps<{

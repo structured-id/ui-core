@@ -5,27 +5,30 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 
 const mockAdaptiveInit = vi
-  .fn<[], Promise<void>>()
+  .fn<() => Promise<void>>()
   .mockResolvedValue(undefined);
 const mockAdaptiveClose = vi.fn();
 const mockAdaptiveActiveTransport = vi
-  .fn<[], string>()
+  .fn<() => string>()
   .mockReturnValue("grpc-web");
 
 vi.mock("../transport/adaptive", () => ({
-  AdaptiveRpcTransport: vi.fn().mockImplementation(() => ({
-    init: mockAdaptiveInit,
-    close: mockAdaptiveClose,
-    get activeTransport() {
-      return mockAdaptiveActiveTransport();
-    },
-  })),
+  // Constructor mocks are `function`s: they are called with `new`.
+  AdaptiveRpcTransport: vi.fn().mockImplementation(function () {
+    return {
+      init: mockAdaptiveInit,
+      close: mockAdaptiveClose,
+      get activeTransport() {
+        return mockAdaptiveActiveTransport();
+      },
+    };
+  }),
 }));
 
 vi.mock("@protobuf-ts/grpcweb-transport", () => ({
-  GrpcWebFetchTransport: vi
-    .fn()
-    .mockImplementation(() => ({ type: "grpc-web-transport" })),
+  GrpcWebFetchTransport: vi.fn().mockImplementation(function () {
+    return { type: "grpc-web-transport" };
+  }),
 }));
 
 // Import AFTER mocks

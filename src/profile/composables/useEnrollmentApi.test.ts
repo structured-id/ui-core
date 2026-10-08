@@ -5,9 +5,10 @@ const mockGetInstanceStatus = vi.fn();
 
 vi.mock("../../index", () => ({
   getTransport: vi.fn(),
-  EnrollmentServiceClient: vi.fn().mockImplementation(() => ({
-    getInstanceStatus: mockGetInstanceStatus,
-  })),
+  // Called with `new`: a constructor mock must be a `function`, not an arrow.
+  EnrollmentServiceClient: vi.fn().mockImplementation(function () {
+    return { getInstanceStatus: mockGetInstanceStatus };
+  }),
 }));
 
 describe("getInstanceStatus", () => {
