@@ -79,6 +79,27 @@ describe("useCurrentPasswordRequirement", () => {
     scope.stop();
   });
 
+  // The request's time is measured on a monotonic clock: a wall clock set
+  // forward while the answer was on its way (NTP, a user) does not shorten
+  // the countdown.
+  it("ignores wall clock changes while the answer is on its way", async () => {
+    let answer!: (ms: number) => void;
+    const scope = effectScope();
+    const r = scope.run(() =>
+      useCurrentPasswordRequirement(
+        () => new Promise<number>((resolve) => (answer = resolve)),
+      ),
+    )!;
+    const refreshed = r.refresh();
+    vi.setSystemTime(Date.now() + 3_600_000);
+    answer(10_000);
+    await refreshed;
+    expect(r.required.value).toBe(false);
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(r.required.value).toBe(false);
+    scope.stop();
+  });
+
   it("is required at once when the server says zero", async () => {
     const r = requirement(0);
     await r.refresh();

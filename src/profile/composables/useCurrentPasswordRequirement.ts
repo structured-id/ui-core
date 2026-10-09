@@ -53,10 +53,11 @@ export function useCurrentPasswordRequirement(
   async function refresh(): Promise<void> {
     // The server counted from its answer, which took part of the request's
     // time to arrive: the whole request time is taken off, so the timer
-    // fires early rather than late.
-    const asked = Date.now();
+    // fires early rather than late. Measured on the monotonic clock, which a
+    // wall clock change does not move.
+    const asked = performance.now();
     const generation = ++generations;
-    const ms = (await requiredInMs()) - (Date.now() - asked);
+    const ms = (await requiredInMs()) - (performance.now() - asked);
     // A refusal, or a newer answer, came while this one was on its way.
     if (generation !== generations) return;
     stop();
