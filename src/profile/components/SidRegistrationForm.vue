@@ -61,7 +61,7 @@
       />
 
       <q-form
-        v-show="!ceremony"
+        v-show="!ceremony && !success"
         @submit.prevent="onSubmit"
         class="q-gutter-y-md"
       >
@@ -438,12 +438,13 @@ async function onSubmit() {
   }
 }
 
-/** The ceremony closed: a refusal gives the fields back, then the result is told. */
-function onSettled(outcome: Exclude<CeremonyOutcome, "running">) {
-  if (outcome === "refused") {
-    ceremony.value = null;
-    progress.value = null;
-  }
+/**
+ * The ceremony closed and gives way: a refusal to the fields with its
+ * reason, an acceptance to the success text. Then the result is told.
+ */
+function onSettled() {
+  ceremony.value = null;
+  progress.value = null;
   announce?.();
   announce = undefined;
 }

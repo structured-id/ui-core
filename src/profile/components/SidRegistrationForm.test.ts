@@ -150,7 +150,8 @@ describe("SidRegistrationForm", () => {
   });
 
   // While the registration runs the ceremony stands in for the fields; the
-  // account is announced only once its closing animation has played.
+  // account is announced only once its closing animation has played, and the
+  // form then settles on its success text, without the fields.
   it("shows the ceremony and announces success after it settles", async () => {
     let finish: () => void = () => {};
     registerFn.mockImplementationOnce(
@@ -177,6 +178,10 @@ describe("SidRegistrationForm", () => {
       "accepted",
     );
     expect(w.emitted("success")).toHaveLength(1);
+    await flushPromises();
+    expect(w.find(".ceremony").exists()).toBe(false);
+    expect(w.text()).toContain("Account created. Signing you in");
+    expect(w.find("form").isVisible()).toBe(false);
   });
 
   // A refusal names its reason in the ceremony, then gives the fields back
