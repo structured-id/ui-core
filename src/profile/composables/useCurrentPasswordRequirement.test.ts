@@ -7,6 +7,7 @@ import { Status } from "@structured-id/proto/google/rpc/status";
 import { ErrorInfo } from "@structured-id/proto/google/rpc/error_details";
 import {
   isCurrentPasswordRequired,
+  isWrongCurrentPassword,
   useCurrentPasswordRequirement,
 } from "./useCurrentPasswordRequirement";
 
@@ -98,5 +99,16 @@ describe("isCurrentPasswordRequired", () => {
       ),
     ).toBe(false);
     expect(isCurrentPasswordRequired(new Error("offline"))).toBe(false);
+  });
+});
+
+describe("isWrongCurrentPassword", () => {
+  // A change that proved a wrong current password is refused as a wrong
+  // sign-in; any other refusal is not that.
+  it("recognizes the refused sign-in", () => {
+    expect(isWrongCurrentPassword(refused("AUTHENTICATION_FAILED", {}))).toBe(
+      true,
+    );
+    expect(isWrongCurrentPassword(refused("PASSWORD_REUSED", {}))).toBe(false);
   });
 });

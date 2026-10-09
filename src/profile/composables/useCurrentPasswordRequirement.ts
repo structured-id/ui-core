@@ -18,6 +18,11 @@ export function isCurrentPasswordRequired(err: unknown): boolean {
   );
 }
 
+/** Whether `err` refused a change that proved a wrong current password. */
+export function isWrongCurrentPassword(err: unknown): boolean {
+  return rpcRefusal(err)?.reasonCode === ErrorReason.AUTHENTICATION_FAILED;
+}
+
 /**
  * The requirement of the signed-in session. `required` starts true: until
  * the server answers, asking for the current password is the safe side,
