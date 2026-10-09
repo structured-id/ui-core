@@ -574,15 +574,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@structured-id/proto@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@structured-id/proto@npm:0.1.0"
+"@structured-id/proto@npm:^0.1.1":
+  version: 0.1.1
+  resolution: "@structured-id/proto@npm:0.1.1"
   dependencies:
     "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/ids": "npm:^0.1.0"
-  checksum: 10c0/4a4193c3d1480c38136c2564f79d49e6666409ea7c98d5b67d955747990df715011183a2268869dff9da9fdc35c7359218b17e0905bbca5b3756e3ad62b5a5ce
+  checksum: 10c0/3e2c479d3571934bfc366550650f913d3d47af7f94302662a3dd21555171c430805791d668311b835764ec31dd88e7949e0773198b1e038224cb4cba7bc5d5ee
   languageName: node
   linkType: hard
 
@@ -593,7 +593,7 @@ __metadata:
     "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
-    "@structured-id/proto": "npm:^0.1.0"
+    "@structured-id/proto": "npm:^0.1.1"
     "@vitejs/plugin-vue": "npm:^6.0.9"
     "@vue/compiler-dom": "npm:^3.5.43"
     "@vue/devtools-api": "npm:^8.2.1"
