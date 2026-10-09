@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONFIRMED_CHANGE_STEPS,
   DEFAULT_STEP_MS,
+  INSTALL_STEPS,
   OperationPlan,
   type PasswordOperationProgress,
+  type PasswordOperationStep,
   type PlanEnvironment,
 } from "./operationPlan";
 
@@ -20,14 +23,17 @@ function environment(stored: string | null = null) {
   return env satisfies PlanEnvironment;
 }
 
-function planWith(stored: string | null = null) {
+function planWith(
+  stored: string | null = null,
+  steps: readonly PasswordOperationStep[] = INSTALL_STEPS,
+) {
   const env = environment(stored);
   const seen: PasswordOperationProgress[] = [];
-  const plan = new OperationPlan((p) => seen.push(p), env);
+  const plan = new OperationPlan((p) => seen.push(p), steps, env);
   return { env, seen, plan };
 }
 
-const total = Object.values(DEFAULT_STEP_MS).reduce((a, b) => a + b, 0);
+const total = INSTALL_STEPS.reduce((a, s) => a + DEFAULT_STEP_MS[s], 0);
 
 describe("OperationPlan", () => {
   // Each step takes the gauge share its expected time takes of the whole,
@@ -92,6 +98,30 @@ describe("OperationPlan", () => {
     const next = planWith(env.stored);
     next.plan.enter("prove");
     expect(next.seen[0].remainingMs).toBeCloseTo(learned.prove, 6);
+  });
+
+  // A change that confirms the current password gives that step its share
+  // first; an operation without it never reports it and keeps its gauge.
+  it("adds the confirmation only to the plan that has it", () => {
+    const withConfirm = planWith(null, CONFIRMED_CHANGE_STEPS);
+    withConfirm.plan.enter("confirm");
+    withConfirm.plan.enter("protect");
+    const all = total + DEFAULT_STEP_MS.confirm;
+    expect(withConfirm.seen[0]).toMatchObject({ step: "confirm", fraction: 0 });
+    expect(withConfirm.seen[0].until).toBeCloseTo(
+      DEFAULT_STEP_MS.confirm / all,
+      10,
+    );
+    expect(withConfirm.seen[1].fraction).toBeCloseTo(
+      DEFAULT_STEP_MS.confirm / all,
+      10,
+    );
+
+    const without = planWith();
+    without.plan.enter("confirm");
+    without.plan.enter("protect");
+    expect(without.seen).toHaveLength(1);
+    expect(without.seen[0]).toMatchObject({ step: "protect", fraction: 0 });
   });
 
   // A refused operation teaches nothing; an unreadable record is ignored.

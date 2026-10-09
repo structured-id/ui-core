@@ -46,7 +46,22 @@ export interface RegisterResult {
   credentialId: string;
 }
 
-import { OperationPlan, type PasswordOperationProgress } from "./operationPlan";
+import {
+  CONFIRMED_CHANGE_STEPS,
+  INSTALL_STEPS,
+  OperationPlan,
+  type PasswordOperationProgress,
+} from "./operationPlan";
+
+/** A password change of the signed-in user. */
+export interface PasswordChange {
+  /** The password credential to change. */
+  credentialId: string;
+  newPassword: string;
+  /** The current password, proved inside the change; required while the
+   * server requires it, accepted whenever given. */
+  currentPassword?: string;
+}
 
 export {
   DEFAULT_STEP_MS,
@@ -318,17 +333,47 @@ export function createAuth(loadClient: ZkppClientLoader) {
   }
 
   /**
-   * Replace the signed-in user's password `credentialId` with `newPassword`:
-   * the challenge names the operation, the execute step answers the OPAQUE
-   * request, the finish carries the record with the proof.
+   * Replace the signed-in user's password with `change.newPassword`: the
+   * challenge names the operation, the execute step answers the OPAQUE
+   * request, the finish carries the record with the proof. With
+   * `change.currentPassword` the change signs in with it inside the same
+   * steps (KE1 in the challenge, KE3 in execute), which the server requires
+   * unless its policy says the session's authentication is recent enough
+   * ({@link useCurrentPasswordRequirement}); a wrong current password is
+   * refused before anything new is proved.
    */
   async function changePassword(
-    credentialId: string,
-    newPassword: string,
+    change: PasswordChange,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<void> {
-    const plan = new OperationPlan(onProgress);
-    const challenge = await passwordChangeChallenge(credentialId);
+    const { credentialId, newPassword, currentPassword } = change;
+    const proves = !!currentPassword;
+    const plan = new OperationPlan(
+      onProgress,
+      proves ? CONFIRMED_CHANGE_STEPS : INSTALL_STEPS,
+    );
+    let challenge: Awaited<ReturnType<typeof passwordChangeChallenge>>;
+    let credentialFinalization: Uint8Array = new Uint8Array();
+    if (currentPassword) {
+      const c = await zkpp();
+      plan.enter("confirm");
+      const login = await c.loginStart(currentPassword);
+      challenge = await passwordChangeChallenge(credentialId, login.request);
+      try {
+        credentialFinalization = await c.loginFinish(
+          currentPassword,
+          login.state,
+          challenge.credentialResponse,
+        );
+      } catch {
+        // A wrong current password fails here, on the client. The server
+        // still gets a finalization, one that cannot verify, so it refuses
+        // the change as a wrong sign-in and counts it toward the lockout.
+        credentialFinalization = new Uint8Array(64);
+      }
+    } else {
+      challenge = await passwordChangeChallenge(credentialId);
+    }
     const context = historyContext(challenge.history);
     const done = await install(
       newPassword,
@@ -339,6 +384,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
             context.operationId,
             credentialId,
             request,
+            credentialFinalization,
           )
         ).registrationResponse,
       }),

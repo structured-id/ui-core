@@ -343,21 +343,30 @@ describe("createAuth register", () => {
 });
 
 describe("createAuth changePassword", () => {
+  const KE2 = new Uint8Array([4, 4]);
   beforeEach(() => {
-    api.challenge.mockResolvedValue({ history: wireContext() });
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: new Uint8Array(),
+    });
     api.execute.mockResolvedValue({ registrationResponse: RESPONSE });
     api.changeFinish.mockResolvedValue({});
   });
 
   it("challenges, executes the OPAQUE start, proves and finishes", async () => {
     const { changePassword } = createAuth(loader);
-    await changePassword("cred-1", "N3wP@ssword!");
+    await changePassword({
+      credentialId: "cred-1",
+      newPassword: "N3wP@ssword!",
+    });
 
     expect(api.challenge).toHaveBeenCalledWith("cred-1");
+    expect(client.loginStart).not.toHaveBeenCalled();
     expect(api.execute).toHaveBeenCalledWith(
       OPERATION,
       "cred-1",
       START.request,
+      new Uint8Array(),
     );
     expect(api.evaluate).toHaveBeenCalledWith(OPERATION, HISTORY.blinded);
     expect(client.prove).toHaveBeenCalledWith(
@@ -371,12 +380,75 @@ describe("createAuth changePassword", () => {
     });
   });
 
-  it("stops before any OPAQUE start when the challenge prepared no operation", async () => {
-    api.challenge.mockResolvedValue({ history: undefined });
+  // The current password is proved with a sign-in carried by the change's
+  // own steps: KE1 in the challenge, KE3 in execute, before any proof work.
+  it("proves the current password inside the change", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const seen: PasswordOperationProgress[] = [];
     const { changePassword } = createAuth(loader);
-    await expect(changePassword("cred-1", "pw")).rejects.toThrow(
-      /did not prepare/,
+    await changePassword(
+      {
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      },
+      (p) => seen.push(p),
     );
+
+    expect(client.loginStart).toHaveBeenCalledWith("0ldP@ssword!");
+    expect(api.challenge).toHaveBeenCalledWith(
+      "cred-1",
+      new Uint8Array([1, 2, 3]),
+    );
+    expect(client.loginFinish).toHaveBeenCalledWith(
+      "0ldP@ssword!",
+      "login-state",
+      KE2,
+    );
+    expect(api.execute).toHaveBeenCalledWith(
+      OPERATION,
+      "cred-1",
+      START.request,
+      new Uint8Array([7, 8, 9]),
+    );
+    expect(seen[0]).toMatchObject({ step: "confirm", fraction: 0 });
+  });
+
+  // A wrong current password fails in the client's sign-in; the server still
+  // gets a finalization that cannot verify, so it refuses the change as a
+  // wrong sign-in and counts it, rather than never hearing of the attempt.
+  it("lets the server refuse a wrong current password", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    vi.mocked(client.loginFinish).mockRejectedValue(new Error("envelope"));
+    api.execute.mockRejectedValue(new Error("AUTHENTICATION_FAILED"));
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "wrong",
+      }),
+    ).rejects.toThrow("AUTHENTICATION_FAILED");
+    const sent = api.execute.mock.calls[0][3];
+    expect(sent).toHaveLength(64);
+    expect(client.prove).not.toHaveBeenCalled();
+  });
+
+  it("stops before any OPAQUE start when the challenge prepared no operation", async () => {
+    api.challenge.mockResolvedValue({
+      history: undefined,
+      credentialResponse: new Uint8Array(),
+    });
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({ credentialId: "cred-1", newPassword: "pw" }),
+    ).rejects.toThrow(/did not prepare/);
     expect(client.registrationStart).not.toHaveBeenCalled();
     expect(api.execute).not.toHaveBeenCalled();
   });
@@ -384,9 +456,9 @@ describe("createAuth changePassword", () => {
   it("propagates a refused history (password reused) from the finish", async () => {
     api.changeFinish.mockRejectedValue(new Error("PASSWORD_REUSED"));
     const { changePassword } = createAuth(loader);
-    await expect(changePassword("cred-1", "pw")).rejects.toThrow(
-      "PASSWORD_REUSED",
-    );
+    await expect(
+      changePassword({ credentialId: "cred-1", newPassword: "pw" }),
+    ).rejects.toThrow("PASSWORD_REUSED");
   });
 });
 

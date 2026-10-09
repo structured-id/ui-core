@@ -22,6 +22,8 @@ export interface RpcRefusal {
   reason: string | null;
   /** SID's reason as the generated enum; null for another domain or a reason this client does not know. */
   reasonCode: ErrorReason | null;
+  /** The reason's context from `ErrorInfo.metadata` (`continuation`, …); empty without one. */
+  metadata: Record<string, string>;
   /** The status message, written for developers; gRPC percent-encodes it on the wire. */
   message: string;
   /** The server's text for people (`LocalizedMessage`), when it sent one. */
@@ -45,6 +47,7 @@ export function rpcRefusal(err: unknown): RpcRefusal | null {
     domain: null,
     reason: null,
     reasonCode: null,
+    metadata: {},
     message: decodeStatusMessage(err.message),
     localized: null,
   };
@@ -53,6 +56,7 @@ export function rpcRefusal(err: unknown): RpcRefusal | null {
       const info = Any.unpack(detail, ErrorInfo);
       refusal.domain = info.domain;
       refusal.reason = info.reason;
+      refusal.metadata = info.metadata;
       refusal.reasonCode =
         info.domain === SID_ERROR_DOMAIN ? sidReason(info.reason) : null;
     } else if (Any.contains(detail, LocalizedMessage)) {

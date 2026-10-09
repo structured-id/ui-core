@@ -632,32 +632,58 @@ export async function evaluatePasswordHistory(
   return response.evaluations;
 }
 
-/** Prepare a change of the signed-in user's own password `credentialId`. */
+/**
+ * Prepare a change of the signed-in user's own password `credentialId`;
+ * `credentialRequest` (KE1) begins the sign-in that proves the current
+ * password, empty when the change does not prove it.
+ */
 export async function passwordChangeChallenge(
   credentialId: string,
+  credentialRequest: Uint8Array = new Uint8Array(),
 ): Promise<PasswordChangeChallengeResponse> {
   const { response } = await account().passwordChangeChallenge(
-    { credentialId },
+    { credentialId, credentialRequest },
     { meta: authMeta() },
   );
   return response;
 }
 
-/** The OPAQUE start of the new password under the change's operation. */
+/**
+ * The OPAQUE start of the new password under the change's operation, with
+ * the KE3 of the current-password sign-in the challenge began (empty when
+ * it began none).
+ */
 export async function passwordChangeExecute(
   operationId: Uint8Array,
   credentialId: string,
   registrationRequest: Uint8Array,
+  credentialFinalization: Uint8Array = new Uint8Array(),
 ): Promise<PasswordChangeExecuteResponse> {
   const { response } = await account().passwordChangeExecute(
     {
       operationId: operation(operationId),
       credentialId,
       registrationRequest,
+      credentialFinalization,
     },
     { meta: authMeta() },
   );
   return response;
+}
+
+/**
+ * How long, in milliseconds from the server's answer, the signed-in session
+ * may still change its password without the current password; 0 when it
+ * needs it now.
+ */
+export async function passwordChangeRequirementMs(): Promise<number> {
+  const { response } = await account().getPasswordChangeRequirement(
+    {},
+    { meta: authMeta() },
+  );
+  const left = response.currentPasswordRequiredIn;
+  if (!left) return 0;
+  return Number(left.seconds) * 1000 + Math.floor(left.nanos / 1_000_000);
 }
 
 /** Finish the change with the new password's record and, when proved, the proof. */

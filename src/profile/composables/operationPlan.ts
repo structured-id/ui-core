@@ -9,12 +9,13 @@
  */
 
 /**
- * What a password operation is doing, as the user can follow it: deriving its
- * request on this device, comparing with previous passwords (the only step
- * that reaches the network before the end), proving, and finishing (the
- * client's record and the server's check).
+ * What a password operation is doing, as the user can follow it: confirming
+ * the current password (a change that proves it), deriving its request on
+ * this device, comparing with previous passwords, proving, and finishing
+ * (the client's record and the server's check).
  */
-export type PasswordOperationStep = "protect" | "compare" | "prove" | "verify";
+export type PasswordOperationStep =
+  "confirm" | "protect" | "compare" | "prove" | "verify";
 
 /** Progress of a password operation, for a gauge that tracks time left. */
 export interface PasswordOperationProgress {
@@ -30,24 +31,35 @@ export interface PasswordOperationProgress {
 }
 
 export const STEP_LABEL: Record<PasswordOperationStep, string> = {
+  confirm: "Confirming your current password",
   protect: "Protecting your password on this device",
   compare: "Checking it against your previous passwords",
   prove: "Building the proof",
   verify: "Sealing it and checking with the server",
 };
 
-const STEPS: PasswordOperationStep[] = [
+/** The steps of installing a password: registration, reset, a change. */
+export const INSTALL_STEPS: readonly PasswordOperationStep[] = [
   "protect",
   "compare",
   "prove",
   "verify",
 ];
 
+/** A change that proves the current password first. */
+export const CONFIRMED_CHANGE_STEPS: readonly PasswordOperationStep[] = [
+  "confirm",
+  ...INSTALL_STEPS,
+];
+
+const ALL_STEPS = CONFIRMED_CHANGE_STEPS;
+
 /**
  * Step times (ms) before anything was measured here: a mid-range phone
  * (measured on a 2025 one) with the prover's key already prepared.
  */
 export const DEFAULT_STEP_MS: Record<PasswordOperationStep, number> = {
+  confirm: 400,
   protect: 150,
   compare: 150,
   prove: 4000,
@@ -91,7 +103,7 @@ function expected(env: PlanEnvironment): Record<PasswordOperationStep, number> {
   const out = { ...DEFAULT_STEP_MS };
   try {
     const stored = JSON.parse(env.load() ?? "{}") as Record<string, unknown>;
-    for (const step of STEPS) {
+    for (const step of ALL_STEPS) {
       const ms = stored[step];
       if (typeof ms === "number" && Number.isFinite(ms) && ms > 0)
         out[step] = ms;
@@ -102,11 +114,14 @@ function expected(env: PlanEnvironment): Record<PasswordOperationStep, number> {
   return out;
 }
 
-/** One operation's plan: its reports, and what it measured when it ends. */
+/**
+ * One operation's plan over its `steps`: its reports, and what it measured
+ * when it ends.
+ */
 export class OperationPlan {
   private readonly ms: Record<PasswordOperationStep, number>;
-  private readonly start: Record<PasswordOperationStep, number>;
-  private readonly width: Record<PasswordOperationStep, number>;
+  private readonly start: Partial<Record<PasswordOperationStep, number>> = {};
+  private readonly width: Partial<Record<PasswordOperationStep, number>> = {};
   private readonly measured: Partial<Record<PasswordOperationStep, number>> =
     {};
   private current: PasswordOperationStep | undefined;
@@ -115,14 +130,13 @@ export class OperationPlan {
 
   constructor(
     private readonly report?: (p: PasswordOperationProgress) => void,
+    steps: readonly PasswordOperationStep[] = INSTALL_STEPS,
     private readonly env: PlanEnvironment = browser,
   ) {
     this.ms = expected(env);
-    const total = STEPS.reduce((sum, s) => sum + this.ms[s], 0);
+    const total = steps.reduce((sum, s) => sum + this.ms[s], 0);
     let at = 0;
-    this.start = {} as Record<PasswordOperationStep, number>;
-    this.width = {} as Record<PasswordOperationStep, number>;
-    for (const step of STEPS) {
+    for (const step of steps) {
       this.start[step] = at;
       this.width[step] = this.ms[step] / total;
       at += this.width[step];
@@ -147,7 +161,7 @@ export class OperationPlan {
   finish(): void {
     this.close(this.env.now());
     const next = { ...this.ms };
-    for (const step of STEPS) {
+    for (const step of ALL_STEPS) {
       const took = this.measured[step];
       if (took !== undefined)
         next[step] = next[step] * (1 - ALPHA) + took * ALPHA;
@@ -160,17 +174,19 @@ export class OperationPlan {
   }
 
   private emit(step: PasswordOperationStep, within: number): void {
+    const start = this.start[step];
+    const width = this.width[step];
+    // A step outside this plan is a caller's mistake: it reports nothing
+    // rather than a position the gauge does not have.
+    if (start === undefined || width === undefined) return;
     const done = Math.min(1, Math.max(0, within));
-    const fraction = Math.max(
-      this.last,
-      this.start[step] + this.width[step] * done,
-    );
+    const fraction = Math.max(this.last, start + width * done);
     this.last = fraction;
     this.report?.({
       step,
       fraction,
       label: STEP_LABEL[step],
-      until: this.start[step] + this.width[step],
+      until: start + width,
       remainingMs: this.ms[step] * (1 - done),
     });
   }
