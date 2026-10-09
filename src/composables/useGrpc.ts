@@ -2,8 +2,10 @@ import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import { ref, type Ref } from "vue";
 import type { GrpcConfig } from "../types/auth";
-import { AdaptiveRpcTransport } from "../transport/adaptive";
-import type { TransportType } from "../transport/adaptive";
+import {
+  AdaptiveRpcTransport,
+  type TransportType,
+} from "@structured-id/proto/transport";
 
 /** Shared RPC transport instance (gRPC-web or AdaptiveRpcTransport). */
 let _transport: RpcTransport | null = null;

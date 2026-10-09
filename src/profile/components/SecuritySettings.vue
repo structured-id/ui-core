@@ -96,7 +96,11 @@
 </template>
 
 <script setup lang="ts">
-import { type Credential, CredentialType, Timestamp } from "../../index";
+import {
+  type Credential,
+  CredentialType,
+} from "@structured-id/proto/sid/v1/identity/identity";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import type { FactorCategory } from "../composables/useSecurityLevel";
 
 defineProps<{

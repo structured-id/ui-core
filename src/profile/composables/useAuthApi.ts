@@ -12,10 +12,9 @@
  * ceremonies over them (client-side crypto, proofs) live in useAuth.ts,
  * behind the injected ZkppClientApi: no dependency on the client package.
  */
+import { getTransport, getAccountTransport } from "../../index";
+import { AuthServiceClient } from "@structured-id/proto/sid/v1/authn/auth.client";
 import {
-  getTransport,
-  getAccountTransport,
-  AuthServiceClient,
   StepUpMethod,
   type OpaqueLoginStartResponse,
   type OpaqueLoginFinishResponse,
@@ -59,11 +58,13 @@ import {
   type PasswordChangeChallengeResponse,
   type PasswordChangeExecuteResponse,
   type PasswordChangeFinishResponse,
-  type PasswordHistoryContext,
-  type PasswordHistoryEvaluation,
-  type PasswordRegistrationProof,
-  PasswordHistoryEvaluatorServiceClient,
-} from "../../index";
+} from "@structured-id/proto/sid/v1/authn/auth";
+import type {
+  PasswordHistoryContext,
+  PasswordHistoryEvaluation,
+  PasswordRegistrationProof,
+} from "@structured-id/proto/sid/v1/authn/password_history";
+import { PasswordHistoryEvaluatorServiceClient } from "@structured-id/proto/sid/v1/authn/password_history.client";
 import { authMeta } from "../auth";
 
 /** The history evaluator: in CE served beside the credential service. */

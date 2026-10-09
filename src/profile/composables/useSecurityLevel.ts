@@ -11,7 +11,7 @@ import {
   CredentialType,
   AuthenticatorAttachment,
   PrincipalType,
-} from "../../index";
+} from "@structured-id/proto/sid/v1/identity/identity";
 
 // ── Security Level ──
 

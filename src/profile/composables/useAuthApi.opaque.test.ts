@@ -14,6 +14,10 @@ const mockOpaqueRegistrationFinish = vi.fn();
 
 vi.mock("../../index", () => ({
   getTransport: vi.fn(),
+  getAccountTransport: vi.fn(),
+}));
+
+vi.mock("@structured-id/proto/sid/v1/authn/auth.client", () => ({
   // Called with `new`: a constructor mock must be a `function`, not an arrow.
   AuthServiceClient: vi.fn().mockImplementation(function () {
     return {

@@ -52,13 +52,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag }}
-          submodules: recursive
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: "24"
           # NO registry-url: it writes an .npmrc whose NODE_AUTH_TOKEN
           # placeholder overrides OIDC trusted publishing.
 
@@ -70,9 +69,6 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --immutable
-
-      - name: Generate proto clients
-        run: yarn generate
 
       # The package ships its TypeScript and Vue sources; the consuming
       # application's bundler compiles them.

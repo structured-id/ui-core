@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { RpcError } from "@protobuf-ts/runtime-rpc";
 import { base64encode } from "@protobuf-ts/runtime";
-import { Any } from "../generated/google/protobuf/any";
-import { Status } from "../generated/google/rpc/status";
+import { Any } from "@structured-id/proto/google/protobuf/any";
+import { Status } from "@structured-id/proto/google/rpc/status";
 import {
   ErrorInfo,
   LocalizedMessage,
-} from "../generated/google/rpc/error_details";
-import { ErrorReason } from "../generated/sid/v1/common/errors";
+} from "@structured-id/proto/google/rpc/error_details";
+import { ErrorReason } from "@structured-id/proto/sid/v1/common/errors";
 import {
   REFUSAL_TEXTS,
   refusalMessage,

@@ -66,7 +66,11 @@
 </template>
 
 <script setup lang="ts">
-import { type ConsentInfo, ConsentStatus, Timestamp } from "../../index";
+import {
+  type ConsentInfo,
+  ConsentStatus,
+} from "@structured-id/proto/sid/v1/account/account";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 
 defineProps<{
   consents: ConsentInfo[];
