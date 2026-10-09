@@ -11,7 +11,7 @@
  * on Pallas.
  *
  * The client-side crypto is injected as {@link ZkppClientApi} (implemented by
- * `@structured-id/opaque-zkpp`), keeping the WASM dependency at the app layer.
+ * `@structured-id/opaque`), keeping kernel delivery at the app layer.
  * gRPC calls go through useAuthApi wrappers.
  */
 import {
@@ -93,7 +93,8 @@ export interface ZkppClientApi {
   /** True once the client answers no more calls (a worker it runs on stopped). */
   readonly stopped: boolean;
   registrationStart(password: string): Promise<ZkppRegistrationStart>;
-  /** `null` for a password the circuit cannot hold: it installs unproven. */
+  /** `null` when the circuit cannot hold the password; the server alone
+   * decides whether proof-free setup is permitted. This never means verified. */
   historyRequest(
     password: string,
     ownerDomain: Uint8Array,
@@ -124,8 +125,9 @@ export interface ZkppClientApi {
 }
 
 /**
- * Loads the client on first use. Rejects where no client can run (no
- * threaded WebAssembly: `ZkppUnavailableError` of the package).
+ * Loads the client on first use: public TypeScript or an application-supplied
+ * kernel. Automatic selection may use TS after a pre-operation WASM load failure.
+ * Errors after an operation starts propagate without moving its state to another kernel.
  */
 export type ZkppClientLoader = () => Promise<ZkppClientApi>;
 
