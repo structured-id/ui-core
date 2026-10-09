@@ -212,6 +212,47 @@ describe("SidRegistrationForm", () => {
     expect(w.emitted("error")).toHaveLength(1);
   });
 
+  // An application that draws its own progress keeps the `progress` slot:
+  // it replaces the ceremony and receives the progress while the operation
+  // runs; with no closing animation to wait for, the form announces the
+  // result as soon as the operation ends.
+  it("lets a progress slot stand in for the ceremony", async () => {
+    let report: (p: { fraction: number; label: string }) => void = () => {};
+    let finish: () => void = () => {};
+    registerFn.mockImplementationOnce(
+      (_id, _pw, _extras, onProgress) =>
+        new Promise<void>((resolve) => {
+          report = onProgress;
+          finish = resolve;
+        }),
+    );
+    const w = mount(SidRegistrationForm, {
+      props: { registerFn },
+      global: { stubs: quasarStubs },
+      slots: {
+        progress: `<template #progress="{ progress }">
+          <div class="own-gauge">{{ progress?.label }}</div>
+        </template>`,
+      },
+    });
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+
+    report({ fraction: 0.4, label: "Building the proof" });
+    await flushPromises();
+    expect(w.find(".ceremony").exists()).toBe(false);
+    expect(w.find(".own-gauge").text()).toBe("Building the proof");
+
+    finish();
+    await flushPromises();
+    expect(w.emitted("success")).toHaveLength(1);
+    expect(w.find(".own-gauge").exists()).toBe(false);
+    expect(w.text()).toContain("Account created. Signing you in");
+  });
+
   it("renders footer slot", () => {
     const w = mount(SidRegistrationForm, {
       props: { registerFn },

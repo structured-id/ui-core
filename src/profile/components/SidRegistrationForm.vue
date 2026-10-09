@@ -48,17 +48,21 @@
         {{ successText }}
       </q-banner>
 
-      <!-- While the operation runs the ceremony takes the fields' place. -->
-      <sid-password-ceremony
-        v-if="ceremony"
-        :progress="progress"
-        :outcome="ceremony"
-        :fields="showConfirmPassword ? 2 : 1"
-        :length="password.length"
-        :accepted-text="acceptedText"
-        :refused-text="error ?? undefined"
-        @settled="onSettled"
-      />
+      <!-- While the operation runs the ceremony takes the fields' place;
+           an application's own `progress` slot replaces the ceremony. -->
+      <template v-if="ceremony">
+        <slot name="progress" :progress="progress">
+          <sid-password-ceremony
+            :progress="progress"
+            :outcome="ceremony"
+            :fields="showConfirmPassword ? 2 : 1"
+            :length="password.length"
+            :accepted-text="acceptedText"
+            :refused-text="error ?? undefined"
+            @settled="onSettled"
+          />
+        </slot>
+      </template>
 
       <q-form
         v-show="!ceremony && !success"
@@ -209,7 +213,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, useSlots } from "vue";
 import { SidPasswordCeremony, SidPrincipalInput } from "../../quasar";
 import type { CeremonyOutcome } from "../../quasar";
 import type { PasswordOperationProgress } from "../composables/useAuth";
@@ -346,6 +350,16 @@ const emit = defineEmits<{
   error: [error: Error];
 }>();
 
+defineSlots<{
+  header?: () => unknown;
+  /** Replaces the ceremony while the operation runs; the form closes when it ends. */
+  progress?: (props: { progress: PasswordOperationProgress | null }) => unknown;
+  "extra-fields"?: () => unknown;
+  links?: () => unknown;
+  footer?: () => unknown;
+}>();
+const slots = useSlots();
+
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");
 const password = ref("");
@@ -436,6 +450,8 @@ async function onSubmit() {
   } finally {
     loading.value = false;
   }
+  // A `progress` slot has no closing animation to wait for.
+  if (slots.progress) onSettled();
 }
 
 /**
