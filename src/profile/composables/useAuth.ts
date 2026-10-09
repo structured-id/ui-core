@@ -46,11 +46,14 @@ export interface RegisterResult {
   credentialId: string;
 }
 
-/** Progress of a password operation, for a determinate gauge (0..1). */
-export interface PasswordOperationProgress {
-  fraction: number;
-  label: string;
-}
+import { OperationPlan, type PasswordOperationProgress } from "./operationPlan";
+
+export {
+  DEFAULT_STEP_MS,
+  OperationPlan,
+  type PasswordOperationProgress,
+  type PasswordOperationStep,
+} from "./operationPlan";
 
 /** The operation's history context as the ZKPP client takes it. */
 export interface ZkppHistoryContext {
@@ -235,15 +238,16 @@ export function createAuth(loadClient: ZkppClientLoader) {
   async function install(
     password: string,
     exchange: (request: Uint8Array) => Promise<Exchange>,
-    onProgress?: (p: PasswordOperationProgress) => void,
+    plan: OperationPlan,
   ): Promise<Installed> {
     const c = await zkpp();
-    onProgress?.({ fraction: 0, label: "Preparing" });
+    plan.enter("protect");
     const start = await c.registrationStart(password);
     const { context: wire, registrationResponse } = await exchange(
       start.request,
     );
     const context = historyContext(wire);
+    plan.enter("compare");
     const request = await c.historyRequest(password, context.ownerDomain);
     const history = request
       ? {
@@ -253,17 +257,20 @@ export function createAuth(loadClient: ZkppClientLoader) {
           ),
         }
       : null;
+    plan.enter("prove");
     const proof = await c.prove(password, start, {
       context,
       history,
-      onProgress,
+      // The prover's own time-based 0..1 fills the proof's share.
+      onProgress: (p) => plan.within(p.fraction),
     });
+    // The record (the client's stretching) and the server's check.
+    plan.enter("verify");
     const record = await c.registrationFinish(
       password,
       start.state,
       registrationResponse,
     );
-    onProgress?.({ fraction: 1, label: "Done" });
     return {
       operationId: context.operationId,
       record,
@@ -282,6 +289,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     claimToken?: string,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<RegisterResult> {
+    const plan = new OperationPlan(onProgress);
     const done = await install(
       password,
       async (request) => {
@@ -295,13 +303,14 @@ export function createAuth(loadClient: ZkppClientLoader) {
           registrationResponse: started.registrationResponse,
         };
       },
-      onProgress,
+      plan,
     );
     const finished = await opaqueZkppRegistrationFinish(
       done.operationId,
       done.record,
       done.proof,
     );
+    plan.finish();
     return {
       profileId: finished.profileId,
       credentialId: finished.credentialId,
@@ -318,6 +327,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     newPassword: string,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<void> {
+    const plan = new OperationPlan(onProgress);
     const challenge = await passwordChangeChallenge(credentialId);
     const context = historyContext(challenge.history);
     const done = await install(
@@ -332,7 +342,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
           )
         ).registrationResponse,
       }),
-      onProgress,
+      plan,
     );
     await passwordChangeFinish(
       done.operationId,
@@ -340,6 +350,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
       done.record,
       done.proof,
     );
+    plan.finish();
   }
 
   /**
@@ -352,6 +363,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     newPassword: string,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<CompletePasswordResetResponse> {
+    const plan = new OperationPlan(onProgress);
     const prepared = historyContext(context);
     const done = await install(
       newPassword,
@@ -361,14 +373,16 @@ export function createAuth(loadClient: ZkppClientLoader) {
           await executePasswordReset(prepared.operationId, request)
         ).registrationResponse,
       }),
-      onProgress,
+      plan,
     );
-    return completePasswordReset(
+    const completed = await completePasswordReset(
       resetSessionId,
       done.operationId,
       done.record,
       done.proof,
     );
+    plan.finish();
+    return completed;
   }
 
   /**

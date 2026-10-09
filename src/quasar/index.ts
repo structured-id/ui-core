@@ -6,3 +6,5 @@
  */
 export { default as SidPrincipalInput } from "./SidPrincipalInput.vue";
 export type { PrincipalType } from "./SidPrincipalInput.vue";
+export { default as SidPasswordCeremony } from "./SidPasswordCeremony.vue";
+export type { CeremonyOutcome } from "./SidPasswordCeremony.vue";

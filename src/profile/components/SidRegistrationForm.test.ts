@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import SidRegistrationForm from "./SidRegistrationForm.vue";
 
 const quasarStubs = {
@@ -22,6 +22,13 @@ const quasarStubs = {
       '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
   "q-btn": { template: '<button type="submit"><slot /></button>' },
+  "sid-password-ceremony": {
+    name: "SidPasswordCeremony",
+    props: ["outcome", "refusedText", "length"],
+    emits: ["settled"],
+    template:
+      '<div class="ceremony" :data-outcome="outcome" :data-refused="refusedText" :data-length="length" />',
+  },
   "sid-principal-input": {
     props: ["modelValue", "disable", "label"],
     emits: ["update:modelValue", "update:principal-type"],
@@ -123,6 +130,64 @@ describe("SidRegistrationForm", () => {
       { inviteCode: "ABCD1234" },
       expect.any(Function),
     );
+  });
+
+  // While the registration runs the ceremony stands in for the fields; the
+  // account is announced only once its closing animation has played.
+  it("shows the ceremony and announces success after it settles", async () => {
+    let finish: () => void = () => {};
+    registerFn.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    const w = mountForm();
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+
+    const ceremony = w.find(".ceremony");
+    expect(ceremony.attributes("data-outcome")).toBe("running");
+    expect(ceremony.attributes("data-length")).toBe("15");
+    expect(w.find("form").isVisible()).toBe(false);
+
+    finish();
+    await flushPromises();
+    expect(w.find(".ceremony").attributes("data-outcome")).toBe("accepted");
+    expect(w.emitted("success")).toBeUndefined();
+    w.findComponent({ name: "SidPasswordCeremony" }).vm.$emit(
+      "settled",
+      "accepted",
+    );
+    expect(w.emitted("success")).toHaveLength(1);
+  });
+
+  // A refusal names its reason in the ceremony, then gives the fields back
+  // with the reason above them.
+  it("gives the fields back with the reason after a refusal", async () => {
+    registerFn.mockRejectedValueOnce(new Error("This identifier is taken"));
+    const w = mountForm();
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+
+    const ceremony = w.find(".ceremony");
+    expect(ceremony.attributes("data-outcome")).toBe("refused");
+    expect(ceremony.attributes("data-refused")).toBe(
+      "This identifier is taken",
+    );
+    w.findComponent({ name: "SidPasswordCeremony" }).vm.$emit(
+      "settled",
+      "refused",
+    );
+    await flushPromises();
+    expect(w.find(".ceremony").exists()).toBe(false);
+    expect(w.find("form").isVisible()).toBe(true);
+    expect(w.text()).toContain("This identifier is taken");
+    expect(w.emitted("error")).toHaveLength(1);
   });
 
   it("renders footer slot", () => {

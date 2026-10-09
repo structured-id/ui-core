@@ -1,0 +1,177 @@
+/**
+ * The time plan of a password operation, so a display shows how much is
+ * left: each step takes the share of the gauge its expected duration takes
+ * of the whole, the expected durations are what the steps took before on
+ * this device (a moving average kept in the browser), and each report says
+ * where the current step ends and how long it is expected to last from now.
+ * A display then moves at the expected pace between reports instead of
+ * jumping at each one.
+ */
+
+/**
+ * What a password operation is doing, as the user can follow it: deriving its
+ * request on this device, comparing with previous passwords (the only step
+ * that reaches the network before the end), proving, and finishing (the
+ * client's record and the server's check).
+ */
+export type PasswordOperationStep = "protect" | "compare" | "prove" | "verify";
+
+/** Progress of a password operation, for a gauge that tracks time left. */
+export interface PasswordOperationProgress {
+  /** The step the operation is in. */
+  step?: PasswordOperationStep;
+  /** Where the operation is now, 0..1, never moving backwards. */
+  fraction: number;
+  label: string;
+  /** Where the current step ends on the gauge, 0..1. */
+  until?: number;
+  /** How long the rest of the current step is expected to take, ms. */
+  remainingMs?: number;
+}
+
+export const STEP_LABEL: Record<PasswordOperationStep, string> = {
+  protect: "Protecting your password on this device",
+  compare: "Checking it against your previous passwords",
+  prove: "Building the proof",
+  verify: "Sealing it and checking with the server",
+};
+
+const STEPS: PasswordOperationStep[] = [
+  "protect",
+  "compare",
+  "prove",
+  "verify",
+];
+
+/**
+ * Step times (ms) before anything was measured here: a mid-range phone
+ * (measured on a 2025 one) with the prover's key already prepared.
+ */
+export const DEFAULT_STEP_MS: Record<PasswordOperationStep, number> = {
+  protect: 150,
+  compare: 150,
+  prove: 4000,
+  verify: 2400,
+};
+
+/** Where the measured times live in the browser. */
+const STORE_KEY = "sid:password-operation-ms";
+/** Weight of the newest measurement in the moving average. */
+const ALPHA = 0.4;
+
+/** Clock and storage, replaceable in tests. */
+export interface PlanEnvironment {
+  now: () => number;
+  load: () => string | null;
+  save: (value: string) => void;
+}
+
+const browser: PlanEnvironment = {
+  now: () => performance.now(),
+  // Storage can be missing or refuse (private mode): the defaults then apply
+  // and nothing is kept, which only costs accuracy.
+  load: () => {
+    try {
+      return globalThis.localStorage?.getItem(STORE_KEY) ?? null;
+    } catch {
+      return null;
+    }
+  },
+  save: (value) => {
+    try {
+      globalThis.localStorage?.setItem(STORE_KEY, value);
+    } catch {
+      // Not kept; the next operation starts from the defaults again.
+    }
+  },
+};
+
+/** The expected step times: measured ones where valid, the defaults otherwise. */
+function expected(env: PlanEnvironment): Record<PasswordOperationStep, number> {
+  const out = { ...DEFAULT_STEP_MS };
+  try {
+    const stored = JSON.parse(env.load() ?? "{}") as Record<string, unknown>;
+    for (const step of STEPS) {
+      const ms = stored[step];
+      if (typeof ms === "number" && Number.isFinite(ms) && ms > 0)
+        out[step] = ms;
+    }
+  } catch {
+    // A malformed record is ignored: defaults apply.
+  }
+  return out;
+}
+
+/** One operation's plan: its reports, and what it measured when it ends. */
+export class OperationPlan {
+  private readonly ms: Record<PasswordOperationStep, number>;
+  private readonly start: Record<PasswordOperationStep, number>;
+  private readonly width: Record<PasswordOperationStep, number>;
+  private readonly measured: Partial<Record<PasswordOperationStep, number>> =
+    {};
+  private current: PasswordOperationStep | undefined;
+  private enteredAt = 0;
+  private last = 0;
+
+  constructor(
+    private readonly report?: (p: PasswordOperationProgress) => void,
+    private readonly env: PlanEnvironment = browser,
+  ) {
+    this.ms = expected(env);
+    const total = STEPS.reduce((sum, s) => sum + this.ms[s], 0);
+    let at = 0;
+    this.start = {} as Record<PasswordOperationStep, number>;
+    this.width = {} as Record<PasswordOperationStep, number>;
+    for (const step of STEPS) {
+      this.start[step] = at;
+      this.width[step] = this.ms[step] / total;
+      at += this.width[step];
+    }
+  }
+
+  /** The operation entered `step`. */
+  enter(step: PasswordOperationStep): void {
+    const now = this.env.now();
+    this.close(now);
+    this.current = step;
+    this.enteredAt = now;
+    this.emit(step, 0);
+  }
+
+  /** The current step reached `within` (0..1) of its own work. */
+  within(within: number): void {
+    if (this.current) this.emit(this.current, within);
+  }
+
+  /** The operation succeeded: keep what its steps took for the next plan. */
+  finish(): void {
+    this.close(this.env.now());
+    const next = { ...this.ms };
+    for (const step of STEPS) {
+      const took = this.measured[step];
+      if (took !== undefined)
+        next[step] = next[step] * (1 - ALPHA) + took * ALPHA;
+    }
+    this.env.save(JSON.stringify(next));
+  }
+
+  private close(now: number): void {
+    if (this.current) this.measured[this.current] = now - this.enteredAt;
+  }
+
+  private emit(step: PasswordOperationStep, within: number): void {
+    const done = Math.min(1, Math.max(0, within));
+    const fraction = Math.max(
+      this.last,
+      this.start[step] + this.width[step] * done,
+    );
+    this.last = fraction;
+    this.report?.({
+      step,
+      fraction,
+      label: STEP_LABEL[step],
+      until: this.start[step] + this.width[step],
+      remainingMs: this.ms[step] * (1 - done),
+    });
+  }
+}

@@ -31,7 +31,7 @@
       </q-banner>
 
       <q-banner
-        v-if="error"
+        v-if="error && !ceremony"
         class="bg-negative text-white q-mb-md"
         rounded
         dense
@@ -40,7 +40,7 @@
       </q-banner>
 
       <q-banner
-        v-if="success"
+        v-if="success && !ceremony"
         class="bg-positive text-white q-mb-md"
         rounded
         dense
@@ -48,21 +48,22 @@
         {{ successText }}
       </q-banner>
 
-      <slot name="progress" :progress="progress">
-        <div v-if="progress" class="q-mb-md">
-          <q-linear-progress
-            :value="progress.fraction"
-            color="primary"
-            class="q-mb-sm"
-          />
-          <div class="text-caption text-center text-grey-7">
-            <q-icon name="sym_o_lock" size="xs" class="q-mr-xs" />
-            {{ progress.label }}
-          </div>
-        </div>
-      </slot>
+      <!-- While the operation runs the ceremony takes the fields' place. -->
+      <sid-password-ceremony
+        v-if="ceremony"
+        :progress="progress"
+        :outcome="ceremony"
+        :length="password.length"
+        :accepted-text="acceptedText"
+        :refused-text="error ?? undefined"
+        @settled="onSettled"
+      />
 
-      <q-form @submit.prevent="onSubmit" class="q-gutter-y-md">
+      <q-form
+        v-show="!ceremony"
+        @submit.prevent="onSubmit"
+        class="q-gutter-y-md"
+      >
         <q-input
           v-if="claimRequired"
           v-model="claimToken"
@@ -208,7 +209,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { SidPrincipalInput } from "../../quasar";
+import { SidPasswordCeremony, SidPrincipalInput } from "../../quasar";
+import type { CeremonyOutcome } from "../../quasar";
+import type { PasswordOperationProgress } from "../composables/useAuth";
 
 // Minimal QInput shape — we only use validate(). Avoids importing 'quasar' at
 // type level (it's a peer dep, not present during ui-core typecheck).
@@ -226,13 +229,8 @@ export interface RegistrationExtras {
   claimToken?: string;
 }
 
-/** Progress of the registration (the password proof takes seconds): 0..1 and a label. */
-export interface RegistrationProgress {
-  fraction: number;
-  label: string;
-}
-
 void SidPrincipalInput;
+void SidPasswordCeremony;
 
 const props = withDefaults(
   defineProps<{
@@ -295,8 +293,10 @@ const props = withDefaults(
       identifier: string,
       password: string,
       extras: RegistrationExtras,
-      onProgress?: (p: RegistrationProgress) => void,
+      onProgress?: (p: PasswordOperationProgress) => void,
     ) => Promise<void>;
+    /** What the ceremony says once the account is created. */
+    acceptedText?: string;
     /** Min password length (default 12 — NIST SP 800-63B 4th draft baseline). */
     passwordMinLength?: number;
     /** Show confirm-password field with match validation. Default true. */
@@ -336,6 +336,7 @@ const props = withDefaults(
       "This installation has no administrator yet. Enter the claim token from the service log; the account you create becomes its administrator.",
     showConfirmPassword: true,
     usernameMinLength: 6,
+    acceptedText: "Account created",
   },
 );
 
@@ -352,7 +353,11 @@ const showPassword = ref(false);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const success = ref(false);
-const progress = ref<RegistrationProgress | null>(null);
+const progress = ref<PasswordOperationProgress | null>(null);
+/** The running or closing ceremony; null while the fields are shown. */
+const ceremony = ref<CeremonyOutcome | null>(null);
+/** What the form announces once the ceremony has closed. */
+let announce: (() => void) | undefined;
 
 const passwordRef = ref<ValidatableInput | null>(null);
 const confirmRef = ref<ValidatableInput | null>(null);
@@ -397,6 +402,10 @@ async function onSubmit() {
 
   loading.value = true;
   error.value = null;
+  progress.value = null;
+  ceremony.value = "running";
+  // A phone's keyboard would cover the ceremony.
+  (document.activeElement as HTMLElement | null)?.blur?.();
 
   try {
     const normalized = normalizePrincipal(
@@ -409,19 +418,32 @@ async function onSubmit() {
     await props.registerFn(normalized.value, password.value, extras, (p) => {
       progress.value = p;
     });
-    success.value = true;
-    emit("success", {
-      identifier: normalized.value,
-      principalType: normalized.type,
-    });
+    announce = () => {
+      success.value = true;
+      emit("success", {
+        identifier: normalized.value,
+        principalType: normalized.type,
+      });
+    };
+    ceremony.value = "accepted";
   } catch (e) {
     success.value = false;
     const err = e instanceof Error ? e : new Error("Registration failed");
     error.value = refusalMessage(e, "Registration failed");
-    emit("error", err);
+    announce = () => emit("error", err);
+    ceremony.value = "refused";
   } finally {
     loading.value = false;
+  }
+}
+
+/** The ceremony closed: a refusal gives the fields back, then the result is told. */
+function onSettled(outcome: Exclude<CeremonyOutcome, "running">) {
+  if (outcome === "refused") {
+    ceremony.value = null;
     progress.value = null;
   }
+  announce?.();
+  announce = undefined;
 }
 </script>

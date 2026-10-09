@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import {
   createAuth,
   type ZkppClientApi,
+  DEFAULT_STEP_MS,
   type PasswordOperationProgress,
 } from "./useAuth";
 
@@ -227,16 +228,42 @@ describe("createAuth register", () => {
     expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, undefined);
   });
 
-  it("reports progress from 0 through the prover to 1", async () => {
+  // The user follows the operation by its steps: on this device, the
+  // comparison with previous passwords, the proof (filled by the prover's own
+  // progress) and the server's check, in that order and never backwards.
+  it("reports each step, with the prover filling the proof's share", async () => {
+    // Step times learned by earlier tests in this browser would move the shares.
+    localStorage.clear();
     vi.mocked(client.prove).mockImplementation(async (_pw, _start, opts) => {
-      opts.onProgress?.({ fraction: 0.5, label: "Proving" });
+      opts.onProgress?.({ fraction: 0.5, label: "Computing quotient" });
       return PROOF;
     });
     const seen: PasswordOperationProgress[] = [];
     const { register } = createAuth(loader);
     await register("bob@test.com", "pw", undefined, (p) => seen.push(p));
+    const ms = DEFAULT_STEP_MS;
+    const total = ms.protect + ms.compare + ms.prove + ms.verify;
+    const proveStart = (ms.protect + ms.compare) / total;
 
-    expect(seen.map((p) => p.fraction)).toEqual([0, 0.5, 1]);
+    expect(seen.map((p) => p.step)).toEqual([
+      "protect",
+      "compare",
+      "prove",
+      "prove",
+      "verify",
+    ]);
+    [
+      0,
+      ms.protect / total,
+      proveStart,
+      proveStart + ms.prove / total / 2,
+      proveStart + ms.prove / total,
+    ].forEach((expected, i) =>
+      expect(seen[i].fraction).toBeCloseTo(expected, 10),
+    );
+    expect(seen[3].label, "the prover's stage names stay inside").toBe(
+      "Building the proof",
+    );
   });
 
   it("refuses to go on when the server prepared no operation", async () => {
