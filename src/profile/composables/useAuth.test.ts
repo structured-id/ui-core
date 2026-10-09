@@ -231,7 +231,8 @@ describe("createAuth register", () => {
 
   // The user follows the operation by its steps: on this device, the
   // comparison with previous passwords, the proof (filled by the prover's own
-  // progress) and the server's check, in that order and never backwards.
+  // progress) and the server's check, in that order and never backwards,
+  // ending complete.
   it("reports each step, with the prover filling the proof's share", async () => {
     // Step times learned by earlier tests in this browser would move the shares.
     localStorage.clear();
@@ -252,6 +253,7 @@ describe("createAuth register", () => {
       "prove",
       "prove",
       "verify",
+      "verify",
     ]);
     [
       0,
@@ -259,6 +261,7 @@ describe("createAuth register", () => {
       proveStart,
       proveStart + ms.prove / total / 2,
       proveStart + ms.prove / total,
+      1,
     ].forEach((expected, i) =>
       expect(seen[i].fraction).toBeCloseTo(expected, 10),
     );

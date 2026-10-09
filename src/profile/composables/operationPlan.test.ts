@@ -100,6 +100,20 @@ describe("OperationPlan", () => {
     expect(next.seen[0].remainingMs).toBeCloseTo(learned.prove, 6);
   });
 
+  // A finished operation reports itself complete, so every progress
+  // consumer ends at the full gauge rather than where verification began.
+  it("reports completion when it finishes", () => {
+    const { seen, plan } = planWith();
+    plan.enter("verify");
+    plan.finish();
+    expect(seen.at(-1)).toMatchObject({
+      step: "verify",
+      fraction: 1,
+      until: 1,
+      remainingMs: 0,
+    });
+  });
+
   // A change that confirms the current password gives that step its share
   // first; an operation without it never reports it and keeps its gauge.
   it("adds the confirmation only to the plan that has it", () => {

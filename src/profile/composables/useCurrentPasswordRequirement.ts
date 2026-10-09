@@ -78,7 +78,12 @@ export function useCurrentPasswordRequirement(
     required.value = true;
   }
 
-  onScopeDispose(stop);
+  // An answer still on its way when the owner goes away is dropped like a
+  // stale one, so it arms no timer that would outlive the owner.
+  onScopeDispose(() => {
+    generations++;
+    stop();
+  });
 
   return {
     required: readonly(required),

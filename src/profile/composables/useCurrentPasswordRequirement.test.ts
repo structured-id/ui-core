@@ -114,6 +114,24 @@ describe("useCurrentPasswordRequirement", () => {
     scope.stop();
   });
 
+  // An answer that arrives after the owner went away changes nothing and
+  // arms no timer that would outlive it.
+  it("drops an answer that arrives after its owner went away", async () => {
+    let answer!: (ms: number) => void;
+    const scope = effectScope();
+    const r = scope.run(() =>
+      useCurrentPasswordRequirement(
+        () => new Promise<number>((resolve) => (answer = resolve)),
+      ),
+    )!;
+    const refreshed = r.refresh();
+    scope.stop();
+    answer(180_000);
+    await refreshed;
+    expect(vi.getTimerCount()).toBe(0);
+    expect(r.known.value).toBe(false);
+  });
+
   it("stops its timer when its owner goes away", async () => {
     const r = requirement(180_000);
     await r.refresh();

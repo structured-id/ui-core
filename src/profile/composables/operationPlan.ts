@@ -157,9 +157,23 @@ export class OperationPlan {
     if (this.current) this.emit(this.current, within);
   }
 
-  /** The operation succeeded: keep what its steps took for the next plan. */
+  /**
+   * The operation succeeded: report it complete, and keep what its steps
+   * took for the next plan.
+   */
   finish(): void {
     this.close(this.env.now());
+    if (this.current) {
+      // Exactly 1: the summed step shares can fall short of it by rounding.
+      this.last = 1;
+      this.report?.({
+        step: this.current,
+        fraction: 1,
+        label: STEP_LABEL[this.current],
+        until: 1,
+        remainingMs: 0,
+      });
+    }
     const next = { ...this.ms };
     for (const step of ALL_STEPS) {
       const took = this.measured[step];
