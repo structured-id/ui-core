@@ -53,6 +53,7 @@
         v-if="ceremony"
         :progress="progress"
         :outcome="ceremony"
+        :fields="showConfirmPassword ? 2 : 1"
         :length="password.length"
         :accepted-text="acceptedText"
         :refused-text="error ?? undefined"

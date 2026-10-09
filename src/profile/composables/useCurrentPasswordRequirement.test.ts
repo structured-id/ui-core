@@ -95,6 +95,25 @@ describe("useCurrentPasswordRequirement", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  // A refusal that arrives while an answer is still on its way wins: the
+  // late answer was counted before the refusal and is stale.
+  it("keeps a refusal over an answer still on its way", async () => {
+    let answer!: (ms: number) => void;
+    const scope = effectScope();
+    const r = scope.run(() =>
+      useCurrentPasswordRequirement(
+        () => new Promise<number>((resolve) => (answer = resolve)),
+      ),
+    )!;
+    const refreshed = r.refresh();
+    r.requireNow();
+    answer(180_000);
+    await refreshed;
+    expect(r.required.value).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    scope.stop();
+  });
+
   it("stops its timer when its owner goes away", async () => {
     const r = requirement(180_000);
     await r.refresh();

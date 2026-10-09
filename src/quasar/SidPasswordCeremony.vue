@@ -34,7 +34,7 @@
         v-for="row in rows"
         :key="row"
         class="sid-ceremony__row"
-        :style="rowStyle(row)"
+        :style="[rowStyle(row), { '--sid-ceremony-glyphs': count }]"
         aria-hidden="true"
       >
         <span
@@ -174,6 +174,8 @@ watch(
     anchor = Math.max(fraction.value, p?.fraction ?? 0);
     reportedAt = Date.now();
   },
+  // A report present at mount counts like a later one.
+  { immediate: true },
 );
 function pace() {
   if (props.outcome === "accepted") {
@@ -270,6 +272,7 @@ function stopChurn() {
 /** The success: the line closes into the orb, the lock, then the check. */
 function close() {
   stopChurn();
+  fraction.value = 1;
   glyphs.value = glyphs.value.map(() => DOT);
   phase.value = "orb";
   after(TIMING.orb, () => {
@@ -329,6 +332,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .sid-ceremony__stage {
   position: relative;
+  /* The rows size their glyphs to the stage's width (cqi below). */
+  container-type: inline-size;
 }
 .sid-ceremony__row {
   position: absolute;
@@ -340,7 +345,9 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(0, 0, 0, 0.24);
   border-radius: 4px;
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: 1.5rem;
+  /* Each glyph is 0.9em wide; a long password on a narrow card shrinks its
+     glyphs to fit the row rather than spill out of it. */
+  font-size: min(1.5rem, calc(96cqi / (var(--sid-ceremony-glyphs, 20) * 0.9)));
   transform-origin: center;
   transition:
     transform 600ms cubic-bezier(0.65, 0, 0.35, 1),
@@ -426,8 +433,14 @@ onBeforeUnmount(() => {
   transform: translateY(-6px);
 }
 .sid-ceremony--still .sid-ceremony__row,
-.sid-ceremony--still .sid-ceremony__glyph {
+.sid-ceremony--still .sid-ceremony__glyph,
+.sid-ceremony--still .sid-ceremony-fade-enter-active,
+.sid-ceremony--still .sid-ceremony-fade-leave-active {
   transition: none;
+}
+.sid-ceremony--still .sid-ceremony-fade-enter-from,
+.sid-ceremony--still .sid-ceremony-fade-leave-to {
+  transform: none;
 }
 .sid-ceremony--still .sid-ceremony__orb circle {
   animation: none;

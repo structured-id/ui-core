@@ -4,6 +4,7 @@ import {
   type ZkppClientApi,
   DEFAULT_STEP_MS,
   type PasswordOperationProgress,
+  WrongCurrentPasswordError,
 } from "./useAuth";
 
 // Mock the gRPC wrappers
@@ -417,16 +418,15 @@ describe("createAuth changePassword", () => {
     expect(seen[0]).toMatchObject({ step: "confirm", fraction: 0 });
   });
 
-  // A wrong current password fails in the client's sign-in; the server still
-  // gets a finalization that cannot verify, so it refuses the change as a
-  // wrong sign-in and counts it, rather than never hearing of the attempt.
-  it("lets the server refuse a wrong current password", async () => {
+  // A wrong current password fails in the client's own sign-in; the server
+  // already counted the guess when it issued KE2, so the change stops here
+  // with an error the form can name, and nothing more is sent.
+  it("stops at a wrong current password", async () => {
     api.challenge.mockResolvedValue({
       history: wireContext(),
       credentialResponse: KE2,
     });
-    vi.mocked(client.loginFinish).mockRejectedValue(new Error("envelope"));
-    api.execute.mockRejectedValue(new Error("AUTHENTICATION_FAILED"));
+    vi.mocked(client.loginFinish).mockRejectedValue(new Error("invalid login"));
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword({
@@ -434,10 +434,32 @@ describe("createAuth changePassword", () => {
         newPassword: "N3wP@ssword!",
         currentPassword: "wrong",
       }),
-    ).rejects.toThrow("AUTHENTICATION_FAILED");
-    const sent = api.execute.mock.calls[0][3];
-    expect(sent).toHaveLength(64);
+    ).rejects.toBeInstanceOf(WrongCurrentPasswordError);
+    expect(api.execute).not.toHaveBeenCalled();
     expect(client.prove).not.toHaveBeenCalled();
+  });
+
+  // A client that stopped answering is a fault, not a wrong password: its
+  // own error comes through.
+  it("reports a stopped client as itself", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const stopped = new Error("the worker stopped");
+    vi.mocked(client.loginFinish).mockImplementation(async () => {
+      (client as { stopped: boolean }).stopped = true;
+      throw stopped;
+    });
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      }),
+    ).rejects.toBe(stopped);
+    expect(api.execute).not.toHaveBeenCalled();
   });
 
   it("stops before any OPAQUE start when the challenge prepared no operation", async () => {

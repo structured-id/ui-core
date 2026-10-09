@@ -24,10 +24,10 @@ const quasarStubs = {
   "q-btn": { template: '<button type="submit"><slot /></button>' },
   "sid-password-ceremony": {
     name: "SidPasswordCeremony",
-    props: ["outcome", "refusedText", "length"],
+    props: ["outcome", "refusedText", "length", "fields"],
     emits: ["settled"],
     template:
-      '<div class="ceremony" :data-outcome="outcome" :data-refused="refusedText" :data-length="length" />',
+      '<div class="ceremony" :data-outcome="outcome" :data-refused="refusedText" :data-length="length" :data-fields="fields" />',
   },
   "sid-principal-input": {
     props: ["modelValue", "disable", "label"],
@@ -94,6 +94,23 @@ describe("SidRegistrationForm", () => {
     );
     // principal, password, confirm
     expect(w.findAll("input")).toHaveLength(3);
+  });
+
+  // The ceremony folds as many rows as the form had password fields.
+  it("gives the ceremony the form's password fields", async () => {
+    for (const [showConfirmPassword, fields] of [
+      [true, "2"],
+      [false, "1"],
+    ] as const) {
+      const w = mountForm({ claimRequired: false, showConfirmPassword });
+      const inputs = w.findAll("input");
+      await inputs[0].setValue("owner@example.com");
+      for (const input of inputs.slice(1))
+        await input.setValue("Secret-Pass-123");
+      await w.find("form").trigger("submit");
+      await flushPromises();
+      expect(w.find(".ceremony").attributes("data-fields")).toBe(fields);
+    }
   });
 
   // The pasted token reaches registerFn trimmed, and no invite code with it.

@@ -8,6 +8,7 @@ import { onScopeDispose, readonly, ref } from "vue";
 import { passwordChangeRequirementMs } from "./useAuthApi";
 import { ErrorReason } from "@structured-id/proto/sid/v1/common/errors";
 import { rpcRefusal } from "../../utils/rpcRefusal";
+import { WrongCurrentPasswordError } from "./useAuth";
 
 /** Whether `err` refused a change because it did not prove the current password. */
 export function isCurrentPasswordRequired(err: unknown): boolean {
@@ -18,9 +19,15 @@ export function isCurrentPasswordRequired(err: unknown): boolean {
   );
 }
 
-/** Whether `err` refused a change that proved a wrong current password. */
+/**
+ * Whether `err` refused a change for a wrong current password: on this
+ * device, or by the server for a finalization that did not verify.
+ */
 export function isWrongCurrentPassword(err: unknown): boolean {
-  return rpcRefusal(err)?.reasonCode === ErrorReason.AUTHENTICATION_FAILED;
+  return (
+    err instanceof WrongCurrentPasswordError ||
+    rpcRefusal(err)?.reasonCode === ErrorReason.AUTHENTICATION_FAILED
+  );
 }
 
 /**
@@ -34,6 +41,8 @@ export function useCurrentPasswordRequirement(
   const required = ref(true);
   const known = ref(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  /** Bumped by every question and refusal; an older answer is dropped. */
+  let generations = 0;
 
   function stop(): void {
     if (timer !== undefined) clearTimeout(timer);
@@ -46,7 +55,10 @@ export function useCurrentPasswordRequirement(
     // time to arrive: the whole request time is taken off, so the timer
     // fires early rather than late.
     const asked = Date.now();
+    const generation = ++generations;
     const ms = (await requiredInMs()) - (Date.now() - asked);
+    // A refusal, or a newer answer, came while this one was on its way.
+    if (generation !== generations) return;
     stop();
     known.value = true;
     required.value = ms <= 0;
@@ -60,6 +72,7 @@ export function useCurrentPasswordRequirement(
 
   /** The server refused a change for lack of it: required from now on. */
   function requireNow(): void {
+    generations++;
     stop();
     known.value = true;
     required.value = true;

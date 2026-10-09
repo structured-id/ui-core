@@ -115,6 +115,15 @@ describe("SidPasswordCeremony", () => {
     expect(now(), "a late report never moves it back").toBe(58);
   });
 
+  // A report present when the ceremony mounts counts as much as a later one.
+  it("starts from the progress it is mounted with", async () => {
+    const w = mountCeremony({
+      progress: at("prove", 0.5, "Building the proof"),
+    });
+    await vi.advanceTimersByTimeAsync(40);
+    expect(w.find("[role=progressbar]").attributes("aria-valuenow")).toBe("50");
+  });
+
   // A prover still at its first stage keeps reporting the step's start; the
   // line goes on at the expected pace instead of restarting from it.
   it("is not held back by reports that lag behind it", async () => {
@@ -159,6 +168,10 @@ describe("SidPasswordCeremony", () => {
     await merged();
     await w.setProps({ outcome: "accepted" });
     expect(phase(w)).toBe("sid-ceremony--orb");
+    expect(
+      w.find("[role=progressbar]").attributes("aria-valuenow"),
+      "an accepted operation is complete",
+    ).toBe("100");
     expect(w.find(".sid-ceremony__orb").exists()).toBe(true);
     expect(w.find(".icon").exists()).toBe(false);
     await vi.advanceTimersByTimeAsync(650);

@@ -53,6 +53,14 @@ import {
   type PasswordOperationProgress,
 } from "./operationPlan";
 
+/** A password change was refused on this device: the current password is wrong. */
+export class WrongCurrentPasswordError extends Error {
+  constructor(cause: unknown) {
+    super("The current password is not correct", { cause });
+    this.name = "WrongCurrentPasswordError";
+  }
+}
+
 /** A password change of the signed-in user. */
 export interface PasswordChange {
   /** The password credential to change. */
@@ -365,11 +373,13 @@ export function createAuth(loadClient: ZkppClientLoader) {
           login.state,
           challenge.credentialResponse,
         );
-      } catch {
-        // A wrong current password fails here, on the client. The server
-        // still gets a finalization, one that cannot verify, so it refuses
-        // the change as a wrong sign-in and counts it toward the lockout.
-        credentialFinalization = new Uint8Array(64);
+      } catch (e) {
+        // A client that stopped answering failed, it did not judge the
+        // password. Otherwise the sign-in refused the password itself: the
+        // server already counted the guess when it issued KE2, so nothing
+        // more is sent.
+        if (c.stopped) throw e;
+        throw new WrongCurrentPasswordError(e);
       }
     } else {
       challenge = await passwordChangeChallenge(credentialId);
