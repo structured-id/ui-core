@@ -357,19 +357,20 @@ describe("createAuth changePassword", () => {
     api.changeFinish.mockResolvedValue({});
   });
 
-  it("challenges, executes the OPAQUE start, proves and finishes", async () => {
+  it("fixes the OPAQUE start in the challenge, executes, proves and finishes", async () => {
     const { changePassword } = createAuth(loader);
     await changePassword({
       credentialId: "cred-1",
       newPassword: "N3wP@ssword!",
     });
 
-    expect(api.challenge).toHaveBeenCalledWith("cred-1");
+    expect(client.registrationStart).toHaveBeenCalledOnce();
+    expect(client.registrationStart).toHaveBeenCalledWith("N3wP@ssword!");
+    expect(api.challenge).toHaveBeenCalledWith("cred-1", START.request);
     expect(client.loginStart).not.toHaveBeenCalled();
     expect(api.execute).toHaveBeenCalledWith(
       OPERATION,
       "cred-1",
-      START.request,
       new Uint8Array(),
     );
     expect(api.evaluate).toHaveBeenCalledWith(OPERATION, HISTORY.blinded);
@@ -385,8 +386,11 @@ describe("createAuth changePassword", () => {
   });
 
   // The current password is proved with a sign-in carried by the change's
-  // own steps: KE1 in the challenge, KE3 in execute, before any proof work.
-  it("proves the current password inside the change", async () => {
+  // own steps: KE1 in the challenge beside the new password's request, KE3
+  // in execute, before any proof work. The sign-in runs under the change's
+  // context (label, operation, digest of that request), so it confirms this
+  // change only and a relayed ordinary sign-in cannot stand for it.
+  it("proves the current password inside the change, under its context", async () => {
     api.challenge.mockResolvedValue({
       history: wireContext(),
       credentialResponse: KE2,
@@ -402,20 +406,29 @@ describe("createAuth changePassword", () => {
       (p) => seen.push(p),
     );
 
+    const expectedContext = new Uint8Array([
+      ...new TextEncoder().encode("SID-PASSWORD-CHANGE-v1"),
+      ...OPERATION,
+      ...new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new Uint8Array(START.request)),
+      ),
+    ]);
+    expect(client.registrationStart).toHaveBeenCalledOnce();
     expect(client.loginStart).toHaveBeenCalledWith("0ldP@ssword!");
     expect(api.challenge).toHaveBeenCalledWith(
       "cred-1",
+      START.request,
       new Uint8Array([1, 2, 3]),
     );
     expect(client.loginFinish).toHaveBeenCalledWith(
       "0ldP@ssword!",
       "login-state",
       KE2,
+      expectedContext,
     );
     expect(api.execute).toHaveBeenCalledWith(
       OPERATION,
       "cred-1",
-      START.request,
       new Uint8Array([7, 8, 9]),
     );
     expect(seen[0]).toMatchObject({ step: "confirm", fraction: 0 });
@@ -465,7 +478,7 @@ describe("createAuth changePassword", () => {
     expect(api.execute).not.toHaveBeenCalled();
   });
 
-  it("stops before any OPAQUE start when the challenge prepared no operation", async () => {
+  it("stops before executing when the challenge prepared no operation", async () => {
     api.challenge.mockResolvedValue({
       history: undefined,
       credentialResponse: new Uint8Array(),
@@ -474,8 +487,8 @@ describe("createAuth changePassword", () => {
     await expect(
       changePassword({ credentialId: "cred-1", newPassword: "pw" }),
     ).rejects.toThrow(/did not prepare/);
-    expect(client.registrationStart).not.toHaveBeenCalled();
     expect(api.execute).not.toHaveBeenCalled();
+    expect(client.prove).not.toHaveBeenCalled();
   });
 
   it("propagates a refused history (password reused) from the finish", async () => {
@@ -550,6 +563,7 @@ describe("createAuth login", () => {
       "pw",
       "login-state",
       new Uint8Array([4, 5, 6]),
+      new Uint8Array(),
     );
     expect(api.loginFinish).toHaveBeenCalledWith(
       "alice@test.com",

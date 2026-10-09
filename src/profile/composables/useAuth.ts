@@ -143,10 +143,13 @@ export interface ZkppClientApi {
     response: Uint8Array,
   ): Promise<Uint8Array>;
   loginStart(password: string): Promise<{ request: Uint8Array; state: string }>;
+  /** `context` is the OPAQUE context (RFC 9807 §6): empty for an ordinary
+   * sign-in, the operation's own for a sign-in inside another operation. */
   loginFinish(
     password: string,
     state: string,
     response: Uint8Array,
+    context: Uint8Array,
   ): Promise<Uint8Array>;
 }
 
@@ -209,6 +212,30 @@ function historyEvaluations(
   });
 }
 
+const CHANGE_CONTEXT_LABEL = new TextEncoder().encode("SID-PASSWORD-CHANGE-v1");
+
+/**
+ * The OPAQUE context (RFC 9807 §6) of the current-password sign-in inside a
+ * change: the label, the operation and the digest of the new registration
+ * request the operation fixed, so the sign-in confirms this change only.
+ */
+async function changeContext(
+  operationId: Uint8Array,
+  registrationRequest: Uint8Array,
+): Promise<Uint8Array> {
+  // WebCrypto takes only ArrayBuffer-backed views; the copy is one.
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new Uint8Array(registrationRequest)),
+  );
+  const context = new Uint8Array(
+    CHANGE_CONTEXT_LABEL.length + operationId.length + digest.length,
+  );
+  context.set(CHANGE_CONTEXT_LABEL);
+  context.set(operationId, CHANGE_CONTEXT_LABEL.length);
+  context.set(digest, CHANGE_CONTEXT_LABEL.length + operationId.length);
+  return context;
+}
+
 function wireProof(
   proof: ZkppProof | null,
 ): PasswordRegistrationProof | undefined {
@@ -254,18 +281,20 @@ export function createAuth(loadClient: ZkppClientLoader) {
   }
 
   /**
-   * The steps every operation shares: the OPAQUE start, `exchange` (the RPC
-   * that answers the request and names the operation), the history
-   * evaluation, the proof and the record.
+   * The steps every operation shares: the OPAQUE start (`started` when the
+   * operation already fixed it), `exchange` (the RPC that answers the request
+   * and names the operation), the history evaluation, the proof and the
+   * record.
    */
   async function install(
     password: string,
     exchange: (request: Uint8Array) => Promise<Exchange>,
     plan: OperationPlan,
+    started?: ZkppRegistrationStart,
   ): Promise<Installed> {
     const c = await zkpp();
     plan.enter("protect");
-    const start = await c.registrationStart(password);
+    const start = started ?? (await c.registrationStart(password));
     const { context: wire, registrationResponse } = await exchange(
       start.request,
     );
@@ -342,11 +371,12 @@ export function createAuth(loadClient: ZkppClientLoader) {
 
   /**
    * Replace the signed-in user's password with `change.newPassword`: the
-   * challenge names the operation, the execute step answers the OPAQUE
-   * request, the finish carries the record with the proof. With
-   * `change.currentPassword` the change signs in with it inside the same
-   * steps (KE1 in the challenge, KE3 in execute), which the server requires
-   * unless its policy says the session's authentication is recent enough
+   * challenge fixes the new password's OPAQUE request and names the
+   * operation, the execute step answers it, the finish carries the record
+   * with the proof. With `change.currentPassword` the change signs in with
+   * it inside the same steps (KE1 in the challenge, KE3 in execute) under
+   * the change's own context, which the server requires unless its policy
+   * says the session's authentication is recent enough
    * ({@link useCurrentPasswordRequirement}); a wrong current password is
    * refused before anything new is proved.
    */
@@ -360,18 +390,27 @@ export function createAuth(loadClient: ZkppClientLoader) {
       onProgress,
       proves ? CONFIRMED_CHANGE_STEPS : INSTALL_STEPS,
     );
+    const c = await zkpp();
     let challenge: Awaited<ReturnType<typeof passwordChangeChallenge>>;
     let credentialFinalization: Uint8Array = new Uint8Array();
+    let start: ZkppRegistrationStart;
     if (currentPassword) {
-      const c = await zkpp();
       plan.enter("confirm");
+      start = await c.registrationStart(newPassword);
       const login = await c.loginStart(currentPassword);
-      challenge = await passwordChangeChallenge(credentialId, login.request);
+      challenge = await passwordChangeChallenge(
+        credentialId,
+        start.request,
+        login.request,
+      );
+      const operation = historyContext(challenge.history).operationId;
+      const context = await changeContext(operation, start.request);
       try {
         credentialFinalization = await c.loginFinish(
           currentPassword,
           login.state,
           challenge.credentialResponse,
+          context,
         );
       } catch (e) {
         // A client that stopped answering failed, it did not judge the
@@ -382,23 +421,24 @@ export function createAuth(loadClient: ZkppClientLoader) {
         throw new WrongCurrentPasswordError(e);
       }
     } else {
-      challenge = await passwordChangeChallenge(credentialId);
+      start = await c.registrationStart(newPassword);
+      challenge = await passwordChangeChallenge(credentialId, start.request);
     }
     const context = historyContext(challenge.history);
     const done = await install(
       newPassword,
-      async (request) => ({
+      async () => ({
         context: challenge.history,
         registrationResponse: (
           await passwordChangeExecute(
             context.operationId,
             credentialId,
-            request,
             credentialFinalization,
           )
         ).registrationResponse,
       }),
       plan,
+      start,
     );
     await passwordChangeFinish(
       done.operationId,
@@ -455,10 +495,12 @@ export function createAuth(loadClient: ZkppClientLoader) {
     onStep?.(2);
     const started = await opaqueLoginStart(identifier, start.request);
     onStep?.(3);
+    // An ordinary sign-in runs under the empty context.
     const finalization = await c.loginFinish(
       password,
       start.state,
       started.credentialResponse,
+      new Uint8Array(),
     );
     const finished = await opaqueLoginFinish(
       identifier,

@@ -633,37 +633,37 @@ export async function evaluatePasswordHistory(
 }
 
 /**
- * Prepare a change of the signed-in user's own password `credentialId`;
- * `credentialRequest` (KE1) begins the sign-in that proves the current
- * password, empty when the change does not prove it.
+ * Prepare a change of the signed-in user's own password `credentialId`:
+ * `registrationRequest` is the new password's OPAQUE start, which the
+ * operation fixes; `credentialRequest` (KE1) begins the sign-in that proves
+ * the current password, empty when the change does not prove it.
  */
 export async function passwordChangeChallenge(
   credentialId: string,
+  registrationRequest: Uint8Array,
   credentialRequest: Uint8Array = new Uint8Array(),
 ): Promise<PasswordChangeChallengeResponse> {
   const { response } = await account().passwordChangeChallenge(
-    { credentialId, credentialRequest },
+    { credentialId, credentialRequest, registrationRequest },
     { meta: authMeta() },
   );
   return response;
 }
 
 /**
- * The OPAQUE start of the new password under the change's operation, with
+ * The server's answer to the registration request the challenge fixed, with
  * the KE3 of the current-password sign-in the challenge began (empty when
  * it began none).
  */
 export async function passwordChangeExecute(
   operationId: Uint8Array,
   credentialId: string,
-  registrationRequest: Uint8Array,
   credentialFinalization: Uint8Array = new Uint8Array(),
 ): Promise<PasswordChangeExecuteResponse> {
   const { response } = await account().passwordChangeExecute(
     {
       operationId: operation(operationId),
       credentialId,
-      registrationRequest,
       credentialFinalization,
     },
     { meta: authMeta() },
