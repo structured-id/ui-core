@@ -11,7 +11,7 @@ import {
   PrincipalType,
   type Credential,
   type Principal,
-} from "../../index";
+} from "@structured-id/proto/sid/v1/identity/identity";
 
 // ── Helpers ──
 

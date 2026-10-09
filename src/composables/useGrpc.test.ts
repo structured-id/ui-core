@@ -12,7 +12,7 @@ const mockAdaptiveActiveTransport = vi
   .fn<() => string>()
   .mockReturnValue("grpc-web");
 
-vi.mock("../transport/adaptive", () => ({
+vi.mock("@structured-id/proto/transport", () => ({
   // Constructor mocks are `function`s: they are called with `new`.
   AdaptiveRpcTransport: vi.fn().mockImplementation(function () {
     return {
@@ -33,7 +33,7 @@ vi.mock("@protobuf-ts/grpcweb-transport", () => ({
 
 // Import AFTER mocks
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
-import { AdaptiveRpcTransport } from "../transport/adaptive";
+import { AdaptiveRpcTransport } from "@structured-id/proto/transport";
 import {
   initGrpc,
   getTransport,

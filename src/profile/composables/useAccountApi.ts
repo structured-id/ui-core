@@ -5,9 +5,9 @@
  * session's Bearer token.
  * Covers: consents, activity, linked accounts, app launcher, passwordless.
  */
+import { getAccountTransport } from "../../index";
+import { AccountServiceClient } from "@structured-id/proto/sid/v1/account/account.client";
 import {
-  getAccountTransport,
-  AccountServiceClient,
   type ConsentInfo,
   type ClaimConsent,
   type GetConsentDetailResponse,
@@ -27,8 +27,8 @@ import {
   ActivityEventStatus,
   LinkedAccountTrustCategory,
   LinkedAccountStatus,
-  Timestamp,
-} from "../../index";
+} from "@structured-id/proto/sid/v1/account/account";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { authMeta } from "../auth";
 
 function client(): AccountServiceClient {
