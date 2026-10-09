@@ -55,6 +55,30 @@ describe("useCurrentPasswordRequirement", () => {
     expect(r.required.value).toBe(true);
   });
 
+  // The server counted from when it answered; the answer took time to
+  // arrive, so the timer is shortened by the request's own time and never
+  // fires after the server already requires the password.
+  it("subtracts the request's time from the countdown", async () => {
+    const scope = effectScope();
+    const r = scope.run(() =>
+      useCurrentPasswordRequirement(
+        () =>
+          new Promise<number>((resolve) =>
+            setTimeout(() => resolve(10_000), 400),
+          ),
+      ),
+    )!;
+    const refreshed = r.refresh();
+    await vi.advanceTimersByTimeAsync(400);
+    await refreshed;
+    expect(r.required.value).toBe(false);
+    await vi.advanceTimersByTimeAsync(9_599);
+    expect(r.required.value).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(r.required.value).toBe(true);
+    scope.stop();
+  });
+
   it("is required at once when the server says zero", async () => {
     const r = requirement(0);
     await r.refresh();

@@ -42,7 +42,11 @@ export function useCurrentPasswordRequirement(
 
   /** Ask the server and arm the timer for the moment it becomes required. */
   async function refresh(): Promise<void> {
-    const ms = await requiredInMs();
+    // The server counted from its answer, which took part of the request's
+    // time to arrive: the whole request time is taken off, so the timer
+    // fires early rather than late.
+    const asked = Date.now();
+    const ms = (await requiredInMs()) - (Date.now() - asked);
     stop();
     known.value = true;
     required.value = ms <= 0;
