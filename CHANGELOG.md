@@ -17,6 +17,23 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [3.0.0](https://github.com/structured-id/ui-core/compare/v2.0.0...v3.0.0) (2026-10-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** `changePassword(credentialId, newPassword, onProgress)` becomes `changePassword({ credentialId, newPassword, currentPassword }, onProgress)`; `RegistrationProgress` is replaced by `PasswordOperationProgress`; `ZkppClientApi.loginFinish` takes the OPAQUE context as a fourth argument.
+* **ui:** consume generated SDK clients ([#12](https://github.com/structured-id/ui-core/issues/12))
+
+### Features
+
+* **auth:** password ceremony and current-password proof in a change ([#14](https://github.com/structured-id/ui-core/issues/14)) ([e193e27](https://github.com/structured-id/ui-core/commit/e193e27ed6af92ea48c0cba4b747e9c651a39563)), closes [#13](https://github.com/structured-id/ui-core/issues/13)
+
+
+### Code Refactoring
+
+* **ui:** consume generated SDK clients ([#12](https://github.com/structured-id/ui-core/issues/12)) ([ed32342](https://github.com/structured-id/ui-core/commit/ed32342180ec9a81e5c5396263d0911e63d0f0b0)), closes [#11](https://github.com/structured-id/ui-core/issues/11)
+
 ## [1.3.0](https://github.com/structured-id/ui-core/compare/v1.2.0...v1.3.0) (2026-10-07)
 
 ### ⚠ BREAKING CHANGES
