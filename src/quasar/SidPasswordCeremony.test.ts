@@ -115,6 +115,26 @@ describe("SidPasswordCeremony", () => {
     expect(now(), "a late report never moves it back").toBe(58);
   });
 
+  // The pace is measured on a monotonic clock: the device's wall clock moved
+  // forward by an hour mid-step does not jump the line to the step's end.
+  it("keeps its pace when the wall clock is changed", async () => {
+    const w = mountCeremony();
+    const now = () =>
+      Number(w.find("[role=progressbar]").attributes("aria-valuenow"));
+    await w.setProps({
+      progress: {
+        step: "prove",
+        fraction: 0.2,
+        label: "Building the proof",
+        until: 0.6,
+        remainingMs: 2000,
+      },
+    });
+    vi.setSystemTime(Date.now() + 3_600_000);
+    await vi.advanceTimersByTimeAsync(40);
+    expect(now()).toBeLessThanOrEqual(22);
+  });
+
   // A report present when the ceremony mounts counts as much as a later one.
   it("starts from the progress it is mounted with", async () => {
     const w = mountCeremony({

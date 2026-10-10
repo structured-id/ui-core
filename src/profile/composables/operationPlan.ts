@@ -143,8 +143,9 @@ export class OperationPlan {
     }
   }
 
-  /** The operation entered `step`. */
+  /** The operation entered `step`; entering the step it is in changes nothing. */
   enter(step: PasswordOperationStep): void {
+    if (this.current === step) return;
     const now = this.env.now();
     this.close(now);
     this.current = step;

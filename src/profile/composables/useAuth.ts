@@ -421,6 +421,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
         throw new WrongCurrentPasswordError(e);
       }
     } else {
+      plan.enter("protect");
       start = await c.registrationStart(newPassword);
       challenge = await passwordChangeChallenge(credentialId, start.request);
     }

@@ -167,12 +167,13 @@ const fraction = ref(0);
 // end over the time the report says is left. A report that lags behind the
 // line (a prover still at its first stage) does not hold it back.
 let anchor = 0;
-let reportedAt = Date.now();
+// A monotonic clock: a change of the device's wall clock does not move the line.
+let reportedAt = performance.now();
 watch(
   () => props.progress,
   (p) => {
     anchor = Math.max(fraction.value, p?.fraction ?? 0);
-    reportedAt = Date.now();
+    reportedAt = performance.now();
   },
   // A report present at mount counts like a later one.
   { immediate: true },
@@ -186,7 +187,10 @@ function pace() {
   if (!p) return;
   let target = anchor;
   if (p.until !== undefined && p.until > anchor && p.remainingMs) {
-    const share = Math.min(0.95, (Date.now() - reportedAt) / p.remainingMs);
+    const share = Math.min(
+      0.95,
+      (performance.now() - reportedAt) / p.remainingMs,
+    );
     target = anchor + (p.until - anchor) * share;
   }
   fraction.value = Math.max(fraction.value, target);

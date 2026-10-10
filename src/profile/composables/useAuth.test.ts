@@ -385,6 +385,27 @@ describe("createAuth changePassword", () => {
     });
   });
 
+  // A change without the current password reports its first step before
+  // the new password's OPAQUE start and the challenge, and enters it once,
+  // so the gauge starts at once and the step's measured time covers them.
+  it("reports the protection step before preparing an unconfirmed change", async () => {
+    const order: string[] = [];
+    vi.mocked(client.registrationStart).mockImplementation(async () => {
+      order.push("registrationStart");
+      return START;
+    });
+    const { changePassword } = createAuth(loader);
+    await changePassword(
+      { credentialId: "cred-1", newPassword: "N3wP@ssword!" },
+      (p) => {
+        if (p.fraction === 0 || order.at(-1) !== `step:${p.step}`)
+          order.push(`step:${p.step}`);
+      },
+    );
+    expect(order.slice(0, 2)).toEqual(["step:protect", "registrationStart"]);
+    expect(order.filter((e) => e === "step:protect")).toHaveLength(1);
+  });
+
   // The current password is proved with a sign-in carried by the change's
   // own steps: KE1 in the challenge beside the new password's request, KE3
   // in execute, before any proof work. The sign-in runs under the change's
