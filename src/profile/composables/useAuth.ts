@@ -11,7 +11,7 @@
  * on Pallas.
  *
  * The client-side crypto is injected as {@link ZkppClientApi} (implemented by
- * `@structured-id/opaque-zkpp`), keeping the WASM dependency at the app layer.
+ * `@structured-id/opaque`), keeping kernel delivery at the app layer.
  * gRPC calls go through useAuthApi wrappers.
  */
 import {
@@ -46,11 +46,37 @@ export interface RegisterResult {
   credentialId: string;
 }
 
-/** Progress of a password operation, for a determinate gauge (0..1). */
-export interface PasswordOperationProgress {
-  fraction: number;
-  label: string;
+import {
+  CONFIRMED_CHANGE_STEPS,
+  INSTALL_STEPS,
+  OperationPlan,
+  type PasswordOperationProgress,
+} from "./operationPlan";
+
+/** A password change was refused on this device: the current password is wrong. */
+export class WrongCurrentPasswordError extends Error {
+  constructor(cause: unknown) {
+    super("The current password is not correct", { cause });
+    this.name = "WrongCurrentPasswordError";
+  }
 }
+
+/** A password change of the signed-in user. */
+export interface PasswordChange {
+  /** The password credential to change. */
+  credentialId: string;
+  newPassword: string;
+  /** The current password, proved inside the change; required while the
+   * server requires it, accepted whenever given. */
+  currentPassword?: string;
+}
+
+export {
+  DEFAULT_STEP_MS,
+  OperationPlan,
+  type PasswordOperationProgress,
+  type PasswordOperationStep,
+} from "./operationPlan";
 
 /** The operation's history context as the ZKPP client takes it. */
 export interface ZkppHistoryContext {
@@ -93,7 +119,8 @@ export interface ZkppClientApi {
   /** True once the client answers no more calls (a worker it runs on stopped). */
   readonly stopped: boolean;
   registrationStart(password: string): Promise<ZkppRegistrationStart>;
-  /** `null` for a password the circuit cannot hold: it installs unproven. */
+  /** `null` when the circuit cannot hold the password; the server alone
+   * decides whether proof-free setup is permitted. This never means verified. */
   historyRequest(
     password: string,
     ownerDomain: Uint8Array,
@@ -116,16 +143,22 @@ export interface ZkppClientApi {
     response: Uint8Array,
   ): Promise<Uint8Array>;
   loginStart(password: string): Promise<{ request: Uint8Array; state: string }>;
+  /** `context` is the OPAQUE context (RFC 9807 §6): empty for an ordinary
+   * sign-in, the operation's own for a sign-in inside another operation. A
+   * sign-in that does not verify fails with an error named
+   * `ZkppInvalidLoginError`; any other failure keeps its own error. */
   loginFinish(
     password: string,
     state: string,
     response: Uint8Array,
+    context: Uint8Array,
   ): Promise<Uint8Array>;
 }
 
 /**
- * Loads the client on first use. Rejects where no client can run (no
- * threaded WebAssembly: `ZkppUnavailableError` of the package).
+ * Loads the client on first use: public TypeScript or an application-supplied
+ * kernel. Automatic selection may use TS after a pre-operation WASM load failure.
+ * Errors after an operation starts propagate without moving its state to another kernel.
  */
 export type ZkppClientLoader = () => Promise<ZkppClientApi>;
 
@@ -181,11 +214,57 @@ function historyEvaluations(
   });
 }
 
+/**
+ * A sign-in the client refused: it did not verify, so the password was judged
+ * wrong. Recognised by the name the client contract gives it, whichever
+ * kernel or package copy produced it.
+ */
+function isRefusedSignIn(e: unknown): boolean {
+  return e instanceof Error && e.name === "ZkppInvalidLoginError";
+}
+
+const CHANGE_CONTEXT_LABEL = new TextEncoder().encode("SID-PASSWORD-CHANGE-v1");
+
+/**
+ * The OPAQUE context (RFC 9807 §6) of the current-password sign-in inside a
+ * change: the label, the operation and the digest of the new registration
+ * request the operation fixed, so the sign-in confirms this change only.
+ */
+async function changeContext(
+  operationId: Uint8Array,
+  registrationRequest: Uint8Array,
+): Promise<Uint8Array> {
+  // WebCrypto takes only ArrayBuffer-backed views; the copy is one.
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new Uint8Array(registrationRequest)),
+  );
+  const context = new Uint8Array(
+    CHANGE_CONTEXT_LABEL.length + operationId.length + digest.length,
+  );
+  context.set(CHANGE_CONTEXT_LABEL);
+  context.set(operationId, CHANGE_CONTEXT_LABEL.length);
+  context.set(digest, CHANGE_CONTEXT_LABEL.length + operationId.length);
+  return context;
+}
+
+/**
+ * The proof as the finish sends it, with the evaluator's proofs relayed
+ * unchanged, in domain order: the server's history checker verifies them
+ * against the proof's own blinded input and evaluated elements.
+ */
 function wireProof(
   proof: ZkppProof | null,
+  evaluations: ZkppHistoryEvaluation[],
 ): PasswordRegistrationProof | undefined {
   return proof
-    ? { zkppProof: proof.proof, instances: proof.instances }
+    ? {
+        zkppProof: proof.proof,
+        instances: proof.instances,
+        evaluationProofs: evaluations.map((e) => ({
+          challenge: e.proof.challenge,
+          response: e.proof.response,
+        })),
+      }
     : undefined;
 }
 
@@ -226,22 +305,32 @@ export function createAuth(loadClient: ZkppClientLoader) {
   }
 
   /**
-   * The steps every operation shares: the OPAQUE start, `exchange` (the RPC
-   * that answers the request and names the operation), the history
+   * The steps every operation shares: the OPAQUE start (`started` when the
+   * operation already fixed it, with the client that made it), `exchange`
+   * (the RPC that answers the request and names the operation), the history
    * evaluation, the proof and the record.
    */
   async function install(
     password: string,
     exchange: (request: Uint8Array) => Promise<Exchange>,
-    onProgress?: (p: PasswordOperationProgress) => void,
+    plan: OperationPlan,
+    started?: { client: ZkppClientApi; start: ZkppRegistrationStart },
   ): Promise<Installed> {
-    const c = await zkpp();
-    onProgress?.({ fraction: 0, label: "Preparing" });
-    const start = await c.registrationStart(password);
+    // A start stays with the client that made it: its state means nothing to
+    // another kernel, so a client that stopped meanwhile fails here as itself.
+    const c = started?.client ?? (await zkpp());
+    let start: ZkppRegistrationStart;
+    if (started) {
+      start = started.start;
+    } else {
+      plan.enter("protect");
+      start = await c.registrationStart(password);
+    }
     const { context: wire, registrationResponse } = await exchange(
       start.request,
     );
     const context = historyContext(wire);
+    plan.enter("compare");
     const request = await c.historyRequest(password, context.ownerDomain);
     const history = request
       ? {
@@ -251,21 +340,24 @@ export function createAuth(loadClient: ZkppClientLoader) {
           ),
         }
       : null;
+    plan.enter("prove");
     const proof = await c.prove(password, start, {
       context,
       history,
-      onProgress,
+      // The prover's own time-based 0..1 fills the proof's share.
+      onProgress: (p) => plan.within(p.fraction),
     });
+    // The record (the client's stretching) and the server's check.
+    plan.enter("verify");
     const record = await c.registrationFinish(
       password,
       start.state,
       registrationResponse,
     );
-    onProgress?.({ fraction: 1, label: "Done" });
     return {
       operationId: context.operationId,
       record,
-      proof: wireProof(proof),
+      proof: wireProof(proof, history?.evaluations ?? []),
     };
   }
 
@@ -280,6 +372,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     claimToken?: string,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<RegisterResult> {
+    const plan = new OperationPlan(onProgress);
     const done = await install(
       password,
       async (request) => {
@@ -293,13 +386,14 @@ export function createAuth(loadClient: ZkppClientLoader) {
           registrationResponse: started.registrationResponse,
         };
       },
-      onProgress,
+      plan,
     );
     const finished = await opaqueZkppRegistrationFinish(
       done.operationId,
       done.record,
       done.proof,
     );
+    plan.finish();
     return {
       profileId: finished.profileId,
       credentialId: finished.credentialId,
@@ -307,30 +401,76 @@ export function createAuth(loadClient: ZkppClientLoader) {
   }
 
   /**
-   * Replace the signed-in user's password `credentialId` with `newPassword`:
-   * the challenge names the operation, the execute step answers the OPAQUE
-   * request, the finish carries the record with the proof.
+   * Replace the signed-in user's password with `change.newPassword`: the
+   * challenge fixes the new password's OPAQUE request and names the
+   * operation, the execute step answers it, the finish carries the record
+   * with the proof. With `change.currentPassword` the change signs in with
+   * it inside the same steps (KE1 in the challenge, KE3 in execute) under
+   * the change's own context, which the server requires unless its policy
+   * says the session's authentication is recent enough
+   * ({@link useCurrentPasswordRequirement}); a wrong current password is
+   * refused before anything new is proved.
    */
   async function changePassword(
-    credentialId: string,
-    newPassword: string,
+    change: PasswordChange,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<void> {
-    const challenge = await passwordChangeChallenge(credentialId);
+    const { credentialId, newPassword, currentPassword } = change;
+    // An empty current password is given, not omitted: it is proved and refused.
+    const proves = currentPassword !== undefined;
+    const plan = new OperationPlan(
+      onProgress,
+      proves ? CONFIRMED_CHANGE_STEPS : INSTALL_STEPS,
+    );
+    const c = await zkpp();
+    let challenge: Awaited<ReturnType<typeof passwordChangeChallenge>>;
+    let credentialFinalization: Uint8Array = new Uint8Array();
+    // The new password's start is protection work in either case; the
+    // confirmation (the current password's sign-in) is bound to its request.
+    plan.enter("protect");
+    const start = await c.registrationStart(newPassword);
+    if (currentPassword !== undefined) {
+      plan.enter("confirm");
+      const login = await c.loginStart(currentPassword);
+      challenge = await passwordChangeChallenge(
+        credentialId,
+        start.request,
+        login.request,
+      );
+      const operation = historyContext(challenge.history).operationId;
+      const context = await changeContext(operation, start.request);
+      try {
+        credentialFinalization = await c.loginFinish(
+          currentPassword,
+          login.state,
+          challenge.credentialResponse,
+          context,
+        );
+      } catch (e) {
+        // Only the client's refusal judged the password: the server already
+        // counted the guess when it issued KE2, so nothing more is sent. Any
+        // other failure (a stopped client, a malformed response) is itself.
+        if (isRefusedSignIn(e)) throw new WrongCurrentPasswordError(e);
+        throw e;
+      }
+    } else {
+      challenge = await passwordChangeChallenge(credentialId, start.request);
+    }
     const context = historyContext(challenge.history);
     const done = await install(
       newPassword,
-      async (request) => ({
+      async () => ({
         context: challenge.history,
         registrationResponse: (
           await passwordChangeExecute(
             context.operationId,
             credentialId,
-            request,
+            credentialFinalization,
           )
         ).registrationResponse,
       }),
-      onProgress,
+      plan,
+      { client: c, start },
     );
     await passwordChangeFinish(
       done.operationId,
@@ -338,6 +478,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
       done.record,
       done.proof,
     );
+    plan.finish();
   }
 
   /**
@@ -350,6 +491,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     newPassword: string,
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<CompletePasswordResetResponse> {
+    const plan = new OperationPlan(onProgress);
     const prepared = historyContext(context);
     const done = await install(
       newPassword,
@@ -359,14 +501,16 @@ export function createAuth(loadClient: ZkppClientLoader) {
           await executePasswordReset(prepared.operationId, request)
         ).registrationResponse,
       }),
-      onProgress,
+      plan,
     );
-    return completePasswordReset(
+    const completed = await completePasswordReset(
       resetSessionId,
       done.operationId,
       done.record,
       done.proof,
     );
+    plan.finish();
+    return completed;
   }
 
   /**
@@ -383,10 +527,12 @@ export function createAuth(loadClient: ZkppClientLoader) {
     onStep?.(2);
     const started = await opaqueLoginStart(identifier, start.request);
     onStep?.(3);
+    // An ordinary sign-in runs under the empty context.
     const finalization = await c.loginFinish(
       password,
       start.state,
       started.credentialResponse,
+      new Uint8Array(),
     );
     const finished = await opaqueLoginFinish(
       identifier,

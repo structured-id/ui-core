@@ -31,7 +31,7 @@
       </q-banner>
 
       <q-banner
-        v-if="error"
+        v-if="error && !ceremony"
         class="bg-negative text-white q-mb-md"
         rounded
         dense
@@ -40,7 +40,7 @@
       </q-banner>
 
       <q-banner
-        v-if="success"
+        v-if="success && !ceremony"
         class="bg-positive text-white q-mb-md"
         rounded
         dense
@@ -48,21 +48,27 @@
         {{ successText }}
       </q-banner>
 
-      <slot name="progress" :progress="progress">
-        <div v-if="progress" class="q-mb-md">
-          <q-linear-progress
-            :value="progress.fraction"
-            color="primary"
-            class="q-mb-sm"
+      <!-- While the operation runs the ceremony takes the fields' place;
+           an application's own `progress` slot replaces the ceremony. -->
+      <template v-if="ceremony">
+        <slot name="progress" :progress="progress">
+          <sid-password-ceremony
+            :progress="progress"
+            :outcome="ceremony"
+            :fields="showConfirmPassword ? 2 : 1"
+            :length="password.length"
+            :accepted-text="acceptedText"
+            :refused-text="error ?? undefined"
+            @settled="onSettled"
           />
-          <div class="text-caption text-center text-grey-7">
-            <q-icon name="sym_o_lock" size="xs" class="q-mr-xs" />
-            {{ progress.label }}
-          </div>
-        </div>
-      </slot>
+        </slot>
+      </template>
 
-      <q-form @submit.prevent="onSubmit" class="q-gutter-y-md">
+      <q-form
+        v-show="!ceremony && !success"
+        @submit.prevent="onSubmit"
+        class="q-gutter-y-md"
+      >
         <q-input
           v-if="claimRequired"
           v-model="claimToken"
@@ -207,8 +213,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { SidPrincipalInput } from "../../quasar";
+import { ref, computed, watch, useSlots } from "vue";
+import { SidPasswordCeremony, SidPrincipalInput } from "../../quasar";
+import type { CeremonyOutcome } from "../../quasar";
+import type { PasswordOperationProgress } from "../composables/useAuth";
 
 // Minimal QInput shape — we only use validate(). Avoids importing 'quasar' at
 // type level (it's a peer dep, not present during ui-core typecheck).
@@ -226,13 +234,8 @@ export interface RegistrationExtras {
   claimToken?: string;
 }
 
-/** Progress of the registration (the password proof takes seconds): 0..1 and a label. */
-export interface RegistrationProgress {
-  fraction: number;
-  label: string;
-}
-
 void SidPrincipalInput;
+void SidPasswordCeremony;
 
 const props = withDefaults(
   defineProps<{
@@ -295,8 +298,10 @@ const props = withDefaults(
       identifier: string,
       password: string,
       extras: RegistrationExtras,
-      onProgress?: (p: RegistrationProgress) => void,
+      onProgress?: (p: PasswordOperationProgress) => void,
     ) => Promise<void>;
+    /** What the ceremony says once the account is created. */
+    acceptedText?: string;
     /** Min password length (default 12 — NIST SP 800-63B 4th draft baseline). */
     passwordMinLength?: number;
     /** Show confirm-password field with match validation. Default true. */
@@ -336,6 +341,7 @@ const props = withDefaults(
       "This installation has no administrator yet. Enter the claim token from the service log; the account you create becomes its administrator.",
     showConfirmPassword: true,
     usernameMinLength: 6,
+    acceptedText: "Account created",
   },
 );
 
@@ -343,6 +349,18 @@ const emit = defineEmits<{
   success: [data: { identifier: string; principalType: string }];
   error: [error: Error];
 }>();
+
+defineSlots<{
+  header?: () => unknown;
+  /** Replaces the ceremony while the operation runs; the form closes when it ends. */
+  progress?: (props: { progress: PasswordOperationProgress | null }) => unknown;
+  "extra-fields"?: () => unknown;
+  links?: () => unknown;
+  footer?: () => unknown;
+}>();
+const slots = useSlots();
+/** Longest a `progress` slot holds the final report when no frame paints. */
+const PAINT_FALLBACK_MS = 250;
 
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");
@@ -352,7 +370,11 @@ const showPassword = ref(false);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const success = ref(false);
-const progress = ref<RegistrationProgress | null>(null);
+const progress = ref<PasswordOperationProgress | null>(null);
+/** The running or closing ceremony; null while the fields are shown. */
+const ceremony = ref<CeremonyOutcome | null>(null);
+/** What the form announces once the ceremony has closed. */
+let announce: (() => void) | undefined;
 
 const passwordRef = ref<ValidatableInput | null>(null);
 const confirmRef = ref<ValidatableInput | null>(null);
@@ -397,6 +419,10 @@ async function onSubmit() {
 
   loading.value = true;
   error.value = null;
+  progress.value = null;
+  ceremony.value = "running";
+  // A phone's keyboard would cover the ceremony.
+  (document.activeElement as HTMLElement | null)?.blur?.();
 
   try {
     const normalized = normalizePrincipal(
@@ -409,19 +435,49 @@ async function onSubmit() {
     await props.registerFn(normalized.value, password.value, extras, (p) => {
       progress.value = p;
     });
-    success.value = true;
-    emit("success", {
-      identifier: normalized.value,
-      principalType: normalized.type,
-    });
+    announce = () => {
+      success.value = true;
+      emit("success", {
+        identifier: normalized.value,
+        principalType: normalized.type,
+      });
+    };
+    ceremony.value = "accepted";
   } catch (e) {
     success.value = false;
     const err = e instanceof Error ? e : new Error("Registration failed");
     error.value = refusalMessage(e, "Registration failed");
-    emit("error", err);
+    announce = () => emit("error", err);
+    ceremony.value = "refused";
   } finally {
     loading.value = false;
-    progress.value = null;
   }
+  // A `progress` slot has no closing animation to wait for, but the final
+  // report came in this same turn: the slot keeps it for one painted frame
+  // (the second animation frame runs after the first has been painted). A
+  // background tab may run no frames at all, so a timer settles it then;
+  // whichever comes first settles, once.
+  if (slots.progress) {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallback);
+      onSettled();
+    };
+    const fallback = setTimeout(settle, PAINT_FALLBACK_MS);
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+  }
+}
+
+/**
+ * The ceremony closed and gives way: a refusal to the fields with its
+ * reason, an acceptance to the success text. Then the result is told.
+ */
+function onSettled() {
+  ceremony.value = null;
+  progress.value = null;
+  announce?.();
+  announce = undefined;
 }
 </script>

@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import {
   createAuth,
   type ZkppClientApi,
+  DEFAULT_STEP_MS,
   type PasswordOperationProgress,
+  WrongCurrentPasswordError,
 } from "./useAuth";
 
 // Mock the gRPC wrappers
@@ -82,6 +84,12 @@ const RESPONSE = new Uint8Array([13, 14]);
 const ANSWER = {
   evaluatedElement: new Uint8Array([5]),
   proof: { challenge: new Uint8Array([6]), response: new Uint8Array([7]) },
+};
+/** The proof as the finish sends it: the evaluator's proof relayed. */
+const WIRE_PROOF = {
+  zkppProof: PROOF.proof,
+  instances: PROOF.instances,
+  evaluationProofs: [ANSWER.proof],
 };
 
 function fakeClient(): ZkppClientApi {
@@ -199,10 +207,7 @@ describe("createAuth register", () => {
       "reg-state",
       RESPONSE,
     );
-    expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, {
-      zkppProof: PROOF.proof,
-      instances: PROOF.instances,
-    });
+    expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, WIRE_PROOF);
     expect(result).toEqual({
       profileId: "profile-uuid",
       credentialId: "cred-uuid",
@@ -227,16 +232,45 @@ describe("createAuth register", () => {
     expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, undefined);
   });
 
-  it("reports progress from 0 through the prover to 1", async () => {
+  // The user follows the operation by its steps: on this device, the
+  // comparison with previous passwords, the proof (filled by the prover's own
+  // progress) and the server's check, in that order and never backwards,
+  // ending complete.
+  it("reports each step, with the prover filling the proof's share", async () => {
+    // Step times learned by earlier tests in this browser would move the shares.
+    localStorage.clear();
     vi.mocked(client.prove).mockImplementation(async (_pw, _start, opts) => {
-      opts.onProgress?.({ fraction: 0.5, label: "Proving" });
+      opts.onProgress?.({ fraction: 0.5, label: "Computing quotient" });
       return PROOF;
     });
     const seen: PasswordOperationProgress[] = [];
     const { register } = createAuth(loader);
     await register("bob@test.com", "pw", undefined, (p) => seen.push(p));
+    const ms = DEFAULT_STEP_MS;
+    const total = ms.protect + ms.compare + ms.prove + ms.verify;
+    const proveStart = (ms.protect + ms.compare) / total;
 
-    expect(seen.map((p) => p.fraction)).toEqual([0, 0.5, 1]);
+    expect(seen.map((p) => p.step)).toEqual([
+      "protect",
+      "compare",
+      "prove",
+      "prove",
+      "verify",
+      "verify",
+    ]);
+    [
+      0,
+      ms.protect / total,
+      proveStart,
+      proveStart + ms.prove / total / 2,
+      proveStart + ms.prove / total,
+      1,
+    ].forEach((expected, i) =>
+      expect(seen[i].fraction).toBeCloseTo(expected, 10),
+    );
+    expect(seen[3].label, "the prover's stage names stay inside").toBe(
+      "Building the proof",
+    );
   });
 
   it("refuses to go on when the server prepared no operation", async () => {
@@ -316,21 +350,31 @@ describe("createAuth register", () => {
 });
 
 describe("createAuth changePassword", () => {
+  const KE2 = new Uint8Array([4, 4]);
   beforeEach(() => {
-    api.challenge.mockResolvedValue({ history: wireContext() });
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: new Uint8Array(),
+    });
     api.execute.mockResolvedValue({ registrationResponse: RESPONSE });
-    api.changeFinish.mockResolvedValue({});
+    api.changeFinish.mockResolvedValue();
   });
 
-  it("challenges, executes the OPAQUE start, proves and finishes", async () => {
+  it("fixes the OPAQUE start in the challenge, executes, proves and finishes", async () => {
     const { changePassword } = createAuth(loader);
-    await changePassword("cred-1", "N3wP@ssword!");
+    await changePassword({
+      credentialId: "cred-1",
+      newPassword: "N3wP@ssword!",
+    });
 
-    expect(api.challenge).toHaveBeenCalledWith("cred-1");
+    expect(client.registrationStart).toHaveBeenCalledOnce();
+    expect(client.registrationStart).toHaveBeenCalledWith("N3wP@ssword!");
+    expect(api.challenge).toHaveBeenCalledWith("cred-1", START.request);
+    expect(client.loginStart).not.toHaveBeenCalled();
     expect(api.execute).toHaveBeenCalledWith(
       OPERATION,
       "cred-1",
-      START.request,
+      new Uint8Array(),
     );
     expect(api.evaluate).toHaveBeenCalledWith(OPERATION, HISTORY.blinded);
     expect(client.prove).toHaveBeenCalledWith(
@@ -338,28 +382,267 @@ describe("createAuth changePassword", () => {
       START,
       expect.objectContaining({ context: clientContext }),
     );
-    expect(api.changeFinish).toHaveBeenCalledWith(OPERATION, "cred-1", RECORD, {
-      zkppProof: PROOF.proof,
-      instances: PROOF.instances,
-    });
+    expect(api.changeFinish).toHaveBeenCalledWith(
+      OPERATION,
+      "cred-1",
+      RECORD,
+      WIRE_PROOF,
+    );
   });
 
-  it("stops before any OPAQUE start when the challenge prepared no operation", async () => {
-    api.challenge.mockResolvedValue({ history: undefined });
+  // The final report comes after the server committed the change: a progress
+  // observer that throws on it cannot turn the committed change into a
+  // failure the user would retry with a password that no longer applies.
+  it("resolves a committed change when the final progress observer throws", async () => {
     const { changePassword } = createAuth(loader);
-    await expect(changePassword("cred-1", "pw")).rejects.toThrow(
-      /did not prepare/,
+    await expect(
+      changePassword(
+        { credentialId: "cred-1", newPassword: "N3wP@ssword!" },
+        (p) => {
+          if (p.fraction === 1) throw new Error("gauge unmounted");
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(api.changeFinish).toHaveBeenCalledOnce();
+  });
+
+  // A change without the current password reports its first step before
+  // the new password's OPAQUE start and the challenge, and enters it once,
+  // so the gauge starts at once and the step's measured time covers them.
+  it("reports the protection step before preparing an unconfirmed change", async () => {
+    const order: string[] = [];
+    vi.mocked(client.registrationStart).mockImplementation(async () => {
+      order.push("registrationStart");
+      return START;
+    });
+    const { changePassword } = createAuth(loader);
+    await changePassword(
+      { credentialId: "cred-1", newPassword: "N3wP@ssword!" },
+      (p) => {
+        if (p.fraction === 0 || order.at(-1) !== `step:${p.step}`)
+          order.push(`step:${p.step}`);
+      },
     );
-    expect(client.registrationStart).not.toHaveBeenCalled();
+    expect(order.slice(0, 2)).toEqual(["step:protect", "registrationStart"]);
+    expect(order.filter((e) => e === "step:protect")).toHaveLength(1);
+  });
+
+  // The current password is proved with a sign-in carried by the change's
+  // own steps: KE1 in the challenge beside the new password's request, KE3
+  // in execute, before any proof work. The sign-in runs under the change's
+  // context (label, operation, digest of that request), so it confirms this
+  // change only and a relayed ordinary sign-in cannot stand for it.
+  it("proves the current password inside the change, under its context", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const seen: PasswordOperationProgress[] = [];
+    const { changePassword } = createAuth(loader);
+    await changePassword(
+      {
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      },
+      (p) => seen.push(p),
+    );
+
+    const expectedContext = new Uint8Array([
+      ...new TextEncoder().encode("SID-PASSWORD-CHANGE-v1"),
+      ...OPERATION,
+      ...new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new Uint8Array(START.request)),
+      ),
+    ]);
+    expect(client.registrationStart).toHaveBeenCalledOnce();
+    expect(client.loginStart).toHaveBeenCalledWith("0ldP@ssword!");
+    expect(api.challenge).toHaveBeenCalledWith(
+      "cred-1",
+      START.request,
+      new Uint8Array([1, 2, 3]),
+    );
+    expect(client.loginFinish).toHaveBeenCalledWith(
+      "0ldP@ssword!",
+      "login-state",
+      KE2,
+      expectedContext,
+    );
+    expect(api.execute).toHaveBeenCalledWith(
+      OPERATION,
+      "cred-1",
+      new Uint8Array([7, 8, 9]),
+    );
+    expect(seen[0]).toMatchObject({ step: "protect", fraction: 0 });
+  });
+
+  // The new password's OPAQUE start is protection work and is measured as
+  // such; confirmation covers only the current password's sign-in, so its
+  // time does not teach the protection estimate of registrations and resets.
+  it("measures the new password's start as protection, the sign-in as confirmation", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const order: string[] = [];
+    vi.mocked(client.registrationStart).mockImplementation(async () => {
+      order.push("registrationStart");
+      return START;
+    });
+    vi.mocked(client.loginStart).mockImplementation(async () => {
+      order.push("loginStart");
+      return { request: new Uint8Array([1, 2, 3]), state: "login-state" };
+    });
+    const { changePassword } = createAuth(loader);
+    await changePassword(
+      {
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      },
+      (p) => {
+        if (order.at(-1) !== `step:${p.step}`) order.push(`step:${p.step}`);
+      },
+    );
+    expect(order.slice(0, 4)).toEqual([
+      "step:protect",
+      "registrationStart",
+      "step:confirm",
+      "loginStart",
+    ]);
+    expect(order.filter((e) => e === "step:protect")).toHaveLength(1);
+  });
+
+  // A client that stops while the challenge is in flight keeps the operation:
+  // its start belongs to that client, so the proof and the record are never
+  // asked of a newly loaded one.
+  it("finishes the change on the client that started it", async () => {
+    const fresh = fakeClient();
+    loader.mockReset();
+    loader.mockResolvedValueOnce(client).mockResolvedValueOnce(fresh);
+    api.challenge.mockImplementation(async () => {
+      (client as { stopped: boolean }).stopped = true;
+      return { history: wireContext(), credentialResponse: new Uint8Array() };
+    });
+    const { changePassword } = createAuth(loader);
+    await changePassword({
+      credentialId: "cred-1",
+      newPassword: "N3wP@ssword!",
+    });
+    expect(loader).toHaveBeenCalledOnce();
+    expect(fresh.prove).not.toHaveBeenCalled();
+    expect(fresh.registrationFinish).not.toHaveBeenCalled();
+    expect(client.prove).toHaveBeenCalledOnce();
+  });
+
+  // A wrong current password fails in the client's own sign-in; the server
+  // already counted the guess when it issued KE2, so the change stops here
+  // with an error the form can name, and nothing more is sent.
+  it("stops at a wrong current password", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const refused = new Error("invalid login");
+    refused.name = "ZkppInvalidLoginError";
+    vi.mocked(client.loginFinish).mockRejectedValue(refused);
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "wrong",
+      }),
+    ).rejects.toBeInstanceOf(WrongCurrentPasswordError);
     expect(api.execute).not.toHaveBeenCalled();
+    expect(client.prove).not.toHaveBeenCalled();
+  });
+
+  // Only a sign-in the client refused is a wrong password: a malformed
+  // response or another fault comes through as itself, so the form does not
+  // ask for a password that was never judged.
+  it("reports a sign-in failure other than a refusal as itself", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const fault = new Error("response: invalid length");
+    vi.mocked(client.loginFinish).mockRejectedValue(fault);
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      }),
+    ).rejects.toBe(fault);
+    expect(api.execute).not.toHaveBeenCalled();
+  });
+
+  // An empty current password is a password the user gave, not an omitted
+  // one: the change proves it and refuses it, instead of going on unconfirmed.
+  it("proves an empty current password instead of skipping the proof", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const refused = new Error("invalid login");
+    refused.name = "ZkppInvalidLoginError";
+    vi.mocked(client.loginFinish).mockRejectedValue(refused);
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "",
+      }),
+    ).rejects.toBeInstanceOf(WrongCurrentPasswordError);
+    expect(client.loginStart).toHaveBeenCalledWith("");
+    expect(api.execute).not.toHaveBeenCalled();
+  });
+
+  // A client that stopped answering is a fault, not a wrong password: its
+  // own error comes through.
+  it("reports a stopped client as itself", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const stopped = new Error("the worker stopped");
+    vi.mocked(client.loginFinish).mockImplementation(async () => {
+      (client as { stopped: boolean }).stopped = true;
+      throw stopped;
+    });
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      }),
+    ).rejects.toBe(stopped);
+    expect(api.execute).not.toHaveBeenCalled();
+  });
+
+  it("stops before executing when the challenge prepared no operation", async () => {
+    api.challenge.mockResolvedValue({
+      history: undefined,
+      credentialResponse: new Uint8Array(),
+    });
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({ credentialId: "cred-1", newPassword: "pw" }),
+    ).rejects.toThrow(/did not prepare/);
+    expect(api.execute).not.toHaveBeenCalled();
+    expect(client.prove).not.toHaveBeenCalled();
   });
 
   it("propagates a refused history (password reused) from the finish", async () => {
     api.changeFinish.mockRejectedValue(new Error("PASSWORD_REUSED"));
     const { changePassword } = createAuth(loader);
-    await expect(changePassword("cred-1", "pw")).rejects.toThrow(
-      "PASSWORD_REUSED",
-    );
+    await expect(
+      changePassword({ credentialId: "cred-1", newPassword: "pw" }),
+    ).rejects.toThrow("PASSWORD_REUSED");
   });
 });
 
@@ -382,10 +665,7 @@ describe("createAuth resetPassword", () => {
       "reset-1",
       OPERATION,
       RECORD,
-      {
-        zkppProof: PROOF.proof,
-        instances: PROOF.instances,
-      },
+      WIRE_PROOF,
     );
     expect(done.sessionId).toBe("sess-1");
   });
@@ -426,6 +706,7 @@ describe("createAuth login", () => {
       "pw",
       "login-state",
       new Uint8Array([4, 5, 6]),
+      new Uint8Array(),
     );
     expect(api.loginFinish).toHaveBeenCalledWith(
       "alice@test.com",

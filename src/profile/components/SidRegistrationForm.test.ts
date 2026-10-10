@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import SidRegistrationForm from "./SidRegistrationForm.vue";
 
 const quasarStubs = {
@@ -22,6 +22,13 @@ const quasarStubs = {
       '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
   "q-btn": { template: '<button type="submit"><slot /></button>' },
+  "sid-password-ceremony": {
+    name: "SidPasswordCeremony",
+    props: ["outcome", "refusedText", "length", "fields"],
+    emits: ["settled"],
+    template:
+      '<div class="ceremony" :data-outcome="outcome" :data-refused="refusedText" :data-length="length" :data-fields="fields" />',
+  },
   "sid-principal-input": {
     props: ["modelValue", "disable", "label"],
     emits: ["update:modelValue", "update:principal-type"],
@@ -89,6 +96,23 @@ describe("SidRegistrationForm", () => {
     expect(w.findAll("input")).toHaveLength(3);
   });
 
+  // The ceremony folds as many rows as the form had password fields.
+  it("gives the ceremony the form's password fields", async () => {
+    for (const [showConfirmPassword, fields] of [
+      [true, "2"],
+      [false, "1"],
+    ] as const) {
+      const w = mountForm({ claimRequired: false, showConfirmPassword });
+      const inputs = w.findAll("input");
+      await inputs[0].setValue("owner@example.com");
+      for (const input of inputs.slice(1))
+        await input.setValue("Secret-Pass-123");
+      await w.find("form").trigger("submit");
+      await flushPromises();
+      expect(w.find(".ceremony").attributes("data-fields")).toBe(fields);
+    }
+  });
+
   // The pasted token reaches registerFn trimmed, and no invite code with it.
   it("submits the trimmed claim token", async () => {
     registerFn.mockClear();
@@ -123,6 +147,154 @@ describe("SidRegistrationForm", () => {
       { inviteCode: "ABCD1234" },
       expect.any(Function),
     );
+  });
+
+  // While the registration runs the ceremony stands in for the fields; the
+  // account is announced only once its closing animation has played, and the
+  // form then settles on its success text, without the fields.
+  it("shows the ceremony and announces success after it settles", async () => {
+    let finish: () => void = () => {};
+    registerFn.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    const w = mountForm();
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+
+    const ceremony = w.find(".ceremony");
+    expect(ceremony.attributes("data-outcome")).toBe("running");
+    expect(ceremony.attributes("data-length")).toBe("15");
+    expect(w.find("form").isVisible()).toBe(false);
+
+    finish();
+    await flushPromises();
+    expect(w.find(".ceremony").attributes("data-outcome")).toBe("accepted");
+    expect(w.emitted("success")).toBeUndefined();
+    w.findComponent({ name: "SidPasswordCeremony" }).vm.$emit(
+      "settled",
+      "accepted",
+    );
+    expect(w.emitted("success")).toHaveLength(1);
+    await flushPromises();
+    expect(w.find(".ceremony").exists()).toBe(false);
+    expect(w.text()).toContain("Account created. Signing you in");
+    expect(w.find("form").isVisible()).toBe(false);
+  });
+
+  // A refusal names its reason in the ceremony, then gives the fields back
+  // with the reason above them.
+  it("gives the fields back with the reason after a refusal", async () => {
+    registerFn.mockRejectedValueOnce(new Error("This identifier is taken"));
+    const w = mountForm();
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+
+    const ceremony = w.find(".ceremony");
+    expect(ceremony.attributes("data-outcome")).toBe("refused");
+    expect(ceremony.attributes("data-refused")).toBe(
+      "This identifier is taken",
+    );
+    w.findComponent({ name: "SidPasswordCeremony" }).vm.$emit(
+      "settled",
+      "refused",
+    );
+    await flushPromises();
+    expect(w.find(".ceremony").exists()).toBe(false);
+    expect(w.find("form").isVisible()).toBe(true);
+    expect(w.text()).toContain("This identifier is taken");
+    expect(w.emitted("error")).toHaveLength(1);
+  });
+
+  // An application that draws its own progress keeps the `progress` slot:
+  // it replaces the ceremony and receives the progress while the operation
+  // runs. The final report comes right before the operation resolves, so
+  // the slot keeps it for a painted frame; with no closing animation to wait
+  // for, the form then announces the result.
+  it("lets a progress slot stand in for the ceremony", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+      frames.push(cb),
+    );
+    const paint = async () => {
+      for (const cb of frames.splice(0)) cb(0);
+      await flushPromises();
+    };
+    let report: (p: { fraction: number; label: string }) => void = () => {};
+    let finish: () => void = () => {};
+    registerFn.mockImplementationOnce(
+      (_id, _pw, _extras, onProgress) =>
+        new Promise<void>((resolve) => {
+          report = onProgress;
+          finish = () => {
+            onProgress({ fraction: 1, label: "Done" });
+            resolve();
+          };
+        }),
+    );
+    const w = mount(SidRegistrationForm, {
+      props: { registerFn },
+      global: { stubs: quasarStubs },
+      slots: {
+        progress: `<template #progress="{ progress }">
+          <div class="own-gauge">{{ progress?.label }}</div>
+        </template>`,
+      },
+    });
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+
+    report({ fraction: 0.4, label: "Building the proof" });
+    await flushPromises();
+    expect(w.find(".ceremony").exists()).toBe(false);
+    expect(w.find(".own-gauge").text()).toBe("Building the proof");
+
+    finish();
+    await flushPromises();
+    expect(w.find(".own-gauge").text()).toBe("Done");
+    expect(w.emitted("success")).toBeUndefined();
+
+    await paint();
+    await paint();
+    expect(w.emitted("success")).toHaveLength(1);
+    expect(w.find(".own-gauge").exists()).toBe(false);
+    expect(w.text()).toContain("Account created. Signing you in");
+    vi.unstubAllGlobals();
+  });
+
+  // A background tab may never run animation frames: the result is still
+  // announced, once, after a short timer, so a parent's sign-in or
+  // navigation is never held back by a paint that does not come.
+  it("announces the result without animation frames", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    registerFn.mockResolvedValueOnce(undefined);
+    const w = mount(SidRegistrationForm, {
+      props: { registerFn },
+      global: { stubs: quasarStubs },
+      slots: { progress: `<div class="own-gauge" />` },
+    });
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(w.emitted("success")).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(w.emitted("success")).toHaveLength(1);
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("renders footer slot", () => {
