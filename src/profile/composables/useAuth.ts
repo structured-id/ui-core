@@ -144,7 +144,9 @@ export interface ZkppClientApi {
   ): Promise<Uint8Array>;
   loginStart(password: string): Promise<{ request: Uint8Array; state: string }>;
   /** `context` is the OPAQUE context (RFC 9807 §6): empty for an ordinary
-   * sign-in, the operation's own for a sign-in inside another operation. */
+   * sign-in, the operation's own for a sign-in inside another operation. A
+   * sign-in that does not verify fails with an error named
+   * `ZkppInvalidLoginError`; any other failure keeps its own error. */
   loginFinish(
     password: string,
     state: string,
@@ -210,6 +212,15 @@ function historyEvaluations(
       },
     };
   });
+}
+
+/**
+ * A sign-in the client refused: it did not verify, so the password was judged
+ * wrong. Recognised by the name the client contract gives it, whichever
+ * kernel or package copy produced it.
+ */
+function isRefusedSignIn(e: unknown): boolean {
+  return e instanceof Error && e.name === "ZkppInvalidLoginError";
 }
 
 const CHANGE_CONTEXT_LABEL = new TextEncoder().encode("SID-PASSWORD-CHANGE-v1");
@@ -385,7 +396,8 @@ export function createAuth(loadClient: ZkppClientLoader) {
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<void> {
     const { credentialId, newPassword, currentPassword } = change;
-    const proves = !!currentPassword;
+    // An empty current password is given, not omitted: it is proved and refused.
+    const proves = currentPassword !== undefined;
     const plan = new OperationPlan(
       onProgress,
       proves ? CONFIRMED_CHANGE_STEPS : INSTALL_STEPS,
@@ -394,7 +406,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     let challenge: Awaited<ReturnType<typeof passwordChangeChallenge>>;
     let credentialFinalization: Uint8Array = new Uint8Array();
     let start: ZkppRegistrationStart;
-    if (currentPassword) {
+    if (currentPassword !== undefined) {
       plan.enter("confirm");
       start = await c.registrationStart(newPassword);
       const login = await c.loginStart(currentPassword);
@@ -413,12 +425,11 @@ export function createAuth(loadClient: ZkppClientLoader) {
           context,
         );
       } catch (e) {
-        // A client that stopped answering failed, it did not judge the
-        // password. Otherwise the sign-in refused the password itself: the
-        // server already counted the guess when it issued KE2, so nothing
-        // more is sent.
-        if (c.stopped) throw e;
-        throw new WrongCurrentPasswordError(e);
+        // Only the client's refusal judged the password: the server already
+        // counted the guess when it issued KE2, so nothing more is sent. Any
+        // other failure (a stopped client, a malformed response) is itself.
+        if (isRefusedSignIn(e)) throw new WrongCurrentPasswordError(e);
+        throw e;
       }
     } else {
       plan.enter("protect");

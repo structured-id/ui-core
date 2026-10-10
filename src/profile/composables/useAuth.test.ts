@@ -463,7 +463,9 @@ describe("createAuth changePassword", () => {
       history: wireContext(),
       credentialResponse: KE2,
     });
-    vi.mocked(client.loginFinish).mockRejectedValue(new Error("invalid login"));
+    const refused = new Error("invalid login");
+    refused.name = "ZkppInvalidLoginError";
+    vi.mocked(client.loginFinish).mockRejectedValue(refused);
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword({
@@ -474,6 +476,49 @@ describe("createAuth changePassword", () => {
     ).rejects.toBeInstanceOf(WrongCurrentPasswordError);
     expect(api.execute).not.toHaveBeenCalled();
     expect(client.prove).not.toHaveBeenCalled();
+  });
+
+  // Only a sign-in the client refused is a wrong password: a malformed
+  // response or another fault comes through as itself, so the form does not
+  // ask for a password that was never judged.
+  it("reports a sign-in failure other than a refusal as itself", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const fault = new Error("response: invalid length");
+    vi.mocked(client.loginFinish).mockRejectedValue(fault);
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      }),
+    ).rejects.toBe(fault);
+    expect(api.execute).not.toHaveBeenCalled();
+  });
+
+  // An empty current password is a password the user gave, not an omitted
+  // one: the change proves it and refuses it, instead of going on unconfirmed.
+  it("proves an empty current password instead of skipping the proof", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const refused = new Error("invalid login");
+    refused.name = "ZkppInvalidLoginError";
+    vi.mocked(client.loginFinish).mockRejectedValue(refused);
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword({
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "",
+      }),
+    ).rejects.toBeInstanceOf(WrongCurrentPasswordError);
+    expect(client.loginStart).toHaveBeenCalledWith("");
+    expect(api.execute).not.toHaveBeenCalled();
   });
 
   // A client that stopped answering is a fault, not a wrong password: its
