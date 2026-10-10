@@ -468,7 +468,66 @@ describe("createAuth changePassword", () => {
       "cred-1",
       new Uint8Array([7, 8, 9]),
     );
-    expect(seen[0]).toMatchObject({ step: "confirm", fraction: 0 });
+    expect(seen[0]).toMatchObject({ step: "protect", fraction: 0 });
+  });
+
+  // The new password's OPAQUE start is protection work and is measured as
+  // such; confirmation covers only the current password's sign-in, so its
+  // time does not teach the protection estimate of registrations and resets.
+  it("measures the new password's start as protection, the sign-in as confirmation", async () => {
+    api.challenge.mockResolvedValue({
+      history: wireContext(),
+      credentialResponse: KE2,
+    });
+    const order: string[] = [];
+    vi.mocked(client.registrationStart).mockImplementation(async () => {
+      order.push("registrationStart");
+      return START;
+    });
+    vi.mocked(client.loginStart).mockImplementation(async () => {
+      order.push("loginStart");
+      return { request: new Uint8Array([1, 2, 3]), state: "login-state" };
+    });
+    const { changePassword } = createAuth(loader);
+    await changePassword(
+      {
+        credentialId: "cred-1",
+        newPassword: "N3wP@ssword!",
+        currentPassword: "0ldP@ssword!",
+      },
+      (p) => {
+        if (order.at(-1) !== `step:${p.step}`) order.push(`step:${p.step}`);
+      },
+    );
+    expect(order.slice(0, 4)).toEqual([
+      "step:protect",
+      "registrationStart",
+      "step:confirm",
+      "loginStart",
+    ]);
+    expect(order.filter((e) => e === "step:protect")).toHaveLength(1);
+  });
+
+  // A client that stops while the challenge is in flight keeps the operation:
+  // its start belongs to that client, so the proof and the record are never
+  // asked of a newly loaded one.
+  it("finishes the change on the client that started it", async () => {
+    const fresh = fakeClient();
+    loader.mockReset();
+    loader.mockResolvedValueOnce(client).mockResolvedValueOnce(fresh);
+    api.challenge.mockImplementation(async () => {
+      (client as { stopped: boolean }).stopped = true;
+      return { history: wireContext(), credentialResponse: new Uint8Array() };
+    });
+    const { changePassword } = createAuth(loader);
+    await changePassword({
+      credentialId: "cred-1",
+      newPassword: "N3wP@ssword!",
+    });
+    expect(loader).toHaveBeenCalledOnce();
+    expect(fresh.prove).not.toHaveBeenCalled();
+    expect(fresh.registrationFinish).not.toHaveBeenCalled();
+    expect(client.prove).toHaveBeenCalledOnce();
   });
 
   // A wrong current password fails in the client's own sign-in; the server

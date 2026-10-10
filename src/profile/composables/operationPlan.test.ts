@@ -115,19 +115,21 @@ describe("OperationPlan", () => {
   });
 
   // A change that confirms the current password gives that step its share
-  // first; an operation without it never reports it and keeps its gauge.
+  // after the new password's protection (whose request the confirmation is
+  // bound to); an operation without it never reports it and keeps its gauge.
   it("adds the confirmation only to the plan that has it", () => {
     const withConfirm = planWith(null, CONFIRMED_CHANGE_STEPS);
-    withConfirm.plan.enter("confirm");
     withConfirm.plan.enter("protect");
+    withConfirm.plan.enter("confirm");
     const all = total + DEFAULT_STEP_MS.confirm;
-    expect(withConfirm.seen[0]).toMatchObject({ step: "confirm", fraction: 0 });
-    expect(withConfirm.seen[0].until).toBeCloseTo(
-      DEFAULT_STEP_MS.confirm / all,
+    expect(withConfirm.seen[0]).toMatchObject({ step: "protect", fraction: 0 });
+    expect(withConfirm.seen[1]).toMatchObject({ step: "confirm" });
+    expect(withConfirm.seen[1].fraction).toBeCloseTo(
+      DEFAULT_STEP_MS.protect / all,
       10,
     );
-    expect(withConfirm.seen[1].fraction).toBeCloseTo(
-      DEFAULT_STEP_MS.confirm / all,
+    expect(withConfirm.seen[1].until).toBeCloseTo(
+      (DEFAULT_STEP_MS.protect + DEFAULT_STEP_MS.confirm) / all,
       10,
     );
 

@@ -293,19 +293,26 @@ export function createAuth(loadClient: ZkppClientLoader) {
 
   /**
    * The steps every operation shares: the OPAQUE start (`started` when the
-   * operation already fixed it), `exchange` (the RPC that answers the request
-   * and names the operation), the history evaluation, the proof and the
-   * record.
+   * operation already fixed it, with the client that made it), `exchange`
+   * (the RPC that answers the request and names the operation), the history
+   * evaluation, the proof and the record.
    */
   async function install(
     password: string,
     exchange: (request: Uint8Array) => Promise<Exchange>,
     plan: OperationPlan,
-    started?: ZkppRegistrationStart,
+    started?: { client: ZkppClientApi; start: ZkppRegistrationStart },
   ): Promise<Installed> {
-    const c = await zkpp();
-    plan.enter("protect");
-    const start = started ?? (await c.registrationStart(password));
+    // A start stays with the client that made it: its state means nothing to
+    // another kernel, so a client that stopped meanwhile fails here as itself.
+    const c = started?.client ?? (await zkpp());
+    let start: ZkppRegistrationStart;
+    if (started) {
+      start = started.start;
+    } else {
+      plan.enter("protect");
+      start = await c.registrationStart(password);
+    }
     const { context: wire, registrationResponse } = await exchange(
       start.request,
     );
@@ -405,10 +412,12 @@ export function createAuth(loadClient: ZkppClientLoader) {
     const c = await zkpp();
     let challenge: Awaited<ReturnType<typeof passwordChangeChallenge>>;
     let credentialFinalization: Uint8Array = new Uint8Array();
-    let start: ZkppRegistrationStart;
+    // The new password's start is protection work in either case; the
+    // confirmation (the current password's sign-in) is bound to its request.
+    plan.enter("protect");
+    const start = await c.registrationStart(newPassword);
     if (currentPassword !== undefined) {
       plan.enter("confirm");
-      start = await c.registrationStart(newPassword);
       const login = await c.loginStart(currentPassword);
       challenge = await passwordChangeChallenge(
         credentialId,
@@ -432,8 +441,6 @@ export function createAuth(loadClient: ZkppClientLoader) {
         throw e;
       }
     } else {
-      plan.enter("protect");
-      start = await c.registrationStart(newPassword);
       challenge = await passwordChangeChallenge(credentialId, start.request);
     }
     const context = historyContext(challenge.history);
@@ -450,7 +457,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
         ).registrationResponse,
       }),
       plan,
-      start,
+      { client: c, start },
     );
     await passwordChangeFinish(
       done.operationId,

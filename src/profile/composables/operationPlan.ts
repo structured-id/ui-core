@@ -46,10 +46,16 @@ export const INSTALL_STEPS: readonly PasswordOperationStep[] = [
   "verify",
 ];
 
-/** A change that proves the current password first. */
+/**
+ * A change that proves the current password: the new password's start
+ * comes first, since the confirmation is bound to its request.
+ */
 export const CONFIRMED_CHANGE_STEPS: readonly PasswordOperationStep[] = [
+  "protect",
   "confirm",
-  ...INSTALL_STEPS,
+  "compare",
+  "prove",
+  "verify",
 ];
 
 const ALL_STEPS = CONFIRMED_CHANGE_STEPS;
