@@ -450,8 +450,11 @@ async function onSubmit() {
   } finally {
     loading.value = false;
   }
-  // A `progress` slot has no closing animation to wait for.
-  if (slots.progress) onSettled();
+  // A `progress` slot has no closing animation to wait for, but the final
+  // report came in this same turn: the slot keeps it for one painted frame
+  // (the second animation frame runs after the first has been painted).
+  if (slots.progress)
+    requestAnimationFrame(() => requestAnimationFrame(onSettled));
 }
 
 /**

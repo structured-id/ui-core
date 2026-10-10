@@ -214,16 +214,28 @@ describe("SidRegistrationForm", () => {
 
   // An application that draws its own progress keeps the `progress` slot:
   // it replaces the ceremony and receives the progress while the operation
-  // runs; with no closing animation to wait for, the form announces the
-  // result as soon as the operation ends.
+  // runs. The final report comes right before the operation resolves, so
+  // the slot keeps it for a painted frame; with no closing animation to wait
+  // for, the form then announces the result.
   it("lets a progress slot stand in for the ceremony", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+      frames.push(cb),
+    );
+    const paint = async () => {
+      for (const cb of frames.splice(0)) cb(0);
+      await flushPromises();
+    };
     let report: (p: { fraction: number; label: string }) => void = () => {};
     let finish: () => void = () => {};
     registerFn.mockImplementationOnce(
       (_id, _pw, _extras, onProgress) =>
         new Promise<void>((resolve) => {
           report = onProgress;
-          finish = resolve;
+          finish = () => {
+            onProgress({ fraction: 1, label: "Done" });
+            resolve();
+          };
         }),
     );
     const w = mount(SidRegistrationForm, {
@@ -248,9 +260,15 @@ describe("SidRegistrationForm", () => {
 
     finish();
     await flushPromises();
+    expect(w.find(".own-gauge").text()).toBe("Done");
+    expect(w.emitted("success")).toBeUndefined();
+
+    await paint();
+    await paint();
     expect(w.emitted("success")).toHaveLength(1);
     expect(w.find(".own-gauge").exists()).toBe(false);
     expect(w.text()).toContain("Account created. Signing you in");
+    vi.unstubAllGlobals();
   });
 
   it("renders footer slot", () => {
