@@ -354,7 +354,7 @@ describe("createAuth changePassword", () => {
       credentialResponse: new Uint8Array(),
     });
     api.execute.mockResolvedValue({ registrationResponse: RESPONSE });
-    api.changeFinish.mockResolvedValue({});
+    api.changeFinish.mockResolvedValue();
   });
 
   it("fixes the OPAQUE start in the challenge, executes, proves and finishes", async () => {

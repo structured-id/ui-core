@@ -57,7 +57,6 @@ import {
   type OpaqueZkppRegistrationFinishResponse,
   type PasswordChangeChallengeResponse,
   type PasswordChangeExecuteResponse,
-  type PasswordChangeFinishResponse,
 } from "@structured-id/proto/sid/v1/authn/auth";
 import type {
   PasswordHistoryContext,
@@ -677,12 +676,10 @@ export async function passwordChangeExecute(
  * needs it now.
  */
 export async function passwordChangeRequirementMs(): Promise<number> {
-  const { response } = await account().getPasswordChangeRequirement(
+  const { response: left } = await account().getPasswordChangeRequirement(
     {},
     { meta: authMeta() },
   );
-  const left = response.currentPasswordRequiredIn;
-  if (!left) return 0;
   return Number(left.seconds) * 1000 + Math.floor(left.nanos / 1_000_000);
 }
 
@@ -692,8 +689,8 @@ export async function passwordChangeFinish(
   credentialId: string,
   registrationRecord: Uint8Array,
   proof?: PasswordRegistrationProof,
-): Promise<PasswordChangeFinishResponse> {
-  const { response } = await account().passwordChangeFinish(
+): Promise<void> {
+  await account().passwordChangeFinish(
     {
       operationId: operation(operationId),
       credentialId,
@@ -702,7 +699,6 @@ export async function passwordChangeFinish(
     },
     { meta: authMeta() },
   );
-  return response;
 }
 
 // ── OPAQUE ──
@@ -805,7 +801,6 @@ export type {
   OpaqueZkppRegistrationFinishResponse,
   PasswordChangeChallengeResponse,
   PasswordChangeExecuteResponse,
-  PasswordChangeFinishResponse,
   PasswordHistoryContext,
   PasswordHistoryEvaluation,
   PasswordRegistrationProof,
