@@ -159,22 +159,12 @@ export class OperationPlan {
   }
 
   /**
-   * The operation succeeded: report it complete, and keep what its steps
-   * took for the next plan.
+   * The operation succeeded: keep what its steps took for the next plan, and
+   * report it complete. The server has already committed it, so an observer
+   * that throws on this report is logged and cannot fail the operation.
    */
   finish(): void {
     this.close(this.env.now());
-    if (this.current) {
-      // Exactly 1: the summed step shares can fall short of it by rounding.
-      this.last = 1;
-      this.report?.({
-        step: this.current,
-        fraction: 1,
-        label: STEP_LABEL[this.current],
-        until: 1,
-        remainingMs: 0,
-      });
-    }
     const next = { ...this.ms };
     for (const step of ALL_STEPS) {
       const took = this.measured[step];
@@ -182,6 +172,20 @@ export class OperationPlan {
         next[step] = next[step] * (1 - ALPHA) + took * ALPHA;
     }
     this.env.save(JSON.stringify(next));
+    if (!this.current) return;
+    // Exactly 1: the summed step shares can fall short of it by rounding.
+    this.last = 1;
+    try {
+      this.report?.({
+        step: this.current,
+        fraction: 1,
+        label: STEP_LABEL[this.current],
+        until: 1,
+        remainingMs: 0,
+      });
+    } catch (e) {
+      console.error("A progress observer failed on a committed operation", e);
+    }
   }
 
   private close(now: number): void {

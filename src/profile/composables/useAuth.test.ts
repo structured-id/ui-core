@@ -385,6 +385,22 @@ describe("createAuth changePassword", () => {
     });
   });
 
+  // The final report comes after the server committed the change: a progress
+  // observer that throws on it cannot turn the committed change into a
+  // failure the user would retry with a password that no longer applies.
+  it("resolves a committed change when the final progress observer throws", async () => {
+    const { changePassword } = createAuth(loader);
+    await expect(
+      changePassword(
+        { credentialId: "cred-1", newPassword: "N3wP@ssword!" },
+        (p) => {
+          if (p.fraction === 1) throw new Error("gauge unmounted");
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(api.changeFinish).toHaveBeenCalledOnce();
+  });
+
   // A change without the current password reports its first step before
   // the new password's OPAQUE start and the challenge, and enters it once,
   // so the gauge starts at once and the step's measured time covers them.
