@@ -85,6 +85,12 @@ const ANSWER = {
   evaluatedElement: new Uint8Array([5]),
   proof: { challenge: new Uint8Array([6]), response: new Uint8Array([7]) },
 };
+/** The proof as the finish sends it: the evaluator's proof relayed. */
+const WIRE_PROOF = {
+  zkppProof: PROOF.proof,
+  instances: PROOF.instances,
+  evaluationProofs: [ANSWER.proof],
+};
 
 function fakeClient(): ZkppClientApi {
   return {
@@ -201,10 +207,7 @@ describe("createAuth register", () => {
       "reg-state",
       RESPONSE,
     );
-    expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, {
-      zkppProof: PROOF.proof,
-      instances: PROOF.instances,
-    });
+    expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, WIRE_PROOF);
     expect(result).toEqual({
       profileId: "profile-uuid",
       credentialId: "cred-uuid",
@@ -379,10 +382,12 @@ describe("createAuth changePassword", () => {
       START,
       expect.objectContaining({ context: clientContext }),
     );
-    expect(api.changeFinish).toHaveBeenCalledWith(OPERATION, "cred-1", RECORD, {
-      zkppProof: PROOF.proof,
-      instances: PROOF.instances,
-    });
+    expect(api.changeFinish).toHaveBeenCalledWith(
+      OPERATION,
+      "cred-1",
+      RECORD,
+      WIRE_PROOF,
+    );
   });
 
   // The final report comes after the server committed the change: a progress
@@ -660,10 +665,7 @@ describe("createAuth resetPassword", () => {
       "reset-1",
       OPERATION,
       RECORD,
-      {
-        zkppProof: PROOF.proof,
-        instances: PROOF.instances,
-      },
+      WIRE_PROOF,
     );
     expect(done.sessionId).toBe("sess-1");
   });

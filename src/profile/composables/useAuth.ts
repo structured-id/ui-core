@@ -247,11 +247,24 @@ async function changeContext(
   return context;
 }
 
+/**
+ * The proof as the finish sends it, with the evaluator's proofs relayed
+ * unchanged, in domain order: the server's history checker verifies them
+ * against the proof's own blinded input and evaluated elements.
+ */
 function wireProof(
   proof: ZkppProof | null,
+  evaluations: ZkppHistoryEvaluation[],
 ): PasswordRegistrationProof | undefined {
   return proof
-    ? { zkppProof: proof.proof, instances: proof.instances }
+    ? {
+        zkppProof: proof.proof,
+        instances: proof.instances,
+        evaluationProofs: evaluations.map((e) => ({
+          challenge: e.proof.challenge,
+          response: e.proof.response,
+        })),
+      }
     : undefined;
 }
 
@@ -344,7 +357,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     return {
       operationId: context.operationId,
       record,
-      proof: wireProof(proof),
+      proof: wireProof(proof, history?.evaluations ?? []),
     };
   }
 
