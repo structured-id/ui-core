@@ -49,7 +49,8 @@
 </template>
 
 <script setup lang="ts">
-import { type Session, Timestamp } from "../../index";
+import type { Session } from "@structured-id/proto/sid/v1/identity/identity";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 
 defineProps<{
   sessions: Session[];

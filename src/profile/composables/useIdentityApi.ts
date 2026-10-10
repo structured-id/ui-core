@@ -6,9 +6,9 @@
  * frontend.
  */
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
+import { getAccountTransport } from "../../index";
+import { IdentityServiceClient } from "@structured-id/proto/sid/v1/identity/identity.client";
 import {
-  getAccountTransport,
-  IdentityServiceClient,
   type Profile,
   type Session,
   type Credential,
@@ -17,8 +17,8 @@ import {
   PrincipalType,
   CredentialType,
   AuthenticatorAttachment,
-  Timestamp,
-} from "../../index";
+} from "@structured-id/proto/sid/v1/identity/identity";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { authMeta } from "../auth";
 
 function client(transport?: RpcTransport): IdentityServiceClient {

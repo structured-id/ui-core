@@ -23,13 +23,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Enable Corepack
         run: corepack enable
@@ -40,9 +39,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Generate proto clients
-        run: yarn generate
-
       - name: Lint
         run: yarn lint
 
@@ -51,3 +47,6 @@ jobs:
 
       - name: Test
         run: yarn test
+
+      - name: Check packed source consumer
+        run: node ci/check-package.mjs

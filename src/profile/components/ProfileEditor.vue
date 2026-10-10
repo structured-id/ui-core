@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
-import type { Profile } from "../../index";
+import type { Profile } from "@structured-id/proto/sid/v1/identity/identity";
 
 const props = withDefaults(
   defineProps<{

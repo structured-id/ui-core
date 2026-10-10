@@ -4,11 +4,9 @@
  * Wraps the public EnrollmentServiceClient calls the registration page makes
  * before anyone signs in.
  */
-import {
-  getTransport,
-  EnrollmentServiceClient,
-  type InstanceStatus,
-} from "../../index";
+import { getTransport } from "../../index";
+import { EnrollmentServiceClient } from "@structured-id/proto/sid/v1/admin/enrollment.client";
+import type { InstanceStatus } from "@structured-id/proto/sid/v1/admin/enrollment";
 
 function client(): EnrollmentServiceClient {
   return new EnrollmentServiceClient(getTransport());
