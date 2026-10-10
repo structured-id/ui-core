@@ -359,6 +359,8 @@ defineSlots<{
   footer?: () => unknown;
 }>();
 const slots = useSlots();
+/** Longest a `progress` slot holds the final report when no frame paints. */
+const PAINT_FALLBACK_MS = 250;
 
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");
@@ -452,9 +454,20 @@ async function onSubmit() {
   }
   // A `progress` slot has no closing animation to wait for, but the final
   // report came in this same turn: the slot keeps it for one painted frame
-  // (the second animation frame runs after the first has been painted).
-  if (slots.progress)
-    requestAnimationFrame(() => requestAnimationFrame(onSettled));
+  // (the second animation frame runs after the first has been painted). A
+  // background tab may run no frames at all, so a timer settles it then;
+  // whichever comes first settles, once.
+  if (slots.progress) {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallback);
+      onSettled();
+    };
+    const fallback = setTimeout(settle, PAINT_FALLBACK_MS);
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+  }
 }
 
 /**

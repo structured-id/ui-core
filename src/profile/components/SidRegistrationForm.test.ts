@@ -271,6 +271,32 @@ describe("SidRegistrationForm", () => {
     vi.unstubAllGlobals();
   });
 
+  // A background tab may never run animation frames: the result is still
+  // announced, once, after a short timer, so a parent's sign-in or
+  // navigation is never held back by a paint that does not come.
+  it("announces the result without animation frames", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    registerFn.mockResolvedValueOnce(undefined);
+    const w = mount(SidRegistrationForm, {
+      props: { registerFn },
+      global: { stubs: quasarStubs },
+      slots: { progress: `<div class="own-gauge" />` },
+    });
+    const [principal, password, confirm] = w.findAll("input");
+    await principal.setValue("user@example.com");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(w.emitted("success")).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(w.emitted("success")).toHaveLength(1);
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
   it("renders footer slot", () => {
     const w = mount(SidRegistrationForm, {
       props: { registerFn },
