@@ -119,27 +119,54 @@ export function startBffLogin(
 }
 
 /**
+ * What became of the grant behind an ended BFF session: revoked by the
+ * issuer, left to expire because the issuer did not revoke it, none held,
+ * or unknown when the BFF's answer could not be read.
+ */
+export type BffGrantOutcome = "revoked" | "not_revoked" | "none" | "unknown";
+
+/** The outcome of a sign-out: whether the BFF ended the session, and its grant. */
+export type BffLogoutResult =
+  { ended: true; grant: BffGrantOutcome } | { ended: false };
+
+const GRANT_OUTCOMES: readonly BffGrantOutcome[] = [
+  "revoked",
+  "not_revoked",
+  "none",
+];
+
+/**
  * Log out by calling POST /auth/logout with X-CSRF-Token header.
  *
- * The BFF validates the CSRF header, clears server-side session,
- * and sends a Set-Cookie header to clear the session cookie. The token
- * dies with the session either way.
+ * The BFF validates the CSRF header, ends the session, clears its cookie and
+ * says whether the issuer revoked the grant. `ended: false` means the
+ * session may still be alive (refused, unavailable, unreachable). The page
+ * forgets the CSRF token either way.
  *
  * @param bffBaseUrl  Override BFF base URL
  */
-export async function bffLogout(bffBaseUrl?: string): Promise<void> {
+export async function bffLogout(bffBaseUrl?: string): Promise<BffLogoutResult> {
   const base = bffBaseUrl ?? _bffBaseUrl;
-  if (base === null) return;
+  if (base === null) return { ended: false };
   const csrf = _csrfToken;
   _csrfToken = null;
+  let resp: Response;
   try {
-    await fetch(`${base}/auth/logout`, {
+    resp = await fetch(`${base}/auth/logout`, {
       method: "POST",
       credentials: "include",
       headers: csrf ? { "X-CSRF-Token": csrf } : {},
     });
   } catch {
-    // Best-effort — local state is cleared by caller regardless
+    return { ended: false };
+  }
+  if (!resp.ok) return { ended: false };
+  try {
+    const { grant } = (await resp.json()) as { grant?: unknown };
+    const known = GRANT_OUTCOMES.find((outcome) => outcome === grant);
+    return { ended: true, grant: known ?? "unknown" };
+  } catch {
+    return { ended: true, grant: "unknown" };
   }
 }
 
