@@ -17,6 +17,8 @@ export {
   bffLogout,
   bffCsrfToken,
   type BffUserInfo,
+  type BffGrantOutcome,
+  type BffLogoutResult,
 } from "./composables/useBffAuth";
 export {
   initAccountApi,
