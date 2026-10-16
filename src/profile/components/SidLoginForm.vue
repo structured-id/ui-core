@@ -48,6 +48,7 @@
           :label="passwordLabel"
           outlined
           :disable="loading"
+          lazy-rules
           :rules="[(v: string) => !!v || passwordRequiredText]"
           data-test="password"
         >
@@ -119,6 +120,7 @@ import { ref } from "vue";
 import { SidPrincipalInput } from "../../quasar";
 import type { PrincipalType } from "../../quasar";
 import { normalizePrincipal, refusalMessage } from "../../index";
+import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
 
 void SidPrincipalInput;
 
@@ -169,7 +171,7 @@ const props = withDefaults(
     submitLabel: "Sign in",
     identifierLabel: "Email, phone, or username",
     passwordLabel: "Password",
-    passwordRequiredText: "Required",
+    passwordRequiredText: REQUIRED_FIELD_TEXT,
     showForgotPassword: true,
     forgotPasswordText: "Forgot password?",
     forgotPasswordUrl: undefined,

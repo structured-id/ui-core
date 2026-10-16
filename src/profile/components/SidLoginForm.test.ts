@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import SidLoginForm from "./SidLoginForm.vue";
+import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
 
 // Stub all Quasar components as divs
 const quasarStubs = {
@@ -16,7 +17,8 @@ const quasarStubs = {
     emits: ["submit"],
   },
   "q-input": defineComponent({
-    props: ["modelValue", "type", "label", "disable", "rules"],
+    name: "QInputStub",
+    props: ["modelValue", "type", "label", "disable", "rules", "lazyRules"],
     emits: ["update:modelValue"],
     template:
       '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
@@ -76,5 +78,17 @@ describe("SidLoginForm", () => {
   it("shows zero-knowledge explainer", () => {
     const w = mountLogin();
     expect(w.text()).toContain("Your password never leaves this device");
+  });
+
+  // Regression: the password turned red on the first keystroke and its empty
+  // error read "Required" beside the identifier's "This field is required".
+  it("validates the password once left, with the shared required text", () => {
+    const w = mountLogin();
+    const password = w.findComponent({ name: "QInputStub" });
+    const lazy = password.props("lazyRules");
+    expect(lazy === "" || lazy === true).toBe(true);
+    const [required] = password.props("rules") as ((v: string) => unknown)[];
+    expect(required("")).toBe(REQUIRED_FIELD_TEXT);
+    expect(required("secret")).toBe(true);
   });
 });
