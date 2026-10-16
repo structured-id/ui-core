@@ -225,6 +225,7 @@ interface ValidatableInput {
 }
 import type { PrincipalType } from "../../quasar";
 import { normalizePrincipal, refusalMessage } from "../../index";
+import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
 
 /** What the form collected besides the identifier and password. */
 export interface RegistrationExtras {
@@ -317,7 +318,7 @@ const props = withDefaults(
     identifierLabel: "Email, phone, or username",
     passwordLabel: "Password",
     confirmPasswordLabel: "Confirm password",
-    passwordRequiredText: "Required",
+    passwordRequiredText: REQUIRED_FIELD_TEXT,
     passwordMinLengthText: "At least 12 characters with mixed case + digit",
     passwordMinLength: 12,
     passwordsMismatchText: "Passwords do not match",

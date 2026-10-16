@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { isValidPhoneNumber } from "libphonenumber-js";
-import { isValidEmail } from "../utils/validators";
+import { REQUIRED_FIELD_TEXT, isValidEmail } from "../utils/validators";
 
 export type PrincipalType = "email" | "phone" | "username" | "unknown";
 
@@ -42,7 +42,13 @@ interface Props {
   minUsernameLength?: number;
   required?: boolean;
   label?: string;
-  /** Validate on each input change (false) vs only on blur (true). Default false — eager. */
+  /** What an empty required field says. */
+  requiredText?: string;
+  /**
+   * Validate once the field is left, then on every change (true), or on
+   * every change from the first keystroke (false). Default true: a field
+   * being typed into is not yet wrong.
+   */
   lazyRules?: boolean;
 }
 
@@ -52,7 +58,8 @@ const props = withDefaults(defineProps<Props>(), {
   minUsernameLength: 3,
   required: true,
   label: "Email, phone, or username",
-  lazyRules: false,
+  requiredText: REQUIRED_FIELD_TEXT,
+  lazyRules: true,
 });
 
 const emit = defineEmits<{
@@ -107,7 +114,7 @@ function onInput(value: string | number | null) {
 // --- Validation rules ---
 
 const requiredRule = (val: string) =>
-  !props.required || !!val || "This field is required";
+  !props.required || !!val || props.requiredText;
 
 const typeRule = (val: string): string | true => {
   if (!val) return true; // required rule handles empty

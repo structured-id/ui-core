@@ -42,6 +42,9 @@ export function maxLength(value: string, max: number): boolean {
   return value.length <= max;
 }
 
+/** What every form says of an empty required field, so one error reads alike. */
+export const REQUIRED_FIELD_TEXT = "This field is required";
+
 /** Check value is not empty/whitespace-only. */
 export function isRequired(value: string): boolean {
   return value.trim().length > 0;
