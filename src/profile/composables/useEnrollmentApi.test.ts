@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getInstanceStatus } from "./useEnrollmentApi";
+import { AdministratorClaim, getInstanceStatus } from "./useEnrollmentApi";
 
 const mockGetInstanceStatus = vi.fn();
 
@@ -22,12 +22,14 @@ describe("getInstanceStatus", () => {
   // The registration page asks before anyone signs in, so the call must
   // carry no credentials and return the server's answer as is.
   it("asks without credentials and returns the status", async () => {
-    mockGetInstanceStatus.mockResolvedValue({ response: { claimed: false } });
+    mockGetInstanceStatus.mockResolvedValue({
+      response: { claim: AdministratorClaim.OPEN },
+    });
 
     const status = await getInstanceStatus();
 
     expect(mockGetInstanceStatus).toHaveBeenCalledWith({});
-    expect(status).toEqual({ claimed: false });
+    expect(status).toEqual({ claim: AdministratorClaim.OPEN });
   });
 
   it("propagates gRPC errors", async () => {

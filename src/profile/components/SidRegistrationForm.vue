@@ -280,9 +280,9 @@ const props = withDefaults(
     /** Pre-filled invite code (e.g. from URL) */
     initialInviteCode?: string;
     /**
-     * The installation has no administrator yet (GetInstanceStatus). The form
-     * then asks for the claim token and the new account becomes administrator;
-     * the invite code is not asked for.
+     * The installation's local claim is open (GetInstanceStatus `OPEN`). The
+     * form then asks for the claim token and the new account becomes
+     * administrator; the invite code is not asked for.
      */
     claimRequired?: boolean;
     /** Claim token input label */
