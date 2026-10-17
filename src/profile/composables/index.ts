@@ -6,3 +6,4 @@ export * from "./useEnrollmentApi";
 export * from "./useIdentityApi";
 export * from "./useSecurityLevel";
 export * from "./useCurrentPasswordRequirement";
+export * from "./usePasswordPolicy";

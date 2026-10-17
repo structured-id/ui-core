@@ -297,6 +297,92 @@ describe("SidRegistrationForm", () => {
     vi.useRealTimers();
   });
 
+  describe("password rules", () => {
+    // A q-input that shows the first rule its value fails, as QInput does.
+    const ruleStubs = {
+      ...quasarStubs,
+      "q-input": {
+        props: ["modelValue", "rules"],
+        emits: ["update:modelValue"],
+        computed: {
+          failed(): string {
+            const self = this as unknown as {
+              modelValue?: string;
+              rules?: ((v: string) => true | string)[];
+            };
+            for (const rule of self.rules ?? []) {
+              const result = rule(self.modelValue ?? "");
+              if (result !== true) return result;
+            }
+            return "";
+          },
+        },
+        template:
+          '<label><input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><span class="failed">{{ failed }}</span></label>',
+      },
+    };
+    const ceDefault = {
+      minLength: 8,
+      minUppercase: 1,
+      minLowercase: 1,
+      minDigit: 1,
+      minSymbol: 0,
+    };
+
+    async function passwordError(
+      value: string,
+      passwordPolicyFn: () => Promise<typeof ceDefault>,
+    ): Promise<string> {
+      const w = mount(SidRegistrationForm, {
+        props: { registerFn, passwordPolicyFn, showConfirmPassword: false },
+        global: { stubs: ruleStubs },
+      });
+      await flushPromises();
+      const password = w.find('[data-test="password"]');
+      await password.find("input").setValue(value);
+      return password.find(".failed").text();
+    }
+
+    // The rules are the server's policy: an 8-character password with an
+    // uppercase letter, a lowercase letter and a digit meets the CE default.
+    it("accepts a password that meets the server policy", async () => {
+      expect(
+        await passwordError("HrenVam1", () => Promise.resolve(ceDefault)),
+      ).toBe("");
+    });
+
+    // Each minimum names itself: a missing uppercase letter is not reported
+    // as a short password.
+    it("names the rule a password fails", async () => {
+      const policy = () => Promise.resolve(ceDefault);
+      expect(await passwordError("hrenvam1", policy)).toBe(
+        "At least 1 uppercase letter",
+      );
+      expect(await passwordError("HrenVamX", policy)).toBe("At least 1 digit");
+      expect(await passwordError("HrenVa1", policy)).toBe(
+        "At least 8 characters",
+      );
+    });
+
+    // Symbols are the printable ASCII characters that are not letters or
+    // digits, as the proof counts them; a space is not one.
+    it("checks the symbol minimum", async () => {
+      const policy = () => Promise.resolve({ ...ceDefault, minSymbol: 1 });
+      expect(await passwordError("Hren Vam1", policy)).toBe(
+        "At least 1 symbol",
+      );
+      expect(await passwordError("Hren-Vam1", policy)).toBe("");
+    });
+
+    // Until the server answers only an empty password is refused: the
+    // proof, not the form, enforces the policy.
+    it("checks only presence until the policy is known", async () => {
+      const never = () => new Promise<typeof ceDefault>(() => {});
+      expect(await passwordError("a", never)).toBe("");
+      expect(await passwordError("", never)).toBe("This field is required");
+    });
+  });
+
   it("renders footer slot", () => {
     const w = mount(SidRegistrationForm, {
       props: { registerFn },
