@@ -17,6 +17,17 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [4.0.0](https://github.com/structured-id/ui-core/compare/v3.2.0...v4.0.0) (2026-10-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **profile:** SidRegistrationForm no longer takes passwordMinLength and passwordMinLengthText; it loads the policy (passwordPolicyFn) and takes passwordRuleText(rule, count) for the messages.
+
+### Bug Fixes
+
+* **profile:** check new passwords against the server policy ([#28](https://github.com/structured-id/ui-core/issues/28)) ([b31b0b0](https://github.com/structured-id/ui-core/commit/b31b0b0e448401a23ddd05cd5f7db68db64a8b91)), closes [#27](https://github.com/structured-id/ui-core/issues/27)
+
 ## [3.2.0](https://github.com/structured-id/ui-core/compare/v3.1.1...v3.2.0) (2026-10-16)
 
 
