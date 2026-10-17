@@ -57,6 +57,7 @@ import {
   type OpaqueZkppRegistrationFinishResponse,
   type PasswordChangeChallengeResponse,
   type PasswordChangeExecuteResponse,
+  type GetZkppPolicyResponse,
 } from "@structured-id/proto/sid/v1/authn/auth";
 import type {
   PasswordHistoryContext,
@@ -571,6 +572,12 @@ export async function completePasswordReset(
     registrationRecord,
     proof,
   });
+  return response;
+}
+
+/** The password policy the server's proof checks a new password against. */
+export async function getPasswordPolicy(): Promise<GetZkppPolicyResponse> {
+  const { response } = await client().getZkppPolicy({});
   return response;
 }
 

@@ -217,6 +217,14 @@ import { ref, computed, watch, useSlots } from "vue";
 import { SidPasswordCeremony, SidPrincipalInput } from "../../quasar";
 import type { CeremonyOutcome } from "../../quasar";
 import type { PasswordOperationProgress } from "../composables/useAuth";
+import { getPasswordPolicy } from "../composables/useAuthApi";
+import {
+  defaultPasswordRuleText,
+  failedPasswordRule,
+  usePasswordPolicy,
+  type PasswordPolicy,
+  type PasswordRuleText,
+} from "../composables/usePasswordPolicy";
 
 // Minimal QInput shape — we only use validate(). Avoids importing 'quasar' at
 // type level (it's a peer dep, not present during ui-core typecheck).
@@ -254,8 +262,10 @@ const props = withDefaults(
     confirmPasswordLabel?: string;
     /** Password required validation text */
     passwordRequiredText?: string;
-    /** Password min length validation text */
-    passwordMinLengthText?: string;
+    /** What a password that fails a policy minimum is told. */
+    passwordRuleText?: PasswordRuleText;
+    /** Loads the server's password policy. */
+    passwordPolicyFn?: () => Promise<PasswordPolicy>;
     /** Passwords mismatch validation text */
     passwordsMismatchText?: string;
     /** Invite code input label */
@@ -303,8 +313,6 @@ const props = withDefaults(
     ) => Promise<void>;
     /** What the ceremony says once the account is created. */
     acceptedText?: string;
-    /** Min password length (default 12 — NIST SP 800-63B 4th draft baseline). */
-    passwordMinLength?: number;
     /** Show confirm-password field with match validation. Default true. */
     showConfirmPassword?: boolean;
     /** Min username length. Registration default 6 (premium feature gating);
@@ -319,8 +327,8 @@ const props = withDefaults(
     passwordLabel: "Password",
     confirmPasswordLabel: "Confirm password",
     passwordRequiredText: REQUIRED_FIELD_TEXT,
-    passwordMinLengthText: "At least 12 characters with mixed case + digit",
-    passwordMinLength: 12,
+    passwordRuleText: defaultPasswordRuleText,
+    passwordPolicyFn: getPasswordPolicy,
     passwordsMismatchText: "Passwords do not match",
     inviteCodeLabel: "Invite code",
     inviteCodeRequiredText: "Invite code required",
@@ -380,16 +388,14 @@ let announce: (() => void) | undefined;
 const passwordRef = ref<ValidatableInput | null>(null);
 const confirmRef = ref<ValidatableInput | null>(null);
 
-// Password complexity (matches sid-pake-core ZKPP gadget A defaults).
-// Server enforces via OPAQUE-ZKPP zero-knowledge proof; client also checks
-// to give immediate UX feedback.
+const { policy } = usePasswordPolicy(props.passwordPolicyFn);
+
 const passwordRules = computed(() => [
   (v: string) => !!v || props.passwordRequiredText,
-  (v: string) =>
-    v.length >= props.passwordMinLength || props.passwordMinLengthText,
-  (v: string) => /[a-z]/.test(v) || props.passwordMinLengthText,
-  (v: string) => /[A-Z]/.test(v) || props.passwordMinLengthText,
-  (v: string) => /[0-9]/.test(v) || props.passwordMinLengthText,
+  (v: string) => {
+    const failed = policy.value && failedPasswordRule(v, policy.value);
+    return !failed || props.passwordRuleText(failed.rule, failed.count);
+  },
 ]);
 
 // Re-validate confirm field whenever password changes (eager match feedback).
