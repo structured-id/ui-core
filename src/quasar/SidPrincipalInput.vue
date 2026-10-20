@@ -2,8 +2,10 @@
   <q-input
     ref="inputRef"
     v-model="model"
-    :label="label"
+    :label="fieldLabel"
     :rules="[requiredRule, typeRule]"
+    :error="!!fieldError"
+    :error-message="fieldError ?? undefined"
     outlined
     type="text"
     :inputmode="inputMode"
@@ -35,13 +37,32 @@ import { ref, computed, watch } from "vue";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { REQUIRED_FIELD_TEXT, isValidEmail } from "../utils/validators";
 
-export type PrincipalType = "email" | "phone" | "username" | "unknown";
+import {
+  ALL_PRINCIPAL_TYPES,
+  DEFAULT_PRINCIPAL_INPUT_TEXTS,
+  type AcceptedPrincipalType,
+  type PrincipalInputTexts,
+  type PrincipalType,
+} from "./principalInputTexts";
+
+export type { PrincipalType };
 
 interface Props {
   modelValue: string;
+  /**
+   * The principal types this field accepts; the others are refused before
+   * any call, with a text naming the accepted ones. The instance's settings
+   * or the scenario decide it (a registration may take email only).
+   */
+  types?: AcceptedPrincipalType[];
   minUsernameLength?: number;
   required?: boolean;
+  /** The label; without one the field names the accepted types. */
   label?: string;
+  /** A refusal the server bound to this field, shown on it until edited. */
+  fieldError?: string | null;
+  /** Replacements for the field's texts. */
+  texts?: Partial<PrincipalInputTexts>;
   /** What an empty required field says. */
   requiredText?: string;
   /**
@@ -54,13 +75,30 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: "",
+  types: () => [...ALL_PRINCIPAL_TYPES],
   // Username rule: ^[a-z0-9_]{3,32}$ (display form ^[a-zA-Z0-9_]{3,32}$).
   minUsernameLength: 3,
   required: true,
-  label: "Email, phone, or username",
+  label: undefined,
+  fieldError: null,
+  texts: () => ({}),
   requiredText: REQUIRED_FIELD_TEXT,
   lazyRules: true,
 });
+
+const text = computed<PrincipalInputTexts>(() => ({
+  ...DEFAULT_PRINCIPAL_INPUT_TEXTS,
+  ...props.texts,
+}));
+
+/** The accepted types in their fixed order. */
+const accepted = computed(() =>
+  ALL_PRINCIPAL_TYPES.filter((t) => props.types.includes(t)),
+);
+
+const fieldLabel = computed(
+  () => props.label ?? text.value.label(accepted.value),
+);
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
@@ -87,16 +125,11 @@ function detectType(value: string): PrincipalType {
   // Email: contains @ (checked after phone to exclude edge cases)
   if (trimmed.includes("@")) return "email";
 
-  // Username: ^[a-z0-9_]{3,32}$, no leading/trailing _, no __
-  // Detection is relaxed: accepts uppercase (will normalize), checks min length
-  const re = new RegExp(
-    `^[a-zA-Z0-9_]{${props.minUsernameLength},${USERNAME_MAX_LENGTH}}$`,
-  );
-  if (re.test(trimmed) && !trimmed.startsWith("_") && !trimmed.endsWith("_")) {
-    return "username";
-  }
+  // Username by its shape at any length, so that a short one is told the
+  // minimum instead of being taken for no type at all. Uppercase is accepted
+  // (the server derives the key); length and underscores are the rule's.
+  if (/^[a-zA-Z0-9_]+$/.test(trimmed)) return "username";
 
-  // Still typing — not enough chars to determine
   return "unknown";
 }
 
@@ -119,26 +152,26 @@ const requiredRule = (val: string) =>
 const typeRule = (val: string): string | true => {
   if (!val) return true; // required rule handles empty
   const type = detectType(val);
+  if (type === "unknown" || !accepted.value.includes(type)) {
+    return text.value.enterAccepted(accepted.value);
+  }
 
   switch (type) {
     case "email":
-      return isValidEmail(val.trim()) || "Invalid email address";
+      return isValidEmail(val.trim()) || text.value.invalidEmail;
     case "phone":
-      return isValidPhoneNumber(val) || "Invalid phone number";
+      return isValidPhoneNumber(val) || text.value.invalidPhone;
     case "username": {
-      const lower = val.toLowerCase();
-      const re = new RegExp(
-        `^[a-z0-9_]{${props.minUsernameLength},${USERNAME_MAX_LENGTH}}$`,
-      );
-      if (!re.test(lower)) return "Invalid username";
-      if (lower.startsWith("_") || lower.endsWith("_"))
-        return "Username cannot start or end with underscore";
-      if (lower.includes("__"))
-        return "Username cannot contain consecutive underscores";
+      const name = val.trim();
+      if (name.length < props.minUsernameLength)
+        return text.value.usernameTooShort(props.minUsernameLength);
+      if (name.length > USERNAME_MAX_LENGTH)
+        return text.value.usernameTooLong(USERNAME_MAX_LENGTH);
+      if (name.startsWith("_") || name.endsWith("_"))
+        return text.value.usernameUnderscoreEdge;
+      if (name.includes("__")) return text.value.usernameDoubleUnderscore;
       return true;
     }
-    default:
-      return "Enter email, phone (+...), or username";
   }
 };
 

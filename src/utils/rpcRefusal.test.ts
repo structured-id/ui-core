@@ -4,6 +4,7 @@ import { base64encode } from "@protobuf-ts/runtime";
 import { Any } from "@structured-id/proto/google/protobuf/any";
 import { Status } from "@structured-id/proto/google/rpc/status";
 import {
+  BadRequest,
   ErrorInfo,
   LocalizedMessage,
 } from "@structured-id/proto/google/rpc/error_details";
@@ -140,6 +141,47 @@ describe("rpcRefusal", () => {
     expect(refusalMessage("not an error", "Request failed")).toBe(
       "Request failed",
     );
+  });
+
+  // A refusal that names the fields it concerns lets the form show each
+  // text under its field: the server's text for people when it sent one,
+  // else its description.
+  it("reads the field violations", () => {
+    const bad = Any.pack(
+      BadRequest.create({
+        fieldViolations: [
+          {
+            field: "principal",
+            description: "registration here accepts: email",
+            reason: "PRINCIPAL_TYPE_NOT_ACCEPTED",
+          },
+          {
+            field: "claim_token",
+            description: "not the installation's token",
+            reason: "",
+            localizedMessage: LocalizedMessage.create({
+              locale: "en",
+              message: "This claim token is not valid.",
+            }),
+          },
+        ],
+      }),
+      BadRequest,
+    );
+    const refusal = rpcRefusal(refused([info, bad]));
+    expect(refusal?.fieldViolations).toEqual([
+      {
+        field: "principal",
+        reason: "PRINCIPAL_TYPE_NOT_ACCEPTED",
+        text: "registration here accepts: email",
+      },
+      {
+        field: "claim_token",
+        reason: null,
+        text: "This claim token is not valid.",
+      },
+    ]);
+    expect(rpcRefusal(refused([info]))?.fieldViolations).toEqual([]);
   });
 
   it("survives an unreadable trailer", () => {

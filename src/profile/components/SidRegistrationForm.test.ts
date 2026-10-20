@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
+import { RpcError } from "@protobuf-ts/runtime-rpc";
+import { base64encode } from "@protobuf-ts/runtime";
+import { Any } from "@structured-id/proto/google/protobuf/any";
+import { Status } from "@structured-id/proto/google/rpc/status";
+import {
+  BadRequest,
+  ErrorInfo,
+} from "@structured-id/proto/google/rpc/error_details";
 import SidRegistrationForm from "./SidRegistrationForm.vue";
 
 const quasarStubs = {
@@ -16,10 +24,10 @@ const quasarStubs = {
     emits: ["submit"],
   },
   "q-input": {
-    props: ["modelValue"],
+    props: ["modelValue", "error", "errorMessage"],
     emits: ["update:modelValue"],
     template:
-      '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      '<input :value="modelValue" :data-error="error ? errorMessage : undefined" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
   "q-btn": { template: '<button type="submit"><slot /></button>' },
   "sid-password-ceremony": {
@@ -30,12 +38,48 @@ const quasarStubs = {
       '<div class="ceremony" :data-outcome="outcome" :data-refused="refusedText" :data-length="length" :data-fields="fields" />',
   },
   "sid-principal-input": {
-    props: ["modelValue", "disable", "label"],
+    name: "SidPrincipalInput",
+    props: [
+      "modelValue",
+      "disable",
+      "label",
+      "types",
+      "minUsernameLength",
+      "fieldError",
+    ],
     emits: ["update:modelValue", "update:principal-type"],
     template:
-      '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      '<input :value="modelValue" :data-error="fieldError || undefined" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
 };
+
+/** A refusal as the gRPC-Web transport raises it, with field violations. */
+function refusedFields(
+  violations: { field: string; description: string }[],
+): RpcError {
+  const bad = Any.pack(
+    BadRequest.create({
+      fieldViolations: violations.map((v) => ({ ...v, reason: "" })),
+    }),
+    BadRequest,
+  );
+  const info = Any.pack(
+    ErrorInfo.create({
+      reason: "INVALID_FIELD_VALUE",
+      domain: "structured.id",
+      metadata: {},
+    }),
+    ErrorInfo,
+  );
+  const status = Status.create({
+    code: 3,
+    message: "invalid",
+    details: [info, bad],
+  });
+  return new RpcError("invalid", "INVALID_ARGUMENT", {
+    "grpc-status-details-bin": base64encode(Status.toBinary(status)),
+  });
+}
 
 const registerFn = vi.fn().mockResolvedValue(undefined);
 
@@ -380,6 +424,75 @@ describe("SidRegistrationForm", () => {
       const never = () => new Promise<typeof ceDefault>(() => {});
       expect(await passwordError("a", never)).toBe("");
       expect(await passwordError("", never)).toBe("This field is required");
+    });
+  });
+
+  describe("principal", () => {
+    function principalInput(props = {}) {
+      return mountForm(props).findComponent({ name: "SidPrincipalInput" });
+    }
+
+    // The field takes only the types the instance or the scenario admits.
+    it("passes the admitted principal types to the field", () => {
+      expect(
+        principalInput({ principalTypes: ["email"] }).props("types"),
+      ).toEqual(["email"]);
+      expect(principalInput().props("types")).toEqual([
+        "email",
+        "phone",
+        "username",
+      ]);
+    });
+
+    // A short username is admitted only in the registration that presents
+    // the installation's claim token (its first administrator); an ordinary
+    // registration keeps the registration minimum.
+    it("admits a short username only with the claim token", () => {
+      expect(principalInput().props("minUsernameLength")).toBe(6);
+      expect(
+        principalInput({ claimRequired: true }).props("minUsernameLength"),
+      ).toBe(3);
+    });
+
+    // Regression: a refusal that named the identifier field reached the
+    // user only as an undecoded banner. It is shown under the field it
+    // concerns, and the claim token's under the token.
+    it("shows each field violation under its field", async () => {
+      registerFn.mockRejectedValueOnce(
+        refusedFields([
+          { field: "principal", description: "Registration here takes email" },
+          {
+            field: "claim_token",
+            description: "Not this installation's token",
+          },
+        ]),
+      );
+      const w = mountForm({ claimRequired: true });
+      const [claim, principal, password, confirm] = w.findAll("input");
+      await claim.setValue("sidclaim_x");
+      await principal.setValue("sid");
+      await password.setValue("Secret-Pass-123");
+      await confirm.setValue("Secret-Pass-123");
+      await w.find("form").trigger("submit");
+      await flushPromises();
+      w.findComponent({ name: "SidPasswordCeremony" }).vm.$emit(
+        "settled",
+        "refused",
+      );
+      await flushPromises();
+
+      const [claimAfter, principalAfter] = w.findAll("input");
+      expect(principalAfter.attributes("data-error")).toBe(
+        "Registration here takes email",
+      );
+      expect(claimAfter.attributes("data-error")).toBe(
+        "Not this installation's token",
+      );
+      expect(w.text()).not.toContain("invalid");
+
+      // Editing the field clears what the server said about it.
+      await principalAfter.setValue("owner@sid.example.com");
+      expect(w.findAll("input")[1].attributes("data-error")).toBeUndefined();
     });
   });
 
