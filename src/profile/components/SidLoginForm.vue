@@ -3,7 +3,7 @@
     <q-card-section>
       <slot name="header">
         <div class="text-h6">{{ title }}</div>
-        <div class="text-caption text-grey">{{ subtitle }}</div>
+        <div class="text-caption text-grey">{{ shownSubtitle }}</div>
       </slot>
     </q-card-section>
 
@@ -38,6 +38,8 @@
           v-model="identifier"
           :disable="loading"
           :label="identifierLabel"
+          :types="principalTypes"
+          :texts="principalTexts"
           data-test="principal"
           @update:principal-type="principalType = $event"
         />
@@ -116,9 +118,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { SidPrincipalInput } from "../../quasar";
-import type { PrincipalType } from "../../quasar";
+import { computed, ref } from "vue";
+import {
+  ALL_PRINCIPAL_TYPES,
+  DEFAULT_PRINCIPAL_INPUT_TEXTS,
+  SidPrincipalInput,
+} from "../../quasar";
+import type {
+  AcceptedPrincipalType,
+  PrincipalInputTexts,
+  PrincipalType,
+} from "../../quasar";
 import { normalizePrincipal, refusalMessage } from "../../index";
 import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
 
@@ -154,6 +164,10 @@ const props = withDefaults(
     registerUrl?: string;
     /** OPAQUE step labels (step 1-3) */
     opaqueStepLabels?: Record<number, string>;
+    /** The principal types this instance signs in with. Default: every type. */
+    principalTypes?: AcceptedPrincipalType[];
+    /** Replacements for the identifier field's texts. */
+    principalTexts?: Partial<PrincipalInputTexts>;
     /** External login function — receives (identifier, password, stepCallback) */
     loginFn: (
       identifier: string,
@@ -167,9 +181,13 @@ const props = withDefaults(
   }>(),
   {
     title: "Sign in",
-    subtitle: "Enter your email, phone, or username to continue",
+    // Without one the subtitle names the accepted types.
+    subtitle: undefined,
     submitLabel: "Sign in",
-    identifierLabel: "Email, phone, or username",
+    // Without one the field names the accepted types.
+    identifierLabel: undefined,
+    principalTypes: () => ["email", "phone", "username"],
+    principalTexts: () => ({}),
     passwordLabel: "Password",
     passwordRequiredText: REQUIRED_FIELD_TEXT,
     showForgotPassword: true,
@@ -194,6 +212,14 @@ const emit = defineEmits<{
   error: [error: Error];
   "forgot-password": [];
 }>();
+
+const shownSubtitle = computed(
+  () =>
+    props.subtitle ??
+    { ...DEFAULT_PRINCIPAL_INPUT_TEXTS, ...props.principalTexts }.loginSubtitle(
+      ALL_PRINCIPAL_TYPES.filter((t) => props.principalTypes.includes(t)),
+    ),
+);
 
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");

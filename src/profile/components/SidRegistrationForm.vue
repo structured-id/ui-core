@@ -80,7 +80,10 @@
           spellcheck="false"
           :disable="loading"
           :rules="[(v: string) => !!v.trim() || claimTokenRequiredText]"
+          :error="!!fieldErrors.claimToken"
+          :error-message="fieldErrors.claimToken"
           data-test="claim-token"
+          @update:model-value="fieldErrors.claimToken = undefined"
         >
           <template v-slot:prepend>
             <q-icon name="sym_o_key" />
@@ -108,6 +111,9 @@
             inviteRequired ? [(v: string) => !!v || inviteCodeRequiredText] : []
           "
           :hint="inviteCodeHint"
+          :error="!!fieldErrors.inviteCode"
+          :error-message="fieldErrors.inviteCode"
+          @update:model-value="fieldErrors.inviteCode = undefined"
         >
           <template v-slot:prepend>
             <q-icon name="sym_o_vpn_key" />
@@ -129,9 +135,13 @@
           v-model="identifier"
           :disable="loading"
           :label="identifierLabel"
+          :types="principalTypes"
+          :texts="principalTexts"
           :lazy-rules="false"
-          :min-username-length="usernameMinLength"
+          :min-username-length="effectiveUsernameMinLength"
+          :field-error="fieldErrors.principal"
           data-test="principal"
+          @update:model-value="fieldErrors.principal = undefined"
           @update:principal-type="principalType = $event"
         />
 
@@ -146,6 +156,8 @@
           :disable="loading"
           :lazy-rules="false"
           :rules="passwordRules"
+          :error="!!fieldErrors.password"
+          :error-message="fieldErrors.password"
           data-test="password"
           @update:model-value="onPasswordInput"
         >
@@ -231,8 +243,12 @@ import {
 interface ValidatableInput {
   validate: () => boolean | Promise<boolean>;
 }
-import type { PrincipalType } from "../../quasar";
-import { normalizePrincipal, refusalMessage } from "../../index";
+import type {
+  AcceptedPrincipalType,
+  PrincipalInputTexts,
+  PrincipalType,
+} from "../../quasar";
+import { normalizePrincipal, refusalMessage, rpcRefusal } from "../../index";
 import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
 
 /** What the form collected besides the identifier and password. */
@@ -315,15 +331,31 @@ const props = withDefaults(
     acceptedText?: string;
     /** Show confirm-password field with match validation. Default true. */
     showConfirmPassword?: boolean;
-    /** Min username length. Registration default 6 (premium feature gating);
-     *  login flow can pass 3 since short usernames are valid post-registration. */
+    /**
+     * The shortest username an ordinary registration admits; the instance's
+     * registration settings give it (6 on the global namespace).
+     */
     usernameMinLength?: number;
+    /**
+     * The shortest username the claim registration admits: the
+     * installation's first administrator may take a short name, nobody else.
+     */
+    claimUsernameMinLength?: number;
+    /**
+     * The principal types this registration admits, from the instance's
+     * registration settings or the scenario (the platform claim at SaaS
+     * central takes email only). Default: every type.
+     */
+    principalTypes?: AcceptedPrincipalType[];
+    /** Replacements for the identifier field's texts. */
+    principalTexts?: Partial<PrincipalInputTexts>;
   }>(),
   {
     title: "Create account",
     subtitle: "Set up your StructuredID account",
     submitLabel: "Create account",
-    identifierLabel: "Email, phone, or username",
+    // Without one the field names the admitted types.
+    identifierLabel: undefined,
     passwordLabel: "Password",
     confirmPasswordLabel: "Confirm password",
     passwordRequiredText: REQUIRED_FIELD_TEXT,
@@ -350,9 +382,37 @@ const props = withDefaults(
       "This installation has no administrator yet. Enter the claim token from the service log; the account you create becomes its administrator.",
     showConfirmPassword: true,
     usernameMinLength: 6,
+    claimUsernameMinLength: 3,
+    principalTypes: () => ["email", "phone", "username"],
+    principalTexts: () => ({}),
     acceptedText: "Account created",
   },
 );
+
+// The claim registration is a scenario of its own: its admission rules are
+// fixed here until the instance's flow configuration can set them.
+const effectiveUsernameMinLength = computed(() =>
+  props.claimRequired ? props.claimUsernameMinLength : props.usernameMinLength,
+);
+
+/**
+ * What the server said about each field of the request, shown under it until
+ * the field is edited. The request fields are the registration Start's.
+ */
+const fieldErrors = ref<{
+  principal?: string;
+  claimToken?: string;
+  inviteCode?: string;
+  password?: string;
+}>({});
+
+/** Request field → form field. */
+const FIELD_OF: Record<string, keyof typeof fieldErrors.value> = {
+  principal: "principal",
+  claim_token: "claimToken",
+  invite_code: "inviteCode",
+  password: "password",
+};
 
 const emit = defineEmits<{
   success: [data: { identifier: string; principalType: string }];
@@ -404,6 +464,8 @@ watch(password, () => {
 });
 
 function onPasswordInput() {
+  // What the server said about the password was about its earlier value.
+  fieldErrors.value.password = undefined;
   // Trigger downstream confirm re-validation immediately (don't wait for blur).
   if (confirmPassword.value) confirmRef.value?.validate();
 }
@@ -426,6 +488,7 @@ async function onSubmit() {
 
   loading.value = true;
   error.value = null;
+  fieldErrors.value = {};
   progress.value = null;
   ceremony.value = "running";
   // A phone's keyboard would cover the ceremony.
@@ -434,7 +497,7 @@ async function onSubmit() {
   try {
     const normalized = normalizePrincipal(
       identifier.value,
-      props.usernameMinLength,
+      effectiveUsernameMinLength.value,
     );
     const extras: RegistrationExtras = props.claimRequired
       ? { claimToken: claimToken.value.trim() }
@@ -453,7 +516,31 @@ async function onSubmit() {
   } catch (e) {
     success.value = false;
     const err = e instanceof Error ? e : new Error("Registration failed");
-    error.value = refusalMessage(e, "Registration failed");
+    // A violation of a field the form shows goes under that field, all of a
+    // field's together; the banner keeps the rest (a field not shown now
+    // included), or the general reason when nothing is left.
+    const shown: Record<keyof typeof fieldErrors.value, boolean> = {
+      principal: true,
+      password: true,
+      claimToken: props.claimRequired,
+      inviteCode: showInviteField.value,
+    };
+    const rest: string[] = [];
+    for (const v of rpcRefusal(e)?.fieldViolations ?? []) {
+      const field = FIELD_OF[v.field];
+      if (field && shown[field]) {
+        const before = fieldErrors.value[field];
+        fieldErrors.value[field] = before ? `${before}; ${v.text}` : v.text;
+      } else {
+        rest.push(v.text);
+      }
+    }
+    const bound = Object.keys(fieldErrors.value).length > 0;
+    error.value = rest.length
+      ? rest.join("; ")
+      : bound
+        ? null
+        : refusalMessage(e, "Registration failed");
     announce = () => emit("error", err);
     ceremony.value = "refused";
   } finally {

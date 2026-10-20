@@ -62,6 +62,7 @@ export {
   refusalMessage,
   REFUSAL_TEXTS,
   SID_ERROR_DOMAIN,
+  type FieldViolation,
   type RpcRefusal,
 } from "./utils/rpcRefusal";
 

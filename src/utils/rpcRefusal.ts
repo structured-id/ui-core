@@ -8,6 +8,7 @@ import { base64decode } from "@protobuf-ts/runtime";
 import { Any } from "@structured-id/proto/google/protobuf/any";
 import { Status } from "@structured-id/proto/google/rpc/status";
 import {
+  BadRequest,
   ErrorInfo,
   LocalizedMessage,
 } from "@structured-id/proto/google/rpc/error_details";
@@ -28,6 +29,18 @@ export interface RpcRefusal {
   message: string;
   /** The server's text for people (`LocalizedMessage`), when it sent one. */
   localized: string | null;
+  /** The request fields the refusal names (`BadRequest`), in the server's order. */
+  fieldViolations: FieldViolation[];
+}
+
+/** One request field a refusal names. */
+export interface FieldViolation {
+  /** The field's path in the request, as the proto names it (`principal`). */
+  field: string;
+  /** The field-level reason, when the server gave one. */
+  reason: string | null;
+  /** What to show under the field: the server's text for people, else its description. */
+  text: string;
 }
 
 /**
@@ -50,6 +63,7 @@ export function rpcRefusal(err: unknown): RpcRefusal | null {
     metadata: {},
     message: decodeStatusMessage(err.message),
     localized: null,
+    fieldViolations: [],
   };
   for (const detail of statusDetails(err.meta[DETAILS_KEY])) {
     if (Any.contains(detail, ErrorInfo)) {
@@ -61,6 +75,14 @@ export function rpcRefusal(err: unknown): RpcRefusal | null {
         info.domain === SID_ERROR_DOMAIN ? sidReason(info.reason) : null;
     } else if (Any.contains(detail, LocalizedMessage)) {
       refusal.localized = Any.unpack(detail, LocalizedMessage).message;
+    } else if (Any.contains(detail, BadRequest)) {
+      for (const v of Any.unpack(detail, BadRequest).fieldViolations) {
+        refusal.fieldViolations.push({
+          field: v.field,
+          reason: v.reason || null,
+          text: v.localizedMessage?.message || v.description,
+        });
+      }
     }
   }
   return refusal;
