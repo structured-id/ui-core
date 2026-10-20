@@ -210,18 +210,11 @@ const inputMode = computed(() => {
   }
 });
 
-const chipLabel = computed(() => {
-  switch (detectedType.value) {
-    case "email":
-      return "email";
-    case "phone":
-      return "phone";
-    case "username":
-      return "username";
-    default:
-      return "";
-  }
-});
+const chipLabel = computed(() =>
+  detectedType.value === "unknown"
+    ? ""
+    : text.value.typeChip(detectedType.value),
+);
 
 const chipColor = computed(() => {
   switch (detectedType.value) {

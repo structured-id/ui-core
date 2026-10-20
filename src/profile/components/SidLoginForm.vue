@@ -3,7 +3,7 @@
     <q-card-section>
       <slot name="header">
         <div class="text-h6">{{ title }}</div>
-        <div class="text-caption text-grey">{{ subtitle }}</div>
+        <div class="text-caption text-grey">{{ shownSubtitle }}</div>
       </slot>
     </q-card-section>
 
@@ -118,8 +118,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { SidPrincipalInput } from "../../quasar";
+import { computed, ref } from "vue";
+import {
+  ALL_PRINCIPAL_TYPES,
+  DEFAULT_PRINCIPAL_INPUT_TEXTS,
+  SidPrincipalInput,
+} from "../../quasar";
 import type {
   AcceptedPrincipalType,
   PrincipalInputTexts,
@@ -177,7 +181,8 @@ const props = withDefaults(
   }>(),
   {
     title: "Sign in",
-    subtitle: "Enter your email, phone, or username to continue",
+    // Without one the subtitle names the accepted types.
+    subtitle: undefined,
     submitLabel: "Sign in",
     // Without one the field names the accepted types.
     identifierLabel: undefined,
@@ -207,6 +212,14 @@ const emit = defineEmits<{
   error: [error: Error];
   "forgot-password": [];
 }>();
+
+const shownSubtitle = computed(
+  () =>
+    props.subtitle ??
+    { ...DEFAULT_PRINCIPAL_INPUT_TEXTS, ...props.principalTexts }.loginSubtitle(
+      ALL_PRINCIPAL_TYPES.filter((t) => props.principalTypes.includes(t)),
+    ),
+);
 
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");

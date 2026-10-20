@@ -80,6 +80,20 @@ describe("SidLoginForm", () => {
     expect(w.text()).toContain("Your password never leaves this device");
   });
 
+  // The default subtitle names only the types the field accepts: a form
+  // restricted to email must not invite a phone or a username.
+  it("names the accepted types in the default subtitle", () => {
+    expect(mountLogin().text()).toContain(
+      "Enter your email, phone, or username to continue",
+    );
+    expect(mountLogin({ principalTypes: ["email"] }).text()).toContain(
+      "Enter your email to continue",
+    );
+    expect(
+      mountLogin({ principalTypes: ["email"], subtitle: "Hello" }).text(),
+    ).toContain("Hello");
+  });
+
   // Regression: the password turned red on the first keystroke and its empty
   // error read "Required" beside the identifier's "This field is required".
   it("validates the password once left, with the shared required text", () => {

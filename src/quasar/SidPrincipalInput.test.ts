@@ -93,6 +93,19 @@ describe("SidPrincipalInput", () => {
     ).toBe("Your email");
   });
 
+  // The chip naming the detected type is a text like the others: a
+  // translated form does not switch back to English when a type is found.
+  it("takes the type chip's text from the texts", () => {
+    const w = mount(SidPrincipalInput, {
+      props: {
+        modelValue: "alice@sid.example.com",
+        texts: { typeChip: (t: string) => `chip:${t}` },
+      },
+      global: { stubs },
+    });
+    expect(w.text()).toContain("chip:email");
+  });
+
   // A refusal the server bound to this field is shown on it.
   it("shows an error given from outside", () => {
     const shown = input({

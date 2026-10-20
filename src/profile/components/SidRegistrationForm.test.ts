@@ -26,6 +26,8 @@ const quasarStubs = {
   "q-input": {
     props: ["modelValue", "error", "errorMessage"],
     emits: ["update:modelValue"],
+    // The form re-validates the confirmation through the QInput API.
+    methods: { validate: () => true },
     template:
       '<input :value="modelValue" :data-error="error ? errorMessage : undefined" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
@@ -493,6 +495,57 @@ describe("SidRegistrationForm", () => {
       // Editing the field clears what the server said about it.
       await principalAfter.setValue("owner@sid.example.com");
       expect(w.findAll("input")[1].attributes("data-error")).toBeUndefined();
+    });
+
+    async function refuse(
+      violations: { field: string; description: string }[],
+      props = {},
+    ) {
+      registerFn.mockRejectedValueOnce(refusedFields(violations));
+      const w = mountForm(props);
+      const [principal, password, confirm] = w.findAll("input");
+      await principal.setValue("user@sid.example.com");
+      await password.setValue("Secret-Pass-123");
+      await confirm.setValue("Secret-Pass-123");
+      await w.find("form").trigger("submit");
+      await flushPromises();
+      w.findComponent({ name: "SidPasswordCeremony" }).vm.$emit(
+        "settled",
+        "refused",
+      );
+      await flushPromises();
+      return w;
+    }
+
+    // Several requirements of one field are all shown at once, not only the
+    // last one the server listed.
+    it("keeps every violation of one field", async () => {
+      const w = await refuse([
+        { field: "password", description: "At least 1 digit" },
+        { field: "password", description: "At least 1 symbol" },
+      ]);
+      expect(w.findAll("input")[1].attributes("data-error")).toBe(
+        "At least 1 digit; At least 1 symbol",
+      );
+    });
+
+    // Regression: a refusal bound to the password stayed under it after the
+    // password was edited.
+    it("clears the password's refusal when the password changes", async () => {
+      const w = await refuse([
+        { field: "password", description: "Not accepted" },
+      ]);
+      await w.findAll("input")[1].setValue("Another-Pass-456");
+      expect(w.findAll("input")[1].attributes("data-error")).toBeUndefined();
+    });
+
+    // A violation of a field the form does not show (the invite code while
+    // no invite is asked for) stays in the banner instead of disappearing.
+    it("keeps a hidden field's violation in the banner", async () => {
+      const w = await refuse([
+        { field: "invite_code", description: "This invite has expired" },
+      ]);
+      expect(w.text()).toContain("This invite has expired");
     });
   });
 

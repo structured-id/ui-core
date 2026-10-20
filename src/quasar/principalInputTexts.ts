@@ -18,6 +18,10 @@ export interface PrincipalInputTexts {
   label: (types: AcceptedPrincipalType[]) => string;
   /** A value of a type the field does not accept, or of no type at all. */
   enterAccepted: (types: AcceptedPrincipalType[]) => string;
+  /** The chip naming the type the value was recognized as. */
+  typeChip: (type: AcceptedPrincipalType) => string;
+  /** The login form's default subtitle for the accepted types. */
+  loginSubtitle: (types: AcceptedPrincipalType[]) => string;
   invalidEmail: string;
   invalidPhone: string;
   usernameTooShort: (min: number) => string;
@@ -51,6 +55,9 @@ export const DEFAULT_PRINCIPAL_INPUT_TEXTS: PrincipalInputTexts = {
     return text.charAt(0).toUpperCase() + text.slice(1);
   },
   enterAccepted: (types) => `Enter ${list(types.map((t) => ENTER_WORDS[t]))}`,
+  typeChip: (type) => LABEL_WORDS[type],
+  loginSubtitle: (types) =>
+    `Enter your ${list(types.map((t) => LABEL_WORDS[t]))} to continue`,
   invalidEmail: "Invalid email address",
   invalidPhone: "Invalid phone number",
   usernameTooShort: (min) => `A username has at least ${min} characters`,

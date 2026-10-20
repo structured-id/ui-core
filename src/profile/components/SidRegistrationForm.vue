@@ -464,6 +464,8 @@ watch(password, () => {
 });
 
 function onPasswordInput() {
+  // What the server said about the password was about its earlier value.
+  fieldErrors.value.password = undefined;
   // Trigger downstream confirm re-validation immediately (don't wait for blur).
   if (confirmPassword.value) confirmRef.value?.validate();
 }
@@ -514,13 +516,24 @@ async function onSubmit() {
   } catch (e) {
     success.value = false;
     const err = e instanceof Error ? e : new Error("Registration failed");
-    // A violation of a field the form shows goes under that field; the
-    // banner keeps the rest, or the general reason when nothing is left.
+    // A violation of a field the form shows goes under that field, all of a
+    // field's together; the banner keeps the rest (a field not shown now
+    // included), or the general reason when nothing is left.
+    const shown: Record<keyof typeof fieldErrors.value, boolean> = {
+      principal: true,
+      password: true,
+      claimToken: props.claimRequired,
+      inviteCode: showInviteField.value,
+    };
     const rest: string[] = [];
     for (const v of rpcRefusal(e)?.fieldViolations ?? []) {
       const field = FIELD_OF[v.field];
-      if (field) fieldErrors.value[field] = v.text;
-      else rest.push(v.text);
+      if (field && shown[field]) {
+        const before = fieldErrors.value[field];
+        fieldErrors.value[field] = before ? `${before}; ${v.text}` : v.text;
+      } else {
+        rest.push(v.text);
+      }
     }
     const bound = Object.keys(fieldErrors.value).length > 0;
     error.value = rest.length
