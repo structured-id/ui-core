@@ -82,11 +82,26 @@ describe("SidPrincipalInput", () => {
   });
 
   // The label names the accepted types unless the form gives its own.
+  // A field of one type is named by it. A field of several is a login
+  // field until the input shows which type it is, then it names that type;
+  // a recognized type the field does not accept leaves it a login field.
   it("labels the field by the types it accepts", () => {
-    expect(input().props("label")).toBe("Email, phone, or username");
     expect(input({ types: ["email"] }).props("label")).toBe("Email");
-    expect(input({ types: ["email", "username"] }).props("label")).toBe(
-      "Email or username",
+    expect(input({ types: ["username"] }).props("label")).toBe("Username");
+    expect(input().props("label")).toBe("Login");
+    const two = { types: ["email", "username"] };
+    expect(input(two).props("label")).toBe("Login");
+    expect(
+      input({ ...two, modelValue: "alice@sid.example.com" }).props("label"),
+    ).toBe("Email");
+    expect(input({ ...two, modelValue: "alice_wonder" }).props("label")).toBe(
+      "Username",
+    );
+    expect(input({ ...two, modelValue: "+380501234567" }).props("label")).toBe(
+      "Login",
+    );
+    expect(input({ ...two, texts: { login: "Логин" } }).props("label")).toBe(
+      "Логин",
     );
     expect(
       input({ types: ["email"], label: "Your email" }).props("label"),

@@ -14,8 +14,13 @@ export const ALL_PRINCIPAL_TYPES: readonly AcceptedPrincipalType[] = [
 
 /** What the field says; each text can be replaced (translated) by the form. */
 export interface PrincipalInputTexts {
-  /** The label for the accepted types, when the form gives none. */
+  /**
+   * The label naming one type: the field's only accepted type, or the type
+   * the input of a several-type field was recognized as.
+   */
   label: (types: AcceptedPrincipalType[]) => string;
+  /** The label of a field of several types before its input shows which. */
+  login: string;
   /** A value of a type the field does not accept, or of no type at all. */
   enterAccepted: (types: AcceptedPrincipalType[]) => string;
   /** The chip naming the type the value was recognized as. */
@@ -54,6 +59,7 @@ export const DEFAULT_PRINCIPAL_INPUT_TEXTS: PrincipalInputTexts = {
     const text = list(types.map((t) => LABEL_WORDS[t]));
     return text.charAt(0).toUpperCase() + text.slice(1);
   },
+  login: "Login",
   enterAccepted: (types) => `Enter ${list(types.map((t) => ENTER_WORDS[t]))}`,
   typeChip: (type) => LABEL_WORDS[type],
   loginSubtitle: (types) =>

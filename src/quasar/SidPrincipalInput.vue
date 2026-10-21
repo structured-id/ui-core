@@ -96,9 +96,19 @@ const accepted = computed(() =>
   ALL_PRINCIPAL_TYPES.filter((t) => props.types.includes(t)),
 );
 
-const fieldLabel = computed(
-  () => props.label ?? text.value.label(accepted.value),
-);
+/**
+ * A field of one type is named by it; a field of several is a login field
+ * until its input is recognized as one of the accepted types.
+ */
+const fieldLabel = computed(() => {
+  if (props.label) return props.label;
+  const [only, ...others] = accepted.value;
+  if (only && others.length === 0) return text.value.label([only]);
+  const type = detectedType.value;
+  return type !== "unknown" && accepted.value.includes(type)
+    ? text.value.label([type])
+    : text.value.login;
+});
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
