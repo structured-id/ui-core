@@ -106,6 +106,10 @@ describe("SidPrincipalInput", () => {
     expect(
       input({ types: ["email"], label: "Your email" }).props("label"),
     ).toBe("Your email");
+    // An explicitly empty label is the form's choice of no label.
+    expect(
+      input({ types: ["email", "username"], label: "" }).props("label"),
+    ).toBe("");
   });
 
   // The chip naming the detected type is a text like the others: a

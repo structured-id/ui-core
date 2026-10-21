@@ -101,7 +101,8 @@ const accepted = computed(() =>
  * until its input is recognized as one of the accepted types.
  */
 const fieldLabel = computed(() => {
-  if (props.label) return props.label;
+  // An empty label is the form's own choice; only an absent one is derived.
+  if (props.label != null) return props.label;
   const [only, ...others] = accepted.value;
   if (only && others.length === 0) return text.value.label([only]);
   const type = detectedType.value;
