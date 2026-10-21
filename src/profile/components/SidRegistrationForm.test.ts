@@ -31,27 +31,16 @@ const quasarStubs = {
     template:
       '<input :value="modelValue" :data-error="error ? errorMessage : undefined" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
-  "q-btn": { template: '<button type="submit"><slot /></button>' },
+  "q-btn": {
+    props: ["disable"],
+    template: '<button type="submit" :disabled="disable"><slot /></button>',
+  },
   "sid-password-ceremony": {
     name: "SidPasswordCeremony",
     props: ["outcome", "refusedText", "length", "fields"],
     emits: ["settled"],
     template:
       '<div class="ceremony" :data-outcome="outcome" :data-refused="refusedText" :data-length="length" :data-fields="fields" />',
-  },
-  "sid-principal-input": {
-    name: "SidPrincipalInput",
-    props: [
-      "modelValue",
-      "disable",
-      "label",
-      "types",
-      "minUsernameLength",
-      "fieldError",
-    ],
-    emits: ["update:modelValue", "update:principal-type"],
-    template:
-      '<input :value="modelValue" :data-error="fieldError || undefined" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
 };
 
@@ -176,6 +165,30 @@ describe("SidRegistrationForm", () => {
       { claimToken: "sidclaim_abc" },
       expect.any(Function),
     );
+  });
+
+  // The registration cannot start until the identifier is a well-formed
+  // principal this scenario admits: fewer than three characters are nobody
+  // yet, and a username shorter than this registration's minimum, or with a
+  // character a username cannot hold, keeps the button disabled too.
+  it("cannot register until the identifier is well-formed", async () => {
+    const w = mountForm({ claimRequired: false });
+    const [principal, password, confirm] = w.findAll("input");
+    await password.setValue("Secret-Pass-123");
+    await confirm.setValue("Secret-Pass-123");
+    for (const [value, disabled] of [
+      ["ow", true],
+      [" ow ", true],
+      ["owner", true],
+      ["owner.one", true],
+      ["owner_one", false],
+      ["owner@example.com", false],
+    ] as const) {
+      await principal.setValue(value);
+      expect(w.find("button").attributes("disabled") !== undefined, value).toBe(
+        disabled,
+      );
+    }
   });
 
   it("submits the invite code when the installation is claimed", async () => {

@@ -17,8 +17,16 @@ describe("detectLoginInputType", () => {
     expect(detectLoginInputType("alice")).toBe("username");
     expect(detectLoginInputType("bob_smith")).toBe("username");
     expect(detectLoginInputType("dev42")).toBe("username");
-    // Uppercase accepted in detection (will be lowercased on normalize)
+    // Uppercase accepted; the server derives the key.
     expect(detectLoginInputType("Admin123")).toBe("username");
+  });
+
+  it("detects a username in any script, counted in code points", () => {
+    expect(detectLoginInputType("Иван")).toBe("username");
+    expect(detectLoginInputType("Иван_Петров", 6)).toBe("username");
+    expect(detectLoginInputType("Щукин", 6)).toBe("unknown"); // 5 < 6
+    expect(detectLoginInputType("ЩЩ")).toBe("unknown"); // 2 < 3
+    expect(detectLoginInputType("Иван Петров")).toBe("unknown"); // a space
   });
 
   it("detects username with minLength=6 (registration)", () => {
@@ -126,11 +134,40 @@ describe("normalizePrincipal", () => {
     expect(result.display).toBe("+380501234567");
   });
 
-  it("normalizes username: value=lowercase, display=original casing", () => {
+  // Regression: the client lowercased a username before sending it, so the
+  // server never saw the spelling the user typed and could not keep it as
+  // the display form. The server derives the key, as it does for email.
+  it("sends a username as typed, case kept", () => {
     const result = normalizePrincipal("Alice_Bob");
     expect(result.type).toBe("username");
-    expect(result.value).toBe("alice_bob");
+    expect(result.value).toBe("Alice_Bob");
     expect(result.display).toBe("Alice_Bob");
+  });
+
+  // Whitespace is never part of a name and is not repaired: a username with
+  // surrounding spaces is refused, not trimmed into another name.
+  it("refuses a username with surrounding whitespace", () => {
+    for (const input of ["  Alice_Bob ", "Alice_Bob ", "\tAlice_Bob"]) {
+      expect(() => normalizePrincipal(input)).toThrow("Cannot determine");
+    }
+  });
+
+  // Regression: a letter outside a-z made the name no type at all, so the
+  // field refused it before the server could apply its repertoire.
+  it("sends a username in any script as typed", () => {
+    for (const name of ["Иван_Петров", "Ωmega42", "Jürgen"]) {
+      const result = normalizePrincipal(name);
+      expect(result.type).toBe("username");
+      expect(result.value).toBe(name);
+    }
+  });
+
+  it("sends a username unnormalized and counts it after NFC", () => {
+    // "Jürgen" with ü as u + combining diaeresis: 7 code points, 6 in NFC.
+    const decomposed = "Jürgen";
+    const result = normalizePrincipal(decomposed, 6);
+    expect(result.value).toBe(decomposed);
+    expect(() => normalizePrincipal("Щукин", 6)).toThrow("Cannot determine");
   });
 
   it("rejects username with leading/trailing underscore (detected as unknown)", () => {

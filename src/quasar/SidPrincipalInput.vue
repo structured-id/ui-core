@@ -3,7 +3,7 @@
     ref="inputRef"
     v-model="model"
     :label="fieldLabel"
-    :rules="[requiredRule, typeRule]"
+    :rules="[typeRule]"
     :error="!!fieldError"
     :error-message="fieldError ?? undefined"
     outlined
@@ -18,7 +18,7 @@
     <template #prepend>
       <q-icon :name="iconName" :color="iconColor" size="24px" />
     </template>
-    <template v-if="model && detectedType !== 'unknown'" #append>
+    <template v-if="showChip" #append>
       <q-chip
         dense
         :color="chipColor"
@@ -35,11 +35,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { isValidPhoneNumber } from "libphonenumber-js";
-import { REQUIRED_FIELD_TEXT, isValidEmail } from "../utils/validators";
+import { isValidEmail } from "../utils/validators";
 
 import {
   ALL_PRINCIPAL_TYPES,
   DEFAULT_PRINCIPAL_INPUT_TEXTS,
+  principalRecognizable,
   type AcceptedPrincipalType,
   type PrincipalInputTexts,
   type PrincipalType,
@@ -56,15 +57,12 @@ interface Props {
    */
   types?: AcceptedPrincipalType[];
   minUsernameLength?: number;
-  required?: boolean;
   /** The label; without one the field names the accepted types. */
   label?: string;
   /** A refusal the server bound to this field, shown on it until edited. */
   fieldError?: string | null;
   /** Replacements for the field's texts. */
   texts?: Partial<PrincipalInputTexts>;
-  /** What an empty required field says. */
-  requiredText?: string;
   /**
    * Validate once the field is left, then on every change (true), or on
    * every change from the first keystroke (false). Default true: a field
@@ -76,13 +74,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: "",
   types: () => [...ALL_PRINCIPAL_TYPES],
-  // Username rule: ^[a-z0-9_]{3,32}$ (display form ^[a-zA-Z0-9_]{3,32}$).
+  // Code points of the NFC display form; the server's minimum decides.
   minUsernameLength: 3,
-  required: true,
   label: undefined,
   fieldError: null,
   texts: () => ({}),
-  requiredText: REQUIRED_FIELD_TEXT,
   lazyRules: true,
 });
 
@@ -114,6 +110,8 @@ const fieldLabel = computed(() => {
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   "update:principalType": [type: PrincipalType];
+  /** Whether the value can be submitted: a recognized, accepted, well-formed principal. */
+  "update:valid": [valid: boolean];
 }>();
 
 const inputRef = ref<{ focus: () => void } | null>(null);
@@ -125,10 +123,13 @@ const model = computed({
 
 const USERNAME_MAX_LENGTH = 32;
 
+/** What a username may hold: letters of any script, marks, digits, `_`. */
+const USERNAME_SHAPE = /^[\p{L}\p{M}\p{N}_]+$/u;
+
 function detectType(value: string): PrincipalType {
-  if (!value) return "unknown";
+  // One or two characters are nobody yet: no type is read from them.
+  if (!principalRecognizable(value)) return "unknown";
   const trimmed = value.trim();
-  if (!trimmed) return "unknown";
 
   // Phone: starts with +
   if (trimmed.startsWith("+")) return "phone";
@@ -136,12 +137,9 @@ function detectType(value: string): PrincipalType {
   // Email: contains @ (checked after phone to exclude edge cases)
   if (trimmed.includes("@")) return "email";
 
-  // Username by its shape at any length, so that a short one is told the
-  // minimum instead of being taken for no type at all. Uppercase is accepted
-  // (the server derives the key); length and underscores are the rule's.
-  if (/^[a-zA-Z0-9_]+$/.test(trimmed)) return "username";
-
-  return "unknown";
+  // Anything else is a username attempt, whatever it holds, so that what is
+  // wrong with it (spaces, a dot, a symbol, its length) can be said.
+  return "username";
 }
 
 const detectedType = computed(() => detectType(model.value));
@@ -157,13 +155,14 @@ function onInput(value: string | number | null) {
 
 // --- Validation rules ---
 
-const requiredRule = (val: string) =>
-  !props.required || !!val || props.requiredText;
-
+/**
+ * Until a type is recognized nothing is wrong yet, an empty field included:
+ * the form keeps its button disabled instead (see principalRecognizable).
+ */
 const typeRule = (val: string): string | true => {
-  if (!val) return true; // required rule handles empty
   const type = detectType(val);
-  if (type === "unknown" || !accepted.value.includes(type)) {
+  if (type === "unknown") return true;
+  if (!accepted.value.includes(type)) {
     return text.value.enterAccepted(accepted.value);
   }
 
@@ -173,10 +172,15 @@ const typeRule = (val: string): string | true => {
     case "phone":
       return isValidPhoneNumber(val) || text.value.invalidPhone;
     case "username": {
-      const name = val.trim();
-      if (name.length < props.minUsernameLength)
+      const name = val;
+      if (/\s/u.test(name)) return text.value.usernameSpaces;
+      if (!USERNAME_SHAPE.test(name)) return text.value.usernameCharacters;
+      // Counted in code points of the NFC form, as the server counts the
+      // display; the value itself is sent unchanged.
+      const length = [...name.normalize("NFC")].length;
+      if (length < props.minUsernameLength)
         return text.value.usernameTooShort(props.minUsernameLength);
-      if (name.length > USERNAME_MAX_LENGTH)
+      if (length > USERNAME_MAX_LENGTH)
         return text.value.usernameTooLong(USERNAME_MAX_LENGTH);
       if (name.startsWith("_") || name.endsWith("_"))
         return text.value.usernameUnderscoreEdge;
@@ -186,10 +190,46 @@ const typeRule = (val: string): string | true => {
   }
 };
 
+/**
+ * A form keeps its submit disabled until this holds, silently: the error a
+ * rule names appears only once the field is left, the button never waits for
+ * it. A refusal the server bound to the field holds until the value changes.
+ */
+const valid = computed(
+  () =>
+    detectedType.value !== "unknown" &&
+    typeRule(model.value) === true &&
+    !props.fieldError,
+);
+
+watch(valid, (v) => emit("update:valid", v), { immediate: true });
+
 // --- Dynamic icon & type ---
 
+/** The recognized type when the field accepts it; refused types look neutral. */
+const shownType = computed<PrincipalType>(() => {
+  const type = detectedType.value;
+  return type !== "unknown" && accepted.value.includes(type) ? type : "unknown";
+});
+
+/**
+ * The chip names the type only when the label does not: a derived label
+ * already says "Email" or "Username".
+ */
+const showChip = computed(
+  () => props.label != null && shownType.value !== "unknown",
+);
+
+/** A field of one type shows that type's icon from the start, greyed until recognized. */
+const iconType = computed<PrincipalType>(() => {
+  const [only, ...others] = accepted.value;
+  return shownType.value === "unknown" && only && others.length === 0
+    ? only
+    : shownType.value;
+});
+
 const iconName = computed(() => {
-  switch (detectedType.value) {
+  switch (iconType.value) {
     case "email":
       return "sym_o_mail";
     case "phone":
@@ -202,7 +242,7 @@ const iconName = computed(() => {
 });
 
 const iconColor = computed(() =>
-  detectedType.value === "unknown" ? "grey-6" : "primary",
+  shownType.value === "unknown" ? "grey-6" : "primary",
 );
 
 // inputmode controls mobile keyboard WITHOUT triggering browser autofill.
@@ -222,13 +262,11 @@ const inputMode = computed(() => {
 });
 
 const chipLabel = computed(() =>
-  detectedType.value === "unknown"
-    ? ""
-    : text.value.typeChip(detectedType.value),
+  shownType.value === "unknown" ? "" : text.value.typeChip(shownType.value),
 );
 
 const chipColor = computed(() => {
-  switch (detectedType.value) {
+  switch (shownType.value) {
     case "email":
       return "deep-orange";
     case "phone":
@@ -246,5 +284,5 @@ function focus() {
   inputRef.value?.focus();
 }
 
-defineExpose({ focus, detectedType });
+defineExpose({ focus, detectedType, valid });
 </script>

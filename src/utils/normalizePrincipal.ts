@@ -14,17 +14,18 @@ export interface NormalizedPrincipal {
 }
 
 /**
- * Global username rules:
- *   Display:    ^[a-zA-Z0-9_]{3,32}$ — user's original input, mixed case preserved
- *   Normalized: ^[a-z0-9_]{3,32}$    — lowercase, for storage + uniqueness + login
- *   - cannot start or end with underscore
- *   - no consecutive underscores (__)
- *
- * For detection (prematch) we use a relaxed version:
- *   - accepts minLength (3 for login, 6 for registration)
- *   - case-insensitive (will be lowercased on normalization)
+ * A global username as the user types it: letters of any script, combining
+ * marks, digits and `_`, at most 32 code points in NFC, no `_` at either
+ * end. It is sent exactly as typed (nothing trimmed or normalized); the
+ * server applies its repertoire and minimum and derives the lookup key.
  */
 const USERNAME_MAX_LENGTH = 32;
+const USERNAME_SHAPE = /^[\p{L}\p{M}\p{N}_]+$/u;
+
+/** The length of `name` in code points of its NFC form. */
+function codePoints(name: string): number {
+  return [...name.normalize("NFC")].length;
+}
 
 /**
  * Detect principal type from user input.
@@ -63,11 +64,16 @@ export function detectLoginInputType(
     return "unknown";
   }
 
-  // Global username: no #, no @, no +
-  const re = new RegExp(
-    `^[a-zA-Z0-9_]{${minUsernameLength},${USERNAME_MAX_LENGTH}}$`,
-  );
-  if (re.test(trimmed) && !trimmed.startsWith("_") && !trimmed.endsWith("_")) {
+  // Global username: no #, no @, no +. Judged on the input itself, not the
+  // trimmed form: whitespace is never part of a name and is never repaired.
+  const length = codePoints(input);
+  if (
+    USERNAME_SHAPE.test(input) &&
+    length >= minUsernameLength &&
+    length <= USERNAME_MAX_LENGTH &&
+    !input.startsWith("_") &&
+    !input.endsWith("_")
+  ) {
     return "username";
   }
 
@@ -79,7 +85,7 @@ export function detectLoginInputType(
  *
  * - Email: as typed (trimmed); the server applies the email policy
  * - Phone: E.164 format via libphonenumber-js
- * - Username: lowercase, validate per arch rules
+ * - Username: exactly as typed; a federated one trimmed and lowercased
  *
  * @param minUsernameLength - minimum chars for username (3 for login, 6 for register)
  * Throws if value doesn't pass validation for detected type.
@@ -89,7 +95,7 @@ export function normalizePrincipal(
   minUsernameLength = 3,
 ): NormalizedPrincipal {
   const trimmed = input.trim();
-  const type = detectLoginInputType(trimmed, minUsernameLength);
+  const type = detectLoginInputType(input, minUsernameLength);
 
   switch (type) {
     case "email": {
@@ -135,20 +141,13 @@ export function normalizePrincipal(
         return { value: normalized, display: trimmed, type: "username" };
       }
 
-      // Global username
-      const normalized = trimmed.toLowerCase();
-      const re = new RegExp(
-        `^[a-z0-9_]{${minUsernameLength},${USERNAME_MAX_LENGTH}}$`,
-      );
-      if (
-        !re.test(normalized) ||
-        normalized.startsWith("_") ||
-        normalized.endsWith("_") ||
-        normalized.includes("__")
-      ) {
+      // Global username: detection checked its shape and length on the
+      // input itself; sent exactly as typed, the server normalizes it and
+      // derives the key.
+      if (input.includes("__")) {
         throw new Error("Invalid username");
       }
-      return { value: normalized, display: trimmed, type: "username" };
+      return { value: input, display: input, type: "username" };
     }
 
     default:

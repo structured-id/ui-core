@@ -143,6 +143,7 @@
           data-test="principal"
           @update:model-value="fieldErrors.principal = undefined"
           @update:principal-type="principalType = $event"
+          @update:valid="principalValid = $event"
         />
 
         <slot name="extra-fields" />
@@ -200,7 +201,7 @@
           class="full-width"
           :loading="loading"
           :disable="
-            !identifier ||
+            !principalValid ||
             !password ||
             (showConfirmPassword && !confirmPassword) ||
             (claimRequired && !claimToken.trim()) ||
@@ -433,6 +434,7 @@ const PAINT_FALLBACK_MS = 250;
 
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");
+const principalValid = ref(false);
 const password = ref("");
 const confirmPassword = ref("");
 const showPassword = ref(false);

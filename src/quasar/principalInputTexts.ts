@@ -12,6 +12,18 @@ export const ALL_PRINCIPAL_TYPES: readonly AcceptedPrincipalType[] = [
   "username",
 ];
 
+/**
+ * Fewer characters than this are nobody yet: no type is recognized from them
+ * and no form can submit them. Counted in code points of the NFC form,
+ * surrounding whitespace aside.
+ */
+export const MIN_PRINCIPAL_LENGTH = 3;
+
+/** Whether `value` is long enough to be anybody. */
+export function principalRecognizable(value: string): boolean {
+  return [...value.trim().normalize("NFC")].length >= MIN_PRINCIPAL_LENGTH;
+}
+
 /** What the field says; each text can be replaced (translated) by the form. */
 export interface PrincipalInputTexts {
   /**
@@ -33,6 +45,10 @@ export interface PrincipalInputTexts {
   usernameTooLong: (max: number) => string;
   usernameUnderscoreEdge: string;
   usernameDoubleUnderscore: string;
+  /** A username with whitespace in or around it. */
+  usernameSpaces: string;
+  /** A username with a character other than a letter, digit or `_`. */
+  usernameCharacters: string;
 }
 
 /** `a`, `a or b`, `a, b, or c`. */
@@ -71,4 +87,7 @@ export const DEFAULT_PRINCIPAL_INPUT_TEXTS: PrincipalInputTexts = {
   usernameUnderscoreEdge: "A username cannot start or end with an underscore",
   usernameDoubleUnderscore:
     "A username cannot contain two underscores in a row",
+  usernameSpaces: "A username cannot contain spaces",
+  usernameCharacters:
+    "A username can contain only letters, digits and underscores",
 };
