@@ -128,8 +128,9 @@ function detectType(value: string): PrincipalType {
   // Username by its shape at any length, so that a short one is told the
   // minimum instead of being taken for no type at all. Letters of any script
   // and either case are accepted (the server applies its repertoire and
-  // derives the key); length and underscores are the rule's.
-  if (/^[\p{L}\p{M}\p{N}_]+$/u.test(trimmed)) return "username";
+  // derives the key); length and underscores are the rule's. Judged on the
+  // value itself: whitespace is never part of a name and is not repaired.
+  if (/^[\p{L}\p{M}\p{N}_]+$/u.test(value)) return "username";
 
   return "unknown";
 }
@@ -163,9 +164,10 @@ const typeRule = (val: string): string | true => {
     case "phone":
       return isValidPhoneNumber(val) || text.value.invalidPhone;
     case "username": {
-      const name = val.trim().normalize("NFC");
-      // Counted in code points, as the server counts the display form.
-      const length = [...name].length;
+      const name = val;
+      // Counted in code points of the NFC form, as the server counts the
+      // display; the value itself is sent unchanged.
+      const length = [...name.normalize("NFC")].length;
       if (length < props.minUsernameLength)
         return text.value.usernameTooShort(props.minUsernameLength);
       if (length > USERNAME_MAX_LENGTH)

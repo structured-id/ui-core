@@ -93,6 +93,9 @@ describe("SidPrincipalInput", () => {
     expect(type("Щукин")).toBe("A username has at least 6 characters");
     expect(type("Jürgen")).toBe(true); // 7 code points, 6 in NFC
     expect(type("Иван Петров")).toBe("Enter an email address or a username");
+    // Surrounding whitespace is refused, not trimmed into a name.
+    expect(type(" Иван_Петров")).toBe("Enter an email address or a username");
+    expect(type("Иван_Петров ")).toBe("Enter an email address or a username");
   });
 
   // The label names the accepted types unless the form gives its own.

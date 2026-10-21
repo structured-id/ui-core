@@ -138,10 +138,18 @@ describe("normalizePrincipal", () => {
   // server never saw the spelling the user typed and could not keep it as
   // the display form. The server derives the key, as it does for email.
   it("sends a username as typed, case kept", () => {
-    const result = normalizePrincipal("  Alice_Bob ");
+    const result = normalizePrincipal("Alice_Bob");
     expect(result.type).toBe("username");
     expect(result.value).toBe("Alice_Bob");
     expect(result.display).toBe("Alice_Bob");
+  });
+
+  // Whitespace is never part of a name and is not repaired: a username with
+  // surrounding spaces is refused, not trimmed into another name.
+  it("refuses a username with surrounding whitespace", () => {
+    for (const input of ["  Alice_Bob ", "Alice_Bob ", "\tAlice_Bob"]) {
+      expect(() => normalizePrincipal(input)).toThrow("Cannot determine");
+    }
   });
 
   // Regression: a letter outside a-z made the name no type at all, so the
@@ -154,11 +162,11 @@ describe("normalizePrincipal", () => {
     }
   });
 
-  it("sends a username NFC-normalized and counts it after NFC", () => {
+  it("sends a username unnormalized and counts it after NFC", () => {
     // "Jürgen" with ü as u + combining diaeresis: 7 code points, 6 in NFC.
     const decomposed = "Jürgen";
     const result = normalizePrincipal(decomposed, 6);
-    expect(result.value).toBe("Jürgen");
+    expect(result.value).toBe(decomposed);
     expect(() => normalizePrincipal("Щукин", 6)).toThrow("Cannot determine");
   });
 

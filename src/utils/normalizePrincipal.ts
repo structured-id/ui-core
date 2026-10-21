@@ -16,8 +16,8 @@ export interface NormalizedPrincipal {
 /**
  * A global username as the user types it: letters of any script, combining
  * marks, digits and `_`, at most 32 code points in NFC, no `_` at either
- * end. It is sent as typed (NFC, case kept); the server applies its
- * repertoire and minimum and derives the lookup key, as it does for email.
+ * end. It is sent exactly as typed (nothing trimmed or normalized); the
+ * server applies its repertoire and minimum and derives the lookup key.
  */
 const USERNAME_MAX_LENGTH = 32;
 const USERNAME_SHAPE = /^[\p{L}\p{M}\p{N}_]+$/u;
@@ -64,14 +64,15 @@ export function detectLoginInputType(
     return "unknown";
   }
 
-  // Global username: no #, no @, no +
-  const length = codePoints(trimmed);
+  // Global username: no #, no @, no +. Judged on the input itself, not the
+  // trimmed form: whitespace is never part of a name and is never repaired.
+  const length = codePoints(input);
   if (
-    USERNAME_SHAPE.test(trimmed) &&
+    USERNAME_SHAPE.test(input) &&
     length >= minUsernameLength &&
     length <= USERNAME_MAX_LENGTH &&
-    !trimmed.startsWith("_") &&
-    !trimmed.endsWith("_")
+    !input.startsWith("_") &&
+    !input.endsWith("_")
   ) {
     return "username";
   }
@@ -84,7 +85,7 @@ export function detectLoginInputType(
  *
  * - Email: as typed (trimmed); the server applies the email policy
  * - Phone: E.164 format via libphonenumber-js
- * - Username: as typed (trimmed, NFC); a federated one lowercased
+ * - Username: exactly as typed; a federated one trimmed and lowercased
  *
  * @param minUsernameLength - minimum chars for username (3 for login, 6 for register)
  * Throws if value doesn't pass validation for detected type.
@@ -94,7 +95,7 @@ export function normalizePrincipal(
   minUsernameLength = 3,
 ): NormalizedPrincipal {
   const trimmed = input.trim();
-  const type = detectLoginInputType(trimmed, minUsernameLength);
+  const type = detectLoginInputType(input, minUsernameLength);
 
   switch (type) {
     case "email": {
@@ -140,13 +141,13 @@ export function normalizePrincipal(
         return { value: normalized, display: trimmed, type: "username" };
       }
 
-      // Global username: detection checked its shape and length; sent as
-      // typed, the server derives the key.
-      const name = trimmed.normalize("NFC");
-      if (name.includes("__")) {
+      // Global username: detection checked its shape and length on the
+      // input itself; sent exactly as typed, the server normalizes it and
+      // derives the key.
+      if (input.includes("__")) {
         throw new Error("Invalid username");
       }
-      return { value: name, display: name, type: "username" };
+      return { value: input, display: input, type: "username" };
     }
 
     default:
