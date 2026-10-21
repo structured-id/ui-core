@@ -23,13 +23,11 @@ const quasarStubs = {
     template:
       '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   }),
-  "q-btn": { template: '<button type="submit"><slot /></button>' },
-  "sid-principal-input": defineComponent({
-    props: ["modelValue", "disable"],
-    emits: ["update:modelValue", "update:principal-type"],
-    template:
-      '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
-  }),
+  "q-btn": {
+    props: ["disable"],
+    template: '<button type="submit" :disabled="disable"><slot /></button>',
+  },
+  "q-chip": { template: "<span><slot /></span>" },
   "router-link": { template: "<a><slot /></a>" },
 };
 
@@ -94,11 +92,52 @@ describe("SidLoginForm", () => {
     ).toContain("Hello");
   });
 
+  // Fewer than three characters are nobody yet: the form cannot sign in
+  // with them, so its button stays disabled until a third is typed.
+  it("cannot sign in with fewer than three characters", async () => {
+    const w = mountLogin();
+    const [principal, password] = w.findAll("input");
+    await password.setValue("secret");
+    for (const [value, disabled] of [
+      ["al", true],
+      [" al ", true],
+      ["ali", false],
+    ] as const) {
+      await principal.setValue(value);
+      expect(w.find("button").attributes("disabled") !== undefined, value).toBe(
+        disabled,
+      );
+    }
+  });
+
+  // Regression: with "ali.ce" shown as not a username the button was still
+  // enabled, since the form only counted characters. It stays disabled until
+  // the identifier is a well-formed principal of an accepted type, without
+  // waiting for the field's error to appear.
+  it("cannot sign in until the identifier is well-formed", async () => {
+    const w = mountLogin({ principalTypes: ["email", "username"] });
+    const [principal, password] = w.findAll("input");
+    await password.setValue("secret");
+    for (const [value, disabled] of [
+      ["ali", false],
+      ["ali.ce", true],
+      ["ali ce", true],
+      ["+380501234567", true],
+      ["alice@", true],
+      ["alice@sid.example.com", false],
+    ] as const) {
+      await principal.setValue(value);
+      expect(w.find("button").attributes("disabled") !== undefined, value).toBe(
+        disabled,
+      );
+    }
+  });
+
   // Regression: the password turned red on the first keystroke and its empty
   // error read "Required" beside the identifier's "This field is required".
   it("validates the password once left, with the shared required text", () => {
     const w = mountLogin();
-    const password = w.findComponent({ name: "QInputStub" });
+    const password = w.findAllComponents({ name: "QInputStub" })[1];
     const lazy = password.props("lazyRules");
     expect(lazy === "" || lazy === true).toBe(true);
     const [required] = password.props("rules") as ((v: string) => unknown)[];

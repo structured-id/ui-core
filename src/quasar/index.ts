@@ -13,6 +13,8 @@ export type {
 export {
   ALL_PRINCIPAL_TYPES,
   DEFAULT_PRINCIPAL_INPUT_TEXTS,
+  MIN_PRINCIPAL_LENGTH,
+  principalRecognizable,
 } from "./principalInputTexts";
 export { default as SidPasswordCeremony } from "./SidPasswordCeremony.vue";
 export type { CeremonyOutcome } from "./SidPasswordCeremony.vue";

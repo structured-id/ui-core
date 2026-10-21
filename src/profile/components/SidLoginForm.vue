@@ -42,6 +42,7 @@
           :texts="principalTexts"
           data-test="principal"
           @update:principal-type="principalType = $event"
+          @update:valid="principalValid = $event"
         />
 
         <q-input
@@ -74,7 +75,7 @@
           color="primary"
           class="full-width"
           :loading="loading"
-          :disable="!identifier || !password"
+          :disable="!principalValid || !password"
           data-test="submit"
         />
       </q-form>
@@ -223,6 +224,7 @@ const shownSubtitle = computed(
 
 const identifier = ref("");
 const principalType = ref<PrincipalType>("unknown");
+const principalValid = ref(false);
 const password = ref("");
 const showPassword = ref(false);
 const loading = ref(false);
