@@ -81,6 +81,20 @@ describe("SidPrincipalInput", () => {
     expect(login("si")).toBe("A username has at least 3 characters");
   });
 
+  // Regression: a username with a letter outside a-z was taken for no type
+  // and refused before the server could apply its repertoire; its length is
+  // counted in code points of its NFC form, as the server counts it.
+  it("takes a username in any script and counts its code points", () => {
+    const [, type] = input({
+      types: ["email", "username"],
+      minUsernameLength: 6,
+    }).props("rules") as Rule[];
+    expect(type("Иван_Петров")).toBe(true);
+    expect(type("Щукин")).toBe("A username has at least 6 characters");
+    expect(type("Jürgen")).toBe(true); // 7 code points, 6 in NFC
+    expect(type("Иван Петров")).toBe("Enter an email address or a username");
+  });
+
   // The label names the accepted types unless the form gives its own.
   it("labels the field by the types it accepts", () => {
     expect(input().props("label")).toBe("Email, phone, or username");

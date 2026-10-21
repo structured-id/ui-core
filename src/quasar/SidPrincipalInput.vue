@@ -76,7 +76,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: "",
   types: () => [...ALL_PRINCIPAL_TYPES],
-  // Username rule: ^[a-z0-9_]{3,32}$ (display form ^[a-zA-Z0-9_]{3,32}$).
+  // Code points of the NFC display form; the server's minimum decides.
   minUsernameLength: 3,
   required: true,
   label: undefined,
@@ -126,9 +126,10 @@ function detectType(value: string): PrincipalType {
   if (trimmed.includes("@")) return "email";
 
   // Username by its shape at any length, so that a short one is told the
-  // minimum instead of being taken for no type at all. Uppercase is accepted
-  // (the server derives the key); length and underscores are the rule's.
-  if (/^[a-zA-Z0-9_]+$/.test(trimmed)) return "username";
+  // minimum instead of being taken for no type at all. Letters of any script
+  // and either case are accepted (the server applies its repertoire and
+  // derives the key); length and underscores are the rule's.
+  if (/^[\p{L}\p{M}\p{N}_]+$/u.test(trimmed)) return "username";
 
   return "unknown";
 }
@@ -162,10 +163,12 @@ const typeRule = (val: string): string | true => {
     case "phone":
       return isValidPhoneNumber(val) || text.value.invalidPhone;
     case "username": {
-      const name = val.trim();
-      if (name.length < props.minUsernameLength)
+      const name = val.trim().normalize("NFC");
+      // Counted in code points, as the server counts the display form.
+      const length = [...name].length;
+      if (length < props.minUsernameLength)
         return text.value.usernameTooShort(props.minUsernameLength);
-      if (name.length > USERNAME_MAX_LENGTH)
+      if (length > USERNAME_MAX_LENGTH)
         return text.value.usernameTooLong(USERNAME_MAX_LENGTH);
       if (name.startsWith("_") || name.endsWith("_"))
         return text.value.usernameUnderscoreEdge;
