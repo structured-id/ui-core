@@ -36,9 +36,12 @@ const { login } = createAuth(() => loadZkppClient());
 
 ### Email addresses
 
-Email fields are checked with [`@structured-world/structured-email-address-wasm`](https://www.npmjs.com/package/@structured-world/structured-email-address-wasm),
-the parser the server itself uses, compiled to WebAssembly with the Public
-Suffix List embedded (no network). Each namespace's admission mirrors the
+Email fields are checked with [`@structured-world/structured-email-address-ts`](https://www.npmjs.com/package/@structured-world/structured-email-address-ts),
+the TypeScript port of the parser the server uses, checked byte-identical
+against it. Its Public Suffix List trie is the application's own asset (the
+bundler emits `psl.bin` from `@structured-world/structured-public-domains`),
+served by the application's host and cached in IndexedDB; where it is served
+from is a setting (`psl.url`), never a third-party CDN. Each namespace's admission mirrors the
 server's email policy: `LOCAL` (an installation's own accounts: internal and
 internationalized domains), `CORPORATE_BASELINE`, `GLOBAL_PERSONAL` (ASCII, no
 IDN, a public mail domain). The server still decides; the field refuses only
@@ -53,7 +56,10 @@ did not.
 ```ts
 import { GLOBAL_PERSONAL, initEmail } from "@structured-id/ui-core";
 
+// The trie from the application's own copy...
 await initEmail({ policy: GLOBAL_PERSONAL });
+// ...or from where the deployment's configuration says it is served.
+await initEmail({ policy: GLOBAL_PERSONAL, psl: { url: config.pslUrl } });
 ```
 
 ## Development

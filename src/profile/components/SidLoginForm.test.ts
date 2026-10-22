@@ -4,9 +4,10 @@ import { defineComponent } from "vue";
 import SidLoginForm from "./SidLoginForm.vue";
 import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
 import { initEmail } from "../../utils/email";
+import { TEST_PSL } from "../../utils/email.testing";
 
 // As an application does at start: the email parser loaded, LOCAL namespace.
-beforeAll(() => initEmail());
+beforeAll(() => initEmail({ psl: TEST_PSL }));
 
 // Stub all Quasar components as divs
 const quasarStubs = {

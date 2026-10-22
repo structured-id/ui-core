@@ -8,6 +8,7 @@ import {
   initEmail,
   isValidEmail,
 } from "./email";
+import { TEST_PSL } from "./email.testing";
 
 // The admission the server applies (sid_authn::email): the same parser, the
 // same configuration per namespace, so the field refuses what the server
@@ -24,7 +25,7 @@ describe("before the parser is loaded", () => {
 
 describe("with the parser", () => {
   beforeAll(async () => {
-    await initEmail();
+    await initEmail({ psl: TEST_PSL });
   });
 
   it("accepts an ordinary mailbox in every namespace", () => {

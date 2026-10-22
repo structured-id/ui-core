@@ -1,4 +1,8 @@
-import { readonly, ref, type Ref } from "vue";
+// An ambient declaration cannot be imported, and a consumer compiling this
+// source sees it only through this reference.
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path="../assets.d.ts" />
+import { readonly, ref, shallowRef, type Ref } from "vue";
 
 /**
  * Which mailboxes an email namespace admits, as the server's policy for it
@@ -43,30 +47,49 @@ export const LOCAL: EmailPolicy = Object.freeze({
 /** A verdict on one input; `pending` until the parser is loaded. */
 export type EmailCheck = "valid" | "invalid" | "pending";
 
-type Parser = typeof import("@structured-world/structured-email-address-wasm");
+type Parser = typeof import("@structured-world/structured-email-address-ts");
+
+/** How the Public Suffix List trie is fetched and cached. */
+export type PslSource = NonNullable<
+  NonNullable<Parameters<Parser["init"]>[0]>["psl"]
+>;
 
 let parser: Parser | undefined;
 let loading: Promise<Parser> | undefined;
-let appPolicy: EmailPolicy = LOCAL;
+// Reactive, so a verdict computed under it is recomputed when it changes.
+const appPolicy = shallowRef<EmailPolicy>(LOCAL);
 const loaded = ref(false);
 
 /** Whether the parser is loaded; a rule depending on it re-runs when it is. */
 export const emailReady: Readonly<Ref<boolean>> = readonly(loaded);
 
 /**
+ * The trie this package ships, as the application's own asset: the bundler
+ * emits it beside the bundle, so the application's host serves it.
+ */
+async function bundledPsl(): Promise<string> {
+  const asset =
+    await import("@structured-world/structured-public-domains/psl.bin?url");
+  return asset.default;
+}
+
+/**
  * Load the parser (once) and set the application's email namespace, LOCAL
- * unless named. The parser is the server's own (WebAssembly, the Public
- * Suffix List embedded), so no network is involved and its verdict is the
- * server's. An application calls this at start; a field starts it when
- * nobody did.
+ * unless named. The parser is the TypeScript port of the server's, checked
+ * byte-identical against it; its Public Suffix List trie comes from `psl`
+ * (`url`: the setting of where it is served, the application's own copy of
+ * it when unset; never a third-party CDN), cached in IndexedDB. An
+ * application calls this at start; a field starts it when nobody did.
  */
 export async function initEmail(options?: {
   policy?: EmailPolicy;
+  psl?: PslSource;
 }): Promise<void> {
-  if (options?.policy) appPolicy = options.policy;
-  loading ??= import("@structured-world/structured-email-address-wasm").then(
+  if (options?.policy) appPolicy.value = options.policy;
+  loading ??= import("@structured-world/structured-email-address-ts").then(
     async (module) => {
-      await module.init();
+      const url = options?.psl?.url ?? (await bundledPsl());
+      await module.init({ psl: { ...options?.psl, url } });
       return module;
     },
   );
@@ -82,7 +105,7 @@ export async function initEmail(options?: {
 
 /** The application's email namespace. */
 export function emailPolicy(): EmailPolicy {
-  return appPolicy;
+  return appPolicy.value;
 }
 
 /** Whether a domain label is an IDNA A-label (`xn--`). */
@@ -98,7 +121,7 @@ function isALabel(label: string): boolean {
  */
 export function checkEmail(
   value: string,
-  policy: EmailPolicy = appPolicy,
+  policy: EmailPolicy = appPolicy.value,
 ): EmailCheck {
   if (!parser) return "pending";
   if (
@@ -136,7 +159,7 @@ export function checkEmail(
 /** {@link checkEmail} as a yes/no; `false` while the parser is loading. */
 export function isValidEmail(
   value: string,
-  policy: EmailPolicy = appPolicy,
+  policy: EmailPolicy = appPolicy.value,
 ): boolean {
   return checkEmail(value, policy) === "valid";
 }

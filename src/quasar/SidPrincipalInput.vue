@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { checkEmail, emailReady, initEmail } from "../utils/email";
 
@@ -210,14 +210,19 @@ const valid = computed(
 );
 
 // The application starts the parser at boot (initEmail with its namespace);
-// a field that accepts email starts it when nobody did.
-onMounted(() => {
-  if (accepted.value.includes("email") && !emailReady.value) {
-    initEmail().catch((error: unknown) => {
-      console.error("email address parser failed to load", error);
-    });
-  }
-});
+// a field that accepts email starts it when nobody did, also once its
+// accepted types come to include email.
+watch(
+  () => accepted.value.includes("email"),
+  (takesEmail) => {
+    if (takesEmail && !emailReady.value) {
+      initEmail().catch((error: unknown) => {
+        console.error("email address parser failed to load", error);
+      });
+    }
+  },
+  { immediate: true },
+);
 
 watch(valid, (v) => emit("update:valid", v), { immediate: true });
 
