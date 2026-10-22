@@ -208,10 +208,9 @@ describe("createAuth register", () => {
       RESPONSE,
     );
     expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, WIRE_PROOF);
-    expect(result).toEqual({
-      profileId: "profile-uuid",
-      credentialId: "cred-uuid",
-    });
+    // Regression: the result passed the server's Profile identifier on to
+    // the application; even a server still sending one is not forwarded.
+    expect(result).toEqual({ credentialId: "cred-uuid" });
   });
 
   // A password the circuit cannot hold has no history request: nothing is
