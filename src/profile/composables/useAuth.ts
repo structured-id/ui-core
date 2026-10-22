@@ -40,9 +40,11 @@ export interface LoginResult {
   expiresIn: number;
 }
 
-/** A registration's profile and its password credential. */
+/**
+ * A registration's password credential. No Profile identifier: the client
+ * signs in after registering and works through its session.
+ */
 export interface RegisterResult {
-  profileId: string;
   credentialId: string;
 }
 
@@ -394,10 +396,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
       done.proof,
     );
     plan.finish();
-    return {
-      profileId: finished.profileId,
-      credentialId: finished.credentialId,
-    };
+    return { credentialId: finished.credentialId };
   }
 
   /**
