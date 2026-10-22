@@ -17,6 +17,13 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [4.3.1](https://github.com/structured-id/ui-core/compare/v4.3.0...v4.3.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **auth:** the registration result carries no Profile identifier ([#42](https://github.com/structured-id/ui-core/issues/42)) ([a84784e](https://github.com/structured-id/ui-core/commit/a84784ec766eaecbda9109758de0f270eef9dc85)), closes [#41](https://github.com/structured-id/ui-core/issues/41)
+
 ## [4.3.0](https://github.com/structured-id/ui-core/compare/v4.2.0...v4.3.0) (2026-10-22)
 
 
