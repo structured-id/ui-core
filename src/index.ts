@@ -36,7 +36,16 @@ export { useAuthStore } from "./stores/auth";
 
 // Utils
 export {
+  CORPORATE_BASELINE,
+  GLOBAL_PERSONAL,
+  LOCAL,
+  checkEmail,
+  emailPolicy,
+  emailReady,
+  initEmail,
   isValidEmail,
+  type EmailCheck,
+  type EmailPolicy,
   isValidPhone,
   isValidUuid,
   isValidUsername,

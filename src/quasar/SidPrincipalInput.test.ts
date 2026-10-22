@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import SidPrincipalInput from "./SidPrincipalInput.vue";
 import { principalRecognizable } from "./principalInputTexts";
+import { initEmail } from "../utils/email";
+
+// As an application does at start: the email parser loaded, LOCAL namespace.
+beforeAll(() => initEmail());
 
 const stubs = {
   "q-input": defineComponent({

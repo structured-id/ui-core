@@ -1,8 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import SidLoginForm from "./SidLoginForm.vue";
 import { REQUIRED_FIELD_TEXT } from "../../utils/validators";
+import { initEmail } from "../../utils/email";
+
+// As an application does at start: the email parser loaded, LOCAL namespace.
+beforeAll(() => initEmail());
 
 // Stub all Quasar components as divs
 const quasarStubs = {

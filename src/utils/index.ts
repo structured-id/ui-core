@@ -1,5 +1,4 @@
 export {
-  isValidEmail,
   isValidPhone,
   isValidUuid,
   isValidUsername,
@@ -7,6 +6,19 @@ export {
   maxLength,
   isRequired,
 } from "./validators";
+
+export {
+  CORPORATE_BASELINE,
+  GLOBAL_PERSONAL,
+  LOCAL,
+  checkEmail,
+  emailPolicy,
+  emailReady,
+  initEmail,
+  isValidEmail,
+  type EmailCheck,
+  type EmailPolicy,
+} from "./email";
 
 export {
   formatDate,

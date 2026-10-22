@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { detectLoginInputType, normalizePrincipal } from "./normalizePrincipal";
+import { initEmail } from "./email";
+
+// As an application does at start: the email parser loaded, LOCAL namespace.
+beforeAll(() => initEmail());
 
 describe("detectLoginInputType", () => {
   it("detects email", () => {

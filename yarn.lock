@@ -594,6 +594,7 @@ __metadata:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/proto": "npm:^0.3.0"
+    "@structured-world/structured-email-address-wasm": "npm:^0.0.22"
     "@vitejs/plugin-vue": "npm:^6.0.9"
     "@vue/compiler-dom": "npm:^3.5.43"
     "@vue/devtools-api": "npm:^8.2.1"
@@ -622,6 +623,13 @@ __metadata:
       optional: true
   languageName: unknown
   linkType: soft
+
+"@structured-world/structured-email-address-wasm@npm:^0.0.22":
+  version: 0.0.22
+  resolution: "@structured-world/structured-email-address-wasm@npm:0.0.22"
+  checksum: 10c0/bef02bf0de06b9e9768fb140c3e3593edfebf2ba70d9d2d758c919f347e006b9f8126f7c5366b4b7547154b38a0162e6fb4441ef5286b4bc18ce186770bde86f
+  languageName: node
+  linkType: hard
 
 "@types/chai@npm:^5.2.2":
   version: 5.2.3
