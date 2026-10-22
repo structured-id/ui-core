@@ -1,8 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import { defineComponent } from "vue";
+import { defineComponent, nextTick } from "vue";
 import SidPrincipalInput from "./SidPrincipalInput.vue";
 import { principalRecognizable } from "./principalInputTexts";
+import { GLOBAL_PERSONAL, LOCAL, initEmail } from "../utils/email";
+import { TEST_PSL } from "../utils/email.testing";
+
+// As an application does at start: the email parser loaded, LOCAL namespace.
+beforeAll(() => initEmail({ psl: TEST_PSL }));
 
 const stubs = {
   "q-input": defineComponent({
@@ -236,6 +241,20 @@ describe("SidPrincipalInput", () => {
   // The form disables its submit on this, before any error is shown: only a
   // recognized, accepted, well-formed value, not refused by the server, is
   // valid.
+  // Regression: the application's namespace was not reactive, so a field
+  // mounted under one kept the verdict of it after initEmail named another.
+  it("re-judges an email when the application's namespace changes", async () => {
+    await initEmail({ policy: GLOBAL_PERSONAL, psl: TEST_PSL });
+    const w = mount(SidPrincipalInput, {
+      props: { modelValue: "admin@printer", types: ["email"] },
+      global: { stubs },
+    });
+    expect(w.emitted("update:valid")?.at(-1)?.[0]).toBe(false);
+    await initEmail({ policy: LOCAL });
+    await nextTick();
+    expect(w.emitted("update:valid")?.at(-1)?.[0]).toBe(true);
+  });
+
   it("tells the form whether the value can be submitted", () => {
     const valid = (props: { modelValue: string; fieldError?: string }) => {
       const w = mount(SidPrincipalInput, {

@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { isValidPhoneNumber } from "libphonenumber-js";
-import { isValidEmail } from "../utils/validators";
+import { checkEmail, emailReady, initEmail } from "../utils/email";
 
 import {
   ALL_PRINCIPAL_TYPES,
@@ -167,8 +167,13 @@ const typeRule = (val: string): string | true => {
   }
 
   switch (type) {
-    case "email":
-      return isValidEmail(val.trim()) || text.value.invalidEmail;
+    case "email": {
+      // Read so the rule re-runs once the parser has loaded.
+      void emailReady.value;
+      const check = checkEmail(val.trim());
+      // Nothing is wrong yet while the parser loads; `valid` stays false.
+      return check !== "invalid" || text.value.invalidEmail;
+    }
     case "phone":
       return isValidPhoneNumber(val) || text.value.invalidPhone;
     case "username": {
@@ -199,7 +204,24 @@ const valid = computed(
   () =>
     detectedType.value !== "unknown" &&
     typeRule(model.value) === true &&
+    // An email is not submittable before the parser has judged it.
+    (detectedType.value !== "email" || emailReady.value) &&
     !props.fieldError,
+);
+
+// The application starts the parser at boot (initEmail with its namespace);
+// a field that accepts email starts it when nobody did, also once its
+// accepted types come to include email.
+watch(
+  () => accepted.value.includes("email"),
+  (takesEmail) => {
+    if (takesEmail && !emailReady.value) {
+      initEmail().catch((error: unknown) => {
+        console.error("email address parser failed to load", error);
+      });
+    }
+  },
+  { immediate: true },
 );
 
 watch(valid, (v) => emit("update:valid", v), { immediate: true });

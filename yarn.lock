@@ -594,6 +594,9 @@ __metadata:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/proto": "npm:^0.3.0"
+    "@structured-world/structured-email-address-ts": "npm:^0.0.22"
+    "@structured-world/structured-public-domains": "npm:0.0.x"
+    "@types/node": "npm:^26"
     "@vitejs/plugin-vue": "npm:^6.0.9"
     "@vue/compiler-dom": "npm:^3.5.43"
     "@vue/devtools-api": "npm:^8.2.1"
@@ -622,6 +625,23 @@ __metadata:
       optional: true
   languageName: unknown
   linkType: soft
+
+"@structured-world/structured-email-address-ts@npm:^0.0.22":
+  version: 0.0.22
+  resolution: "@structured-world/structured-email-address-ts@npm:0.0.22"
+  dependencies:
+    "@structured-world/structured-public-domains": "npm:0.0.x"
+    tr46: "npm:^7.0.0"
+  checksum: 10c0/3916062ad962dae3374c419e4819846d2577035a02548c6d235c5c6c7910750b169eff193ead800d3c5ae90cf4e1290ae44aff2df8ab1adbf9341f1b4f7ab7a4
+  languageName: node
+  linkType: hard
+
+"@structured-world/structured-public-domains@npm:0.0.x":
+  version: 0.0.44
+  resolution: "@structured-world/structured-public-domains@npm:0.0.44"
+  checksum: 10c0/5c64a16e91e966d78dc2e48af0ce86f9f1cf49d49a88a3796045b707ab33cef98641cc5a68bd7db3db196f3c518ffb6375ec77e94af22efbd66d672a84da1812
+  languageName: node
+  linkType: hard
 
 "@types/chai@npm:^5.2.2":
   version: 5.2.3
@@ -665,6 +685,15 @@ __metadata:
   version: 7.0.15
   resolution: "@types/json-schema@npm:7.0.15"
   checksum: 10c0/a996a745e6c5d60292f36731dd41341339d4eeed8180bb09226e5c8d23759067692b1d88e5d91d72ee83dfc00d3aca8e7bd43ea120516c17922cbcb7c3e252db
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^26":
+  version: 26.6.5
+  resolution: "@types/node@npm:26.6.5"
+  dependencies:
+    undici-types: "npm:~8.9.0"
+  checksum: 10c0/4f791f69466ace7842c09e7bef96cb1ddbb65cf3db916ef7e84f0e2b2a17220b6b816dc7539d01520cadfb17ed7169b8214910900493e0a83be8bc7d124ec20a
   languageName: node
   linkType: hard
 
@@ -2868,6 +2897,13 @@ __metadata:
   version: 1.6.3
   resolution: "ufo@npm:1.6.3"
   checksum: 10c0/bf0e4ebff99e54da1b9c7182ac2f40475988b41faa881d579bc97bc2a0509672107b0a0e94c4b8d31a0ab8c4bf07f4aa0b469ac6da8536d56bda5b085ea2e953
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~8.9.0":
+  version: 8.9.0
+  resolution: "undici-types@npm:8.9.0"
+  checksum: 10c0/51c712c20c087368f62c6fc0f2bc49fa76bfe5dec28ff01584bb677ff29b0622569783c02d43e151143808c48c0503f804093bd2c491b10f2a830138034cb451
   languageName: node
   linkType: hard
 

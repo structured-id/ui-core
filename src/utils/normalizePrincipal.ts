@@ -1,7 +1,7 @@
 import parsePhoneNumberFromString, {
   isValidPhoneNumber,
 } from "libphonenumber-js";
-import { isValidEmail } from "./validators";
+import { checkEmail } from "./email";
 
 export type LoginInputType = "email" | "phone" | "username" | "unknown";
 
@@ -100,8 +100,13 @@ export function normalizePrincipal(
   switch (type) {
     case "email": {
       // Sent as typed: the server validates it, derives the lookup key and
-      // keeps this spelling as the address to mail.
-      if (!isValidEmail(trimmed)) {
+      // keeps this spelling as the address to mail. Checked here under the
+      // application's namespace (initEmail), as the server would.
+      const check = checkEmail(trimmed);
+      if (check === "pending") {
+        throw new Error("Email check not loaded: call initEmail() first");
+      }
+      if (check === "invalid") {
         throw new Error("Invalid email address");
       }
       return { value: trimmed, display: trimmed, type: "email" };

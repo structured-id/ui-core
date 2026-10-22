@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
+import { initEmail } from "../../utils/email";
+import { TEST_PSL } from "../../utils/email.testing";
 import { RpcError } from "@protobuf-ts/runtime-rpc";
 import { base64encode } from "@protobuf-ts/runtime";
 import { Any } from "@structured-id/proto/google/protobuf/any";
@@ -9,6 +11,9 @@ import {
   ErrorInfo,
 } from "@structured-id/proto/google/rpc/error_details";
 import SidRegistrationForm from "./SidRegistrationForm.vue";
+
+// As an application does at start: the email parser loaded, LOCAL namespace.
+beforeAll(() => initEmail({ psl: TEST_PSL }));
 
 const quasarStubs = {
   "q-card": { template: "<div><slot /></div>" },

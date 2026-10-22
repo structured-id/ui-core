@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  isValidEmail,
   isValidPhone,
   isValidUuid,
   isValidUsername,
@@ -8,28 +7,6 @@ import {
   maxLength,
   isRequired,
 } from "./validators";
-
-describe("isValidEmail", () => {
-  it("accepts valid emails", () => {
-    expect(isValidEmail("user@example.com")).toBe(true);
-    expect(isValidEmail("a.b+c@d.co")).toBe(true);
-  });
-  it("rejects invalid emails", () => {
-    expect(isValidEmail("")).toBe(false);
-    expect(isValidEmail("noat")).toBe(false);
-    expect(isValidEmail("@no-local.com")).toBe(false);
-    expect(isValidEmail("spaces in@email.com")).toBe(false);
-    expect(isValidEmail("user@")).toBe(false);
-    expect(isValidEmail("user@exa mple.com")).toBe(false);
-  });
-  // Regression: a dot was required in the domain and quoted local parts were
-  // refused, so the client turned away addresses the server's policy admits.
-  it("leaves admission to the server's email policy", () => {
-    expect(isValidEmail("admin@printer")).toBe(true);
-    expect(isValidEmail('"a b"@example.com')).toBe(true);
-    expect(isValidEmail('"a@b"@example.com')).toBe(true);
-  });
-});
 
 describe("isValidPhone", () => {
   it("accepts E.164 format", () => {

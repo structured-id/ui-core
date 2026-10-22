@@ -43,9 +43,12 @@
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
     "@structured-id/proto": "^0.3.0",
+    "@structured-world/structured-email-address-ts": "^0.0.22",
+    "@structured-world/structured-public-domains": "0.0.x",
     "libphonenumber-js": "^1.13.15"
   },
   "devDependencies": {
+    "@types/node": "^26",
     "@vitejs/plugin-vue": "^6.0.9",
     "@vue/compiler-dom": "^3.5.43",
     "@vue/devtools-api": "^8.2.1",
