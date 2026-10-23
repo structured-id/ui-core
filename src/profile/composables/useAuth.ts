@@ -33,10 +33,13 @@ import {
 
 // ── Types ──
 
-/** A sign-in's session, as the server issued it. */
+/**
+ * A sign-in's session, as the server issued it. The credential itself never
+ * reaches page code: a browser holds the session cookie the answer set.
+ */
 export interface LoginResult {
   sessionId: string;
-  accessToken: string;
+  /** Seconds until the delivered credential expires. */
   expiresIn: number;
 }
 
@@ -540,7 +543,6 @@ export function createAuth(loadClient: ZkppClientLoader) {
     );
     return {
       sessionId: finished.sessionId,
-      accessToken: finished.accessToken,
       expiresIn: Number(finished.expiresIn),
     };
   }

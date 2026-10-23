@@ -37,7 +37,6 @@ const quasarStubs = {
 };
 
 const loginFn = vi.fn().mockResolvedValue({
-  accessToken: "tok",
   expiresIn: 3600,
   sessionId: "sess-1",
 });

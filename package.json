@@ -42,7 +42,7 @@
     "@protobuf-ts/grpcweb-transport": "^2.11.1",
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
-    "@structured-id/proto": "^0.3.0",
+    "@structured-id/proto": "^0.4.1",
     "@structured-world/structured-email-address-ts": "^0.0.22",
     "@structured-world/structured-public-domains": "0.0.x",
     "libphonenumber-js": "^1.13.15"

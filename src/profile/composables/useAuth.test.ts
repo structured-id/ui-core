@@ -125,7 +125,6 @@ describe("createAuth prewarm", () => {
     });
     api.loginFinish.mockResolvedValue({
       sessionId: "s",
-      accessToken: "t",
       expiresIn: 60n,
     });
   });
@@ -173,10 +172,13 @@ describe("createAuth register", () => {
       registrationResponse: RESPONSE,
       history: wireContext(),
     });
-    api.regFinish.mockResolvedValue({
+    // An older server's answer, still carrying a Profile identifier the
+    // current message no longer has.
+    const fromOlderServer = {
       profileId: "profile-uuid",
       credentialId: "cred-uuid",
-    });
+    };
+    api.regFinish.mockResolvedValue(fromOlderServer);
   });
 
   it("runs the operation: start, evaluate, prove, finish with the proof", async () => {
@@ -650,7 +652,6 @@ describe("createAuth resetPassword", () => {
     api.executeReset.mockResolvedValue({ registrationResponse: RESPONSE });
     api.completeReset.mockResolvedValue({
       sessionId: "sess-1",
-      accessToken: "jwt",
       expiresIn: 3600,
     });
   });
@@ -686,9 +687,8 @@ describe("createAuth login", () => {
     });
     api.loginFinish.mockResolvedValue({
       sessionId: "sess-1",
-      accessToken: "jwt",
       expiresIn: BigInt(3600),
-    } as never);
+    });
   });
 
   it("signs in with the Pallas client in two round trips", async () => {
@@ -713,9 +713,10 @@ describe("createAuth login", () => {
       "server-state",
     );
     expect(steps).toEqual([1, 2, 3]);
+    // The result carries no credential: the browser holds the session
+    // cookie the answer set.
     expect(result).toEqual({
       sessionId: "sess-1",
-      accessToken: "jwt",
       expiresIn: 3600,
     });
   });

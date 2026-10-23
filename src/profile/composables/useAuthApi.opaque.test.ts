@@ -71,7 +71,6 @@ describe("OPAQUE gRPC wrappers", () => {
     it("sends principal, finalization, and serverLoginState", async () => {
       const expected = {
         sessionId: "sess-1",
-        accessToken: "jwt",
         expiresIn: BigInt(3600),
       };
       mockOpaqueLoginFinish.mockResolvedValue({ response: expected });
