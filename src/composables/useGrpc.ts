@@ -2,67 +2,28 @@ import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import { ref, type Ref } from "vue";
 import type { GrpcConfig } from "../types/auth";
-import {
-  AdaptiveRpcTransport,
-  type TransportType,
-} from "@structured-id/proto/transport";
 
-/** Shared RPC transport instance (gRPC-web or AdaptiveRpcTransport). */
+/** Shared gRPC-web transport instance. */
 let _transport: RpcTransport | null = null;
-/** Separate reference to AdaptiveRpcTransport when active (avoids instanceof). */
-let _adaptive: AdaptiveRpcTransport | null = null;
 
 /**
- * Initialize the gRPC transport. Call once at app startup.
+ * Initialize the gRPC-web transport. Call once at app startup.
  *
- * When `config.webTransportUrl` is provided, creates an AdaptiveRpcTransport
- * with WebTransport as the primary and gRPC-web as the fallback. The initial
- * WebTransport connection is attempted asynchronously (non-blocking).
- *
- * Without `config.webTransportUrl`, falls back to plain gRPC-web (same as before).
- *
- * After BFF migration (#536i-3): `credentials: "include"` is always set
- * so the httpOnly BFF session cookie is sent with every gRPC-web request.
+ * `credentials: "include"` is always set so the httpOnly BFF session cookie
+ * is sent with every request.
  *
  * @example
  * ```ts
- * // gRPC-web only
  * initGrpc({ baseUrl: 'https://api.example.com' })
- *
- * // With WebTransport failover
- * initGrpc({
- *   baseUrl: 'https://api.example.com',
- *   webTransportUrl: 'https://wt.api.example.com',
- * })
  * ```
  */
 export function initGrpc(config: GrpcConfig): void {
-  if (config.webTransportUrl) {
-    const adaptive = new AdaptiveRpcTransport({
-      grpcWebUrl: config.baseUrl,
-      webTransportUrl: config.webTransportUrl,
-      webTransportCertHash: config.webTransportCertHash,
-      reconnectDelay: config.webTransportReconnectDelay,
-      onTransportChange: config.onTransportChange,
-      // Always include credentials so the BFF session cookie is attached.
-      // The BFF proxy exchanges the cookie for a Bearer token server-side.
-      fetchInit: { credentials: "include" },
-    });
-    // Attempt WebTransport connection in background — non-blocking.
-    adaptive.init().catch(() => {
-      // Silently falls back to gRPC-web if WebTransport is unavailable.
-    });
-    _adaptive = adaptive;
-    _transport = adaptive;
-  } else {
-    _adaptive = null;
-    _transport = new GrpcWebFetchTransport({
-      baseUrl: config.baseUrl,
-      // Always include credentials so the BFF session cookie is attached.
-      // The BFF proxy exchanges the cookie for a Bearer token server-side.
-      fetchInit: { credentials: "include" },
-    });
-  }
+  _transport = new GrpcWebFetchTransport({
+    baseUrl: config.baseUrl,
+    // The BFF proxy exchanges the session cookie for a Bearer token
+    // server-side.
+    fetchInit: { credentials: "include" },
+  });
 }
 
 /**
@@ -78,22 +39,10 @@ export function getTransport(): RpcTransport {
 }
 
 /**
- * Close the transport and release resources (timers, connections).
- * Call during app teardown if using WebTransport.
+ * Drop the shared transport; the next use needs `initGrpc()` again.
  */
 export function closeTransport(): void {
-  _adaptive?.close();
-  _adaptive = null;
   _transport = null;
-}
-
-/**
- * Get the currently active transport type.
- * Returns "grpc-web" if AdaptiveRpcTransport is not used or WebTransport
- * is not available.
- */
-export function getTransportType(): TransportType {
-  return _adaptive?.activeTransport ?? "grpc-web";
 }
 
 /**
@@ -118,5 +67,3 @@ export function useGrpc() {
     initGrpc,
   };
 }
-
-export type { TransportType };

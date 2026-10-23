@@ -1,11 +1,4 @@
-export {
-  useGrpc,
-  initGrpc,
-  getTransport,
-  closeTransport,
-  getTransportType,
-  type TransportType,
-} from "./useGrpc";
+export { useGrpc, initGrpc, getTransport, closeTransport } from "./useGrpc";
 export {
   initAccountApi,
   getAccountTransport,

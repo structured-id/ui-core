@@ -175,7 +175,6 @@ const props = withDefaults(
       password: string,
       onStep?: (step: number) => void,
     ) => Promise<{
-      accessToken: string;
       expiresIn: number;
       sessionId?: string;
     }>;
@@ -207,9 +206,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  success: [
-    result: { accessToken: string; expiresIn: number; sessionId?: string },
-  ];
+  success: [result: { expiresIn: number; sessionId?: string }];
   error: [error: Error];
   "forgot-password": [];
 }>();

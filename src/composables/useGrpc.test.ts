@@ -4,28 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock modules BEFORE importing the module under test
 // ---------------------------------------------------------------------------
 
-const mockAdaptiveInit = vi
-  .fn<() => Promise<void>>()
-  .mockResolvedValue(undefined);
-const mockAdaptiveClose = vi.fn();
-const mockAdaptiveActiveTransport = vi
-  .fn<() => string>()
-  .mockReturnValue("grpc-web");
-
-vi.mock("@structured-id/proto/transport", () => ({
-  // Constructor mocks are `function`s: they are called with `new`.
-  AdaptiveRpcTransport: vi.fn().mockImplementation(function () {
-    return {
-      init: mockAdaptiveInit,
-      close: mockAdaptiveClose,
-      get activeTransport() {
-        return mockAdaptiveActiveTransport();
-      },
-    };
-  }),
-}));
-
 vi.mock("@protobuf-ts/grpcweb-transport", () => ({
+  // Constructor mocks are `function`s: they are called with `new`.
   GrpcWebFetchTransport: vi.fn().mockImplementation(function () {
     return { type: "grpc-web-transport" };
   }),
@@ -33,14 +13,7 @@ vi.mock("@protobuf-ts/grpcweb-transport", () => ({
 
 // Import AFTER mocks
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
-import { AdaptiveRpcTransport } from "@structured-id/proto/transport";
-import {
-  initGrpc,
-  getTransport,
-  closeTransport,
-  getTransportType,
-  useGrpc,
-} from "./useGrpc";
+import { initGrpc, getTransport, closeTransport, useGrpc } from "./useGrpc";
 import type { GrpcConfig } from "../types/auth";
 
 // ---------------------------------------------------------------------------
@@ -50,11 +23,12 @@ import type { GrpcConfig } from "../types/auth";
 describe("useGrpc", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset transport state by calling close between tests
     closeTransport();
   });
 
-  describe("initGrpc — without WebTransport URL", () => {
+  describe("initGrpc", () => {
+    // The BFF session cookie rides on every call, so credentials are always
+    // included; nothing else configures the transport.
     it("creates GrpcWebFetchTransport with baseUrl and credentials", () => {
       const config: GrpcConfig = { baseUrl: "https://api.sid.example.com" };
       initGrpc(config);
@@ -63,75 +37,6 @@ describe("useGrpc", () => {
         baseUrl: "https://api.sid.example.com",
         fetchInit: { credentials: "include" },
       });
-      expect(AdaptiveRpcTransport).not.toHaveBeenCalled();
-    });
-
-    it("getTransportType returns grpc-web", () => {
-      initGrpc({ baseUrl: "https://api.sid.example.com" });
-      expect(getTransportType()).toBe("grpc-web");
-    });
-  });
-
-  describe("initGrpc — with WebTransport URL", () => {
-    it("creates AdaptiveRpcTransport with fetchInit credentials", () => {
-      const config: GrpcConfig = {
-        baseUrl: "https://api.sid.example.com",
-        webTransportUrl: "https://wt.api.sid.example.com",
-      };
-      initGrpc(config);
-
-      expect(AdaptiveRpcTransport).toHaveBeenCalledWith(
-        expect.objectContaining({
-          grpcWebUrl: "https://api.sid.example.com",
-          webTransportUrl: "https://wt.api.sid.example.com",
-          fetchInit: { credentials: "include" },
-        }),
-      );
-      expect(GrpcWebFetchTransport).not.toHaveBeenCalled();
-    });
-
-    it("calls adaptive.init() non-blocking on creation", async () => {
-      initGrpc({
-        baseUrl: "https://api.sid.example.com",
-        webTransportUrl: "https://wt.api.sid.example.com",
-      });
-
-      // init() should be called (non-blocking fire-and-forget)
-      // Give microtasks time to run
-      await Promise.resolve();
-      expect(mockAdaptiveInit).toHaveBeenCalled();
-    });
-
-    it("passes all WebTransport options to AdaptiveRpcTransport", () => {
-      const onChange = vi.fn();
-      initGrpc({
-        baseUrl: "https://api.sid.example.com",
-        webTransportUrl: "https://wt.api.sid.example.com",
-        webTransportCertHash: "abcdef1234567890",
-        webTransportReconnectDelay: 3000,
-        onTransportChange: onChange,
-      });
-
-      expect(AdaptiveRpcTransport).toHaveBeenCalledWith(
-        expect.objectContaining({
-          grpcWebUrl: "https://api.sid.example.com",
-          webTransportUrl: "https://wt.api.sid.example.com",
-          webTransportCertHash: "abcdef1234567890",
-          reconnectDelay: 3000,
-          onTransportChange: onChange,
-          fetchInit: { credentials: "include" },
-        }),
-      );
-    });
-
-    it("getTransportType delegates to AdaptiveRpcTransport.activeTransport", () => {
-      mockAdaptiveActiveTransport.mockReturnValue("webtransport");
-      initGrpc({
-        baseUrl: "https://api.sid.example.com",
-        webTransportUrl: "https://wt.api.sid.example.com",
-      });
-
-      expect(getTransportType()).toBe("webtransport");
     });
   });
 
@@ -142,8 +47,7 @@ describe("useGrpc", () => {
 
     it("returns transport after initGrpc", () => {
       initGrpc({ baseUrl: "https://api.sid.example.com" });
-      expect(() => getTransport()).not.toThrow();
-      expect(getTransport()).toBeDefined();
+      expect(getTransport()).toEqual({ type: "grpc-web-transport" });
     });
   });
 
@@ -164,36 +68,16 @@ describe("useGrpc", () => {
       expect(typeof composable.getTransport).toBe("function");
       expect(typeof composable.initGrpc).toBe("function");
     });
-
-    it("transport.value is null after closeTransport", () => {
-      initGrpc({ baseUrl: "https://api.sid.example.com" });
-      closeTransport();
-      const { transport } = useGrpc();
-      expect(transport.value).toBeNull();
-    });
   });
 
   describe("closeTransport", () => {
-    it("calls close() on AdaptiveRpcTransport", () => {
-      initGrpc({
-        baseUrl: "https://api.sid.example.com",
-        webTransportUrl: "https://wt.api.sid.example.com",
-      });
-
-      closeTransport();
-      expect(mockAdaptiveClose).toHaveBeenCalled();
-    });
-
+    // After close, the transport is gone: a later call must initialize
+    // again rather than reuse the old one.
     it("resets transport to null (getTransport throws after close)", () => {
       initGrpc({ baseUrl: "https://api.sid.example.com" });
       closeTransport();
       expect(() => getTransport()).toThrow("gRPC transport not initialized");
-    });
-
-    it("does not call close() on plain GrpcWebFetchTransport (no close method)", () => {
-      initGrpc({ baseUrl: "https://api.sid.example.com" });
-      // Should not throw even though GrpcWebFetchTransport has no close()
-      expect(() => closeTransport()).not.toThrow();
+      expect(useGrpc().transport.value).toBeNull();
     });
   });
 });

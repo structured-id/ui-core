@@ -4,8 +4,6 @@ export {
   initGrpc,
   getTransport,
   closeTransport,
-  getTransportType,
-  type TransportType,
 } from "./composables/useGrpc";
 export { useSession, type SessionCallbacks } from "./composables/useSession";
 export {
