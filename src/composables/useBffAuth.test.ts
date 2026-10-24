@@ -1,4 +1,20 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { RpcError } from "@protobuf-ts/runtime-rpc";
+import { GrantOutcome } from "@structured-id/proto/sid/v1/authn/application_session";
+
+/** What the UI host's session service answers; each test sets its calls. */
+const host = vi.hoisted(() => ({
+  getApplicationSession: vi.fn(),
+  endApplicationSession: vi.fn(),
+}));
+
+vi.mock("@structured-id/proto/sid/v1/authn/application_session.client", () => ({
+  ApplicationSessionServiceClient: class {
+    getApplicationSession = host.getApplicationSession;
+    endApplicationSession = host.endApplicationSession;
+  },
+}));
+
 import {
   bffCsrfToken,
   bffLogout,
@@ -6,90 +22,125 @@ import {
   initBff,
 } from "./useBffAuth";
 
-/** A BFF that answers every request with this response. */
-function bffAnswers(response: unknown) {
-  const fetchMock = vi.fn().mockResolvedValue(response);
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
+/** A unary call that answers `response`. */
+function answers(response: unknown) {
+  return Promise.resolve({ response });
 }
 
-/** The BFF's sign-out answer: the session ended, with this grant outcome. */
-function ended(grant: string) {
-  return { ok: true, status: 200, json: async () => ({ grant }) };
+/** A unary call refused with gRPC status `code`. */
+function refused(code: string) {
+  return Promise.reject(new RpcError("refused", code));
 }
+
+/** A live session with CSRF token `token-1`. */
+const LIVE = {
+  sub: "0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d9e",
+  email: "user@sid.example.com",
+  acr: "urn:sid:acr:basic",
+  csrfToken: "token-1",
+};
+
+describe("checkBffSession", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    initBff("");
+  });
+
+  // The page shows the signed-in user and keeps the session's CSRF token for
+  // the state-changing calls that follow.
+  it("reads the live session and keeps its CSRF token", async () => {
+    host.getApplicationSession.mockReturnValue(answers(LIVE));
+    await expect(checkBffSession()).resolves.toEqual({
+      sub: LIVE.sub,
+      email: LIVE.email,
+      name: null,
+      preferred_username: null,
+      acr: LIVE.acr,
+      csrf_token: "token-1",
+    });
+    expect(bffCsrfToken()).toBe("token-1");
+  });
+
+  // No session is a signed-out page, and no token is kept from before.
+  it("reports a signed-out page as null and forgets the token", async () => {
+    host.getApplicationSession.mockReturnValue(answers(LIVE));
+    await checkBffSession();
+    host.getApplicationSession.mockReturnValue(refused("UNAUTHENTICATED"));
+    await expect(checkBffSession()).resolves.toBeNull();
+    expect(bffCsrfToken()).toBeNull();
+  });
+
+  // An outage must not send a signed-in user to sign-in again.
+  it.each(["UNAVAILABLE", "INTERNAL"])(
+    "throws on %s instead of reporting a signed-out page",
+    async (code) => {
+      host.getApplicationSession.mockReturnValue(refused(code));
+      await expect(checkBffSession()).rejects.toBeInstanceOf(RpcError);
+    },
+  );
+
+  it("reports nothing before the session is set up", async () => {
+    vi.resetModules();
+    const fresh = await import("./useBffAuth");
+    await expect(fresh.checkBffSession()).resolves.toBeNull();
+    expect(host.getApplicationSession).not.toHaveBeenCalled();
+  });
+});
 
 describe("bffLogout", () => {
   beforeEach(async () => {
+    vi.clearAllMocks();
     initBff("");
-    bffAnswers({
-      ok: true,
-      status: 200,
-      json: async () => ({ sub: "s", csrf_token: "token-1" }),
-    });
+    host.getApplicationSession.mockReturnValue(answers(LIVE));
     await checkBffSession();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   // The page tells a local end of its session from one where the issuer also
   // revoked the grant, so it can say which happened.
-  it.each(["revoked", "not_revoked", "none"] as const)(
+  it.each([
+    [GrantOutcome.REVOKED, "revoked"],
+    [GrantOutcome.NOT_REVOKED, "not_revoked"],
+    [GrantOutcome.NONE, "none"],
+    [GrantOutcome.UNKNOWN, "unknown"],
+  ] as const)(
     "reports the ended session with grant %s",
-    async (grant) => {
-      const fetchMock = bffAnswers(ended(grant));
-      await expect(bffLogout()).resolves.toEqual({ ended: true, grant });
-      expect(fetchMock).toHaveBeenCalledWith("/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: { "X-CSRF-Token": "token-1" },
-      });
+    async (grant, name) => {
+      host.endApplicationSession.mockReturnValue(answers({ grant }));
+      await expect(bffLogout()).resolves.toEqual({ ended: true, grant: name });
+      expect(host.endApplicationSession).toHaveBeenCalledWith(
+        {},
+        { meta: { "x-csrf-token": "token-1" } },
+      );
     },
   );
 
-  // A refused or failed sign-out leaves the BFF session alive: the page must
-  // not report it as ended.
-  it.each([
-    ["refused", { ok: false, status: 403 }],
-    ["unavailable", { ok: false, status: 503 }],
-  ])("reports a %s sign-out as not ended", async (_name, response) => {
-    bffAnswers(response);
+  // A refused or failed sign-out leaves the session alive: the page must not
+  // report it as ended.
+  it.each(["PERMISSION_DENIED", "UNAVAILABLE", "UNAUTHENTICATED"])(
+    "reports a sign-out refused with %s as not ended",
+    async (code) => {
+      host.endApplicationSession.mockReturnValue(refused(code));
+      await expect(bffLogout()).resolves.toEqual({ ended: false });
+    },
+  );
+
+  it("reports an unreachable host as not ended", async () => {
+    host.endApplicationSession.mockReturnValue(
+      Promise.reject(new TypeError("offline")),
+    );
     await expect(bffLogout()).resolves.toEqual({ ended: false });
   });
 
-  it("reports an unreachable BFF as not ended", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
-    await expect(bffLogout()).resolves.toEqual({ ended: false });
-  });
-
-  // An answer the page cannot read still came after the BFF ended the
-  // session; only the grant's fate is unknown.
-  it("reports an unreadable answer as ended with an unknown grant", async () => {
-    bffAnswers({
-      ok: true,
-      status: 200,
-      json: async () => {
-        throw new SyntaxError("not json");
-      },
-    });
-    await expect(bffLogout()).resolves.toEqual({
-      ended: true,
-      grant: "unknown",
-    });
-  });
-
-  it("reports nothing ended before the BFF is set up", async () => {
+  it("reports nothing ended before the session is set up", async () => {
     vi.resetModules();
     const fresh = await import("./useBffAuth");
-    const fetchMock = bffAnswers(ended("revoked"));
     await expect(fresh.bffLogout()).resolves.toEqual({ ended: false });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(host.endApplicationSession).not.toHaveBeenCalled();
   });
 
-  // Whatever the BFF answers, the page forgets the session's token.
+  // Whatever the host answers, the page forgets the session's token.
   it("forgets the CSRF token even when the sign-out failed", async () => {
-    bffAnswers({ ok: false, status: 503 });
+    host.endApplicationSession.mockReturnValue(refused("UNAVAILABLE"));
     await bffLogout();
     expect(bffCsrfToken()).toBeNull();
   });

@@ -130,6 +130,8 @@ export const REFUSAL_TEXTS: Readonly<
   [ErrorReason.AUTHENTICATION_FAILED]: "Sign-in failed.",
   [ErrorReason.TOKEN_EXPIRED]: "Your session has expired; sign in again.",
   [ErrorReason.TOKEN_INVALID]: "Your session is not valid; sign in again.",
+  [ErrorReason.CSRF_TOKEN_INVALID]:
+    "This page is out of date for your session; reload it and try again.",
   [ErrorReason.INSUFFICIENT_PERMISSIONS]:
     "You do not have permission to do this.",
   [ErrorReason.SCOPE_NOT_GRANTED]: "This access was not granted.",
