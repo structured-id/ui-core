@@ -23,9 +23,7 @@ describe("useAuthStore (BFF cookie session)", () => {
       email: "alice@example.com",
       name: "Alice Smith",
       preferred_username: "alice",
-      groups: ["admins"],
       acr: "urn:sid:acr:mfa",
-      roles: ["member"],
     });
 
     expect(store.isAuthenticated).toBe(true);

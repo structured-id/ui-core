@@ -1,8 +1,8 @@
 /**
- * The account API transport: gRPC-Web through the BFF (sid-auth-proxy) on the
- * page's own origin. The BFF holds the session's tokens and adds the Bearer
- * token itself; the page sends only its session cookie and, on every call,
- * the CSRF token the BFF set (double submit).
+ * The account API transport: gRPC-Web through the application's UI host on
+ * the page's own origin. The host holds the session's tokens and adds the
+ * Bearer token itself; the page sends only its session cookie and, on every
+ * call, the session's CSRF token.
  *
  * Sign-in ceremonies are not account API calls: they go to SID's own sign-in
  * surface through `getTransport()`, where the IdP's session lives.
@@ -13,7 +13,7 @@ import { bffCsrfToken } from "./useBffAuth";
 
 /** Where the account API is reached. */
 export interface AccountApiConfig {
-  /** The BFF's API route, usually `/api` on the page's own origin. */
+  /** The UI host's base URL: "" for the page's own origin, where it usually is. */
   baseUrl: string;
 }
 

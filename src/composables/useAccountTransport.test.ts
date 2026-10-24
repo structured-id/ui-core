@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type {
-  MethodInfo,
-  RpcInterceptor,
-  RpcOptions,
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  RpcError,
+  type MethodInfo,
+  type RpcInterceptor,
+  type RpcOptions,
 } from "@protobuf-ts/runtime-rpc";
 
 const created: Array<{
@@ -19,6 +20,19 @@ vi.mock("@protobuf-ts/grpcweb-transport", () => ({
   }),
 }));
 
+/** What the UI host's session service answers; each test sets its calls. */
+const host = vi.hoisted(() => ({
+  getApplicationSession: vi.fn(),
+  endApplicationSession: vi.fn(),
+}));
+
+vi.mock("@structured-id/proto/sid/v1/authn/application_session.client", () => ({
+  ApplicationSessionServiceClient: class {
+    getApplicationSession = host.getApplicationSession;
+    endApplicationSession = host.endApplicationSession;
+  },
+}));
+
 import {
   initAccountApi,
   getAccountTransport,
@@ -26,9 +40,14 @@ import {
 } from "./useAccountTransport";
 import { bffLogout, checkBffSession, initBff } from "./useBffAuth";
 
+/** The account transport's options: the last transport created. */
+function account() {
+  return created[created.length - 1];
+}
+
 /** Run the transport's interceptor over a call and return the options it passed on. */
 function intercepted(options: RpcOptions): RpcOptions {
-  const [interceptor] = created[created.length - 1].interceptors ?? [];
+  const [interceptor] = account().interceptors ?? [];
   let passed: RpcOptions | undefined;
   interceptor.interceptUnary!(
     (_method, _input, opts) => {
@@ -42,68 +61,57 @@ function intercepted(options: RpcOptions): RpcOptions {
   return passed!;
 }
 
-/** The BFF's answer to the page's session check: the user with the session's token. */
-function bffSession(csrfToken: string) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ sub: "up_1", csrf_token: csrfToken }),
-    }),
-  );
-}
-
-/** The BFF's answer without a session. */
-function noBffSession() {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+/** The host's answer to the page's session read: a session with this token. */
+async function session(csrfToken: string) {
+  host.getApplicationSession.mockResolvedValue({
+    response: { sub: "up_1", acr: "", csrfToken },
+  });
+  await checkBffSession();
 }
 
 describe("account API transport", () => {
   beforeEach(async () => {
     created.length = 0;
+    vi.clearAllMocks();
     closeAccountTransport();
     initBff("");
-    noBffSession();
+    host.getApplicationSession.mockRejectedValue(
+      new RpcError("no session", "UNAUTHENTICATED"),
+    );
     await checkBffSession();
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
+  // The account API is reached only through the UI host on the page's own
+  // origin: its cookie rides along same-origin, and no other origin gets it.
+  it("goes to the UI host on the page's origin with same-origin credentials", () => {
+    initAccountApi({ baseUrl: "" });
+    expect(account().baseUrl).toBe("");
+    expect(account().fetchInit).toEqual({ credentials: "same-origin" });
   });
 
-  // The account API is reached only through the BFF on the page's own origin:
-  // its cookie rides along same-origin, and no other origin gets it.
-  it("goes to the BFF's API route with same-origin credentials", () => {
-    initAccountApi({ baseUrl: "/api" });
-    expect(created[0].baseUrl).toBe("/api");
-    expect(created[0].fetchInit).toEqual({ credentials: "same-origin" });
-  });
-
-  // Every call echoes the session's CSRF token, which the BFF hands the page
-  // with the session check: the BFF refuses a call without it, which is what
+  // Every call echoes the session's CSRF token, which the host hands the page
+  // with the session read: the host refuses a call without it, which is what
   // stops a foreign page driving the account API.
-  it("sends the CSRF token the BFF gave with the session on every call", async () => {
-    initAccountApi({ baseUrl: "/api" });
-    bffSession("token-1");
-    await checkBffSession();
+  it("sends the session's CSRF token on every call", async () => {
+    initAccountApi({ baseUrl: "" });
+    await session("token-1");
     const options = intercepted({ meta: { other: "kept" } });
     expect(options.meta).toEqual({ other: "kept", "x-csrf-token": "token-1" });
   });
 
-  // No session, no header: the call goes out and the BFF answers it (401 or
-  // 403), rather than the page inventing a token.
+  // No session, no header: the call goes out and the host answers it, rather
+  // than the page inventing a token.
   it("sends no CSRF header without a session", () => {
-    initAccountApi({ baseUrl: "/api" });
+    initAccountApi({ baseUrl: "" });
     const options = intercepted({ meta: {} });
     expect(options.meta).toEqual({});
   });
 
   // Sign-out ends the session; its token goes with it.
   it("forgets the token at sign-out", async () => {
-    initAccountApi({ baseUrl: "/api" });
-    bffSession("token-1");
-    await checkBffSession();
+    initAccountApi({ baseUrl: "" });
+    await session("token-1");
+    host.endApplicationSession.mockResolvedValue({ response: { grant: 1 } });
     await bffLogout();
     const options = intercepted({ meta: {} });
     expect(options.meta).toEqual({});
@@ -116,7 +124,7 @@ describe("account API transport", () => {
   });
 
   it("is the one set up", () => {
-    initAccountApi({ baseUrl: "/api" });
+    initAccountApi({ baseUrl: "" });
     expect(getAccountTransport()).toEqual({ type: "grpc-web-transport" });
   });
 });
