@@ -14,5 +14,8 @@ export * from "./composables";
 // Slot-based form components
 export * from "./components";
 
+// Upstream identity provider sign-in: what a return keeps
+export * from "./upstream";
+
 // Auth helper
 export { authMeta } from "./auth";
