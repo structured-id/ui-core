@@ -122,13 +122,19 @@ export function abandonUpstream(
 
 /** How a return to the callback page ended. */
 export type UpstreamReturn =
-  | { outcome: "signed-in" | "linking-required"; rd: string | null }
+  | {
+      /** `failed`: the issuer could not complete it. */
+      outcome: "signed-in" | "linking-required" | "failed";
+      rd: string | null;
+    }
   | { outcome: "unknown" };
 
 /**
  * Complete the return carrying `code` and `state` at the issuer: once, for
  * the sign-in this tab started. A return this tab did not start, or one
- * already completed, is `unknown`.
+ * already completed, is `unknown`. Every other outcome, a failed one
+ * included, carries the request the return waited for: its kept entry is
+ * already taken.
  */
 export async function completeUpstream(
   code: string,
@@ -138,13 +144,17 @@ export async function completeUpstream(
 ): Promise<UpstreamReturn> {
   const pending = takeUpstream(browser.storage, state);
   if (!pending) return { outcome: "unknown" };
-  const outcome = await api.complete(
-    pending.provider,
-    code,
-    state,
-    upstreamCallbackUri(browser.origin, browser.callbackPath),
-  );
-  return { outcome, rd: pending.rd };
+  try {
+    const outcome = await api.complete(
+      pending.provider,
+      code,
+      state,
+      upstreamCallbackUri(browser.origin, browser.callbackPath),
+    );
+    return { outcome, rd: pending.rd };
+  } catch {
+    return { outcome: "failed", rd: pending.rd };
+  }
 }
 
 /** Options of the upstream sign-in composables. */
@@ -252,8 +262,8 @@ export function useUpstreamCallback(
         return;
       }
       continued.value = done.rd;
-      if (done.outcome === "linking-required") {
-        failure.value = "linking-required";
+      if (done.outcome !== "signed-in") {
+        failure.value = done.outcome;
         return;
       }
       await router.replace({

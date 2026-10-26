@@ -224,6 +224,25 @@ describe("useUpstreamCallback", () => {
     expect(calls.complete).not.toHaveBeenCalled();
   });
 
+  // The issuer failing the completion still answers the waiting request:
+  // the kept entry is gone (one-shot), so its rd must reach the page.
+  it("keeps the waiting request when the issuer fails", async () => {
+    const calls = api();
+    calls.complete.mockRejectedValue(new Error("unavailable"));
+    const page = browser();
+    await startUpstream("p1", RD, calls, page);
+    const { result, left } = await callbackAt(
+      `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1`,
+      calls,
+      page,
+    );
+    await result.complete();
+    expect(result.failure.value).toBe("failed");
+    expect(result.continued.value).toBe(RD);
+    expect(peekUpstream(sessionStorage, "s1")).toBeUndefined();
+    expect(left).toEqual([]);
+  });
+
   // A return this tab did not start signs nobody in.
   it("completes nothing this tab did not start", async () => {
     const calls = api();
