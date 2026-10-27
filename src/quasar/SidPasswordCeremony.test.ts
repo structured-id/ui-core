@@ -234,6 +234,29 @@ describe("SidPasswordCeremony", () => {
     expect(w.emitted("settled")).toEqual([["refused"]]);
   });
 
+  // With reduced motion the line still shows how far the operation went and
+  // that it is running: settled positions are solid, open ones are marked
+  // (they dissolve slowly instead of churning), so a running operation is
+  // never a frozen row of dots.
+  it("shows progress and activity under reduced motion", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      (query: string) =>
+        ({ matches: query.includes("reduce") }) as MediaQueryList,
+    );
+    const w = mountCeremony({ length: 10 });
+    await merged();
+    const settled = () =>
+      rows(w)[0].findAll(".sid-ceremony__glyph--set").length;
+    const open = () => rows(w)[0].findAll(".sid-ceremony__glyph--open").length;
+    expect(settled()).toBe(0);
+    expect(open()).toBe(10);
+    await w.setProps({ progress: at("prove", 0.5, "Building the proof") });
+    await vi.advanceTimersByTimeAsync(80);
+    expect(settled()).toBe(5);
+    expect(open()).toBe(5);
+  });
+
   // With reduced motion nothing churns and every step lands at once.
   it("does not animate under reduced motion", async () => {
     // jsdom has no matchMedia: the browser's answer is given here.
