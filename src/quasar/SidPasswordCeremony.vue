@@ -41,7 +41,11 @@
           v-for="(glyph, i) in glyphs"
           :key="i"
           class="sid-ceremony__glyph"
-          :class="{ 'sid-ceremony__glyph--set': glyph === DOT }"
+          :class="
+            i < settledUpTo
+              ? 'sid-ceremony__glyph--set'
+              : 'sid-ceremony__glyph--open'
+          "
           >{{ glyph }}</span
         >
       </div>
@@ -150,6 +154,12 @@ const stageHeight = computed(
 );
 const count = computed(() => Math.max(1, Math.min(props.length, MAX_GLYPHS)));
 const glyphs = ref<string[]>(Array.from({ length: count.value }, () => DOT));
+/**
+ * How many positions, from the left, the operation has settled. Kept apart
+ * from what the glyphs show: under reduced motion every position is a dot,
+ * and only this tells a settled one from an open one.
+ */
+const settledUpTo = ref(0);
 
 const phase = ref<Phase>("split");
 const checked = ref(false);
@@ -249,12 +259,12 @@ const label = computed(() => {
 let ticks = 0;
 function tick() {
   pace();
-  const settledUpTo = Math.floor(fraction.value * count.value);
+  settledUpTo.value = Math.floor(fraction.value * count.value);
   // The open digits change every fourth frame (about six times a second);
   // the line itself follows the pace every frame.
   const churning = !still && ticks++ % 4 === 0;
   glyphs.value = glyphs.value.map((glyph, i) => {
-    if (i < settledUpTo) return DOT;
+    if (i < settledUpTo.value) return DOT;
     if (!churning) return still ? DOT : glyph;
     // A calm churn: about a third of the open digits change at a time.
     if (glyph !== DOT && Math.random() > 0.35) return glyph;
@@ -277,6 +287,7 @@ function stopChurn() {
 function close() {
   stopChurn();
   fraction.value = 1;
+  settledUpTo.value = count.value;
   glyphs.value = glyphs.value.map(() => DOT);
   phase.value = "orb";
   after(TIMING.orb, () => {
@@ -377,6 +388,20 @@ onBeforeUnmount(() => {
 .sid-ceremony__glyph--set {
   opacity: 1;
   transform: scale(0.6);
+}
+/* Under reduced motion the open positions dissolve slowly in place instead
+   of churning: no movement, but a running operation never looks frozen. */
+.sid-ceremony--still .sid-ceremony__glyph--open {
+  transform: scale(0.6);
+  animation: sid-ceremony-dissolve 1.6s ease-in-out infinite alternate;
+}
+@keyframes sid-ceremony-dissolve {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 0.55;
+  }
 }
 .sid-ceremony__orb {
   position: absolute;
