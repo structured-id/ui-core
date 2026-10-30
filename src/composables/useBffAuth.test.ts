@@ -6,6 +6,16 @@ import { GrantOutcome } from "@structured-id/proto/sid/v1/authn/application_sess
 const host = vi.hoisted(() => ({
   getApplicationSession: vi.fn(),
   endApplicationSession: vi.fn(),
+  /** The base URL of the transport last made. */
+  transportBase: undefined as string | undefined,
+}));
+
+vi.mock("@protobuf-ts/grpcweb-transport", () => ({
+  GrpcWebFetchTransport: class {
+    constructor(options: { baseUrl: string }) {
+      host.transportBase = options.baseUrl;
+    }
+  },
 }));
 
 vi.mock("@structured-id/proto/sid/v1/authn/application_session.client", () => ({
@@ -39,6 +49,27 @@ const LIVE = {
   acr: "urn:sid:acr:basic",
   csrfToken: "token-1",
 };
+
+describe("the session service's address", () => {
+  // The host serves a page's calls only under its API mount: a call at the
+  // root is refused, and the page cannot read a session it has.
+  it("is the API mount of the page's own origin", () => {
+    initBff("");
+    expect(host.transportBase).toBe("/api");
+  });
+
+  it("is the API mount of a configured host", () => {
+    initBff("https://host.sid.example.com");
+    expect(host.transportBase).toBe("https://host.sid.example.com/api");
+  });
+
+  it("is the API mount of a host named for one call", async () => {
+    initBff("");
+    host.getApplicationSession.mockReturnValue(answers(LIVE));
+    await checkBffSession("https://other.sid.example.com");
+    expect(host.transportBase).toBe("https://other.sid.example.com/api");
+  });
+});
 
 describe("checkBffSession", () => {
   beforeEach(() => {
