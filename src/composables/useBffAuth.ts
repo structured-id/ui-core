@@ -43,10 +43,13 @@ let _session: ApplicationSessionServiceClient | null = null;
  */
 let _csrfToken: string | null = null;
 
-/** The session service at `baseUrl`; the cookie never travels to another origin. */
+/**
+ * The session service of the host at `baseUrl`, under the `/api` mount that
+ * serves a page's calls; the cookie never travels to another origin.
+ */
 function sessionClient(baseUrl: string): ApplicationSessionServiceClient {
   const transport: RpcTransport = new GrpcWebFetchTransport({
-    baseUrl,
+    baseUrl: `${baseUrl}/api`,
     fetchInit: { credentials: "same-origin" },
   });
   return new ApplicationSessionServiceClient(transport);
