@@ -21,6 +21,13 @@ export {
 } from "./email";
 
 export {
+  PasskeyError,
+  createPasskey,
+  getPasskey,
+  type PasskeyFailure,
+} from "./passkey";
+
+export {
   formatDate,
   formatRelativeTime,
   truncate,

@@ -54,6 +54,10 @@ export {
   formatRelativeTime,
   truncate,
   maskEmail,
+  PasskeyError,
+  createPasskey,
+  getPasskey,
+  type PasskeyFailure,
 } from "./utils";
 
 export {
