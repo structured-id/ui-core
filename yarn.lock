@@ -574,14 +574,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@structured-id/proto@npm:^0.6.0":
-  version: 0.6.0
-  resolution: "@structured-id/proto@npm:0.6.0"
+"@structured-id/proto@npm:^0.8.0":
+  version: 0.8.0
+  resolution: "@structured-id/proto@npm:0.8.0"
   dependencies:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/ids": "npm:^0.1.0"
-  checksum: 10c0/1d115f15db2e67caf1df117df5dcc4b65db32908e3969a394422a50df3756a8d276628aaadc9e8b5b2f08f3c6017196edf912f4fc3256cc3340bcfe63ca717bf
+  checksum: 10c0/6e81ea5560e8059a1624f3c5eb72456b4c59062c3937e4f112dd818aeb08abf59e8163cc24afbb2e35d80dcab3c715eb79847b5549574fcba48a289b9fc9580c
   languageName: node
   linkType: hard
 
@@ -592,7 +592,7 @@ __metadata:
     "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
-    "@structured-id/proto": "npm:^0.6.0"
+    "@structured-id/proto": "npm:^0.8.0"
     "@structured-world/structured-email-address-ts": "npm:^0.0.22"
     "@structured-world/structured-public-domains": "npm:0.0.x"
     "@types/node": "npm:^26"
