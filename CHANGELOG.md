@@ -17,6 +17,13 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [4.9.0](https://github.com/structured-id/ui-core/compare/v4.8.0...v4.9.0) (2026-11-02)
+
+
+### Features
+
+* **passkey:** share the passkey ceremony on the WebAuthn JSON forms ([#69](https://github.com/structured-id/ui-core/issues/69)) ([53b77b4](https://github.com/structured-id/ui-core/commit/53b77b4933796dd7c8b6a9c1e3dca0fbb1389f92)), closes [#68](https://github.com/structured-id/ui-core/issues/68)
+
 ## [4.8.0](https://github.com/structured-id/ui-core/compare/v4.7.2...v4.8.0) (2026-11-02)
 
 
