@@ -186,6 +186,7 @@ export const REFUSAL_TEXTS: Readonly<
   [ErrorReason.INVALID_STATE]: "This cannot be done in its current state.",
   [ErrorReason.FEATURE_NOT_CONFIGURED]:
     "This feature is not configured; an administrator can enable it.",
+  [ErrorReason.REGISTRATION_DISABLED]: "Registration is closed right now.",
   [ErrorReason.RATE_LIMIT_EXCEEDED]: "Too many attempts; try again later.",
   [ErrorReason.QUOTA_EXCEEDED]: "A limit is reached; remove something first.",
   [ErrorReason.CONCURRENT_MODIFICATION]:

@@ -126,6 +126,8 @@ describe("createAuth prewarm", () => {
     api.loginFinish.mockResolvedValue({
       sessionId: "s",
       expiresIn: 60n,
+      secondFactors: [],
+      enrollableFactors: [],
     });
   });
 
@@ -688,6 +690,8 @@ describe("createAuth login", () => {
     api.loginFinish.mockResolvedValue({
       sessionId: "sess-1",
       expiresIn: BigInt(3600),
+      secondFactors: [],
+      enrollableFactors: [],
     });
   });
 
