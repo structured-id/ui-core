@@ -2,7 +2,7 @@ import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import { ref, type Ref } from "vue";
 import type { GrpcConfig } from "../types/auth";
-import { operationKey } from "./operationKey";
+import { operationContext } from "./operationContext";
 
 /** Shared gRPC-web transport instance. */
 let _transport: RpcTransport | null = null;
@@ -24,7 +24,7 @@ export function initGrpc(config: GrpcConfig): void {
     // The BFF proxy exchanges the session cookie for a Bearer token
     // server-side.
     fetchInit: { credentials: "include" },
-    interceptors: [operationKey],
+    interceptors: [operationContext()],
   });
 }
 

@@ -10,7 +10,7 @@
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import type { RpcInterceptor, RpcTransport } from "@protobuf-ts/runtime-rpc";
 import { bffCsrfToken } from "./useBffAuth";
-import { operationKey } from "./operationKey";
+import { operationContext } from "./operationContext";
 
 /** Where the account API is reached. */
 export interface AccountApiConfig {
@@ -50,7 +50,8 @@ export function initAccountApi(config: AccountApiConfig): void {
     baseUrl: config.baseUrl,
     // The BFF is on this origin; its cookie must not travel anywhere else.
     fetchInit: { credentials: "same-origin" },
-    interceptors: [csrf, operationKey],
+    // The period read passes the CSRF interceptor too: it is the next link.
+    interceptors: [csrf, operationContext()],
   });
 }
 
