@@ -217,7 +217,49 @@ describe("operation context", () => {
       (s) => s.method.name === OperationService.methods[0].name,
     )!;
     expect(read.options.abort).toBeUndefined();
-    expect(read.options.timeout).toBeUndefined();
+    // Its own deadline, not the first caller's.
+    expect(read.options.timeout).not.toBe(5);
+  });
+
+  // A period read that stalls does not hold a caller past its own
+  // cancellation or deadline, and the shared read has a deadline of its own.
+  it("ends a caller's wait for the period at its own cancellation or deadline", async () => {
+    const sent: RpcOptions[] = [];
+    const stalled = vi.fn((_m: MethodInfo, _i: object, options: RpcOptions) => {
+      sent.push(options);
+      const never = new Promise<never>(() => {});
+      return {
+        headers: never,
+        response: never,
+        status: never,
+        trailers: never,
+      } as never;
+    });
+    const interceptor = operationContext();
+    const cancelled = new AbortController();
+    const aborted = interceptor.interceptUnary!(
+      stalled as never,
+      KEYED,
+      {},
+      {
+        abort: cancelled.signal,
+      },
+    );
+    cancelled.abort();
+    await expect(aborted.response).rejects.toMatchObject({ code: "CANCELLED" });
+
+    const late = interceptor.interceptUnary!(
+      stalled as never,
+      KEYED,
+      {},
+      {
+        timeout: 5,
+      },
+    );
+    await expect(late.response).rejects.toMatchObject({
+      code: "DEADLINE_EXCEEDED",
+    });
+    expect(typeof sent[0].timeout).toBe("number");
   });
 
   // RFC 9651 §3.3.3: a String escapes DQUOTE and backslash and holds

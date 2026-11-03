@@ -5,6 +5,7 @@
  * under. Which methods are keyed is the method's own retry rule.
  */
 import {
+  RpcError,
   UnaryCall,
   type MethodInfo,
   type RpcInterceptor,
@@ -27,6 +28,53 @@ const RETRY_RULE = "sid.v1.common.retry";
 
 /** A period is fetched again this long before the server stops admitting it. */
 const PERIOD_MARGIN_MS = 60_000;
+
+/** The shared period read's own deadline: a stalled read is not kept. */
+const PERIOD_READ_TIMEOUT_MS = 10_000;
+
+/**
+ * `waited`, ended by the caller's own cancellation or deadline as a call
+ * would end: CANCELLED or DEADLINE_EXCEEDED.
+ */
+function within<T>(
+  waited: Promise<T>,
+  abort: AbortSignal | undefined,
+  deadline: Date | undefined,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const cancelled = () =>
+      reject(new RpcError("the call was cancelled", "CANCELLED"));
+    if (abort?.aborted) {
+      cancelled();
+      return;
+    }
+    abort?.addEventListener("abort", cancelled, { once: true });
+    const timer =
+      deadline === undefined
+        ? undefined
+        : setTimeout(
+            () =>
+              reject(
+                new RpcError("the call's deadline passed", "DEADLINE_EXCEEDED"),
+              ),
+            Math.max(0, deadline.getTime() - Date.now()),
+          );
+    const settle = () => {
+      abort?.removeEventListener("abort", cancelled);
+      clearTimeout(timer);
+    };
+    waited.then(
+      (value) => {
+        settle();
+        resolve(value);
+      },
+      (error: unknown) => {
+        settle();
+        reject(error);
+      },
+    );
+  });
+}
 
 /** Whether `method` takes an operation context: its retry rule says keyed. */
 export function isKeyed(method: MethodInfo): boolean {
@@ -102,22 +150,36 @@ export function operationContext(): RpcInterceptor {
       }
       // The period read goes through the same chain, without this call's
       // context, and is shared by concurrent commands: no one caller's
-      // cancellation or deadline is given to it.
+      // cancellation or deadline is given to it, it has its own.
       const plain: RpcMetadata = { ...meta };
       delete plain[OPERATION_KEY];
-      const { abort: _abort, timeout: _timeout, ...shared } = options;
+      const { abort, timeout, ...shared } = options;
+      // The caller's deadline covers the wait for the period and the
+      // command together.
+      const deadline =
+        typeof timeout === "number" ? new Date(Date.now() + timeout) : timeout;
       // The underlying call is held in a box: a UnaryCall is thenable, and
       // a promise resolving to it would wait for its whole response.
-      const call = period(
-        () =>
-          next(
-            OperationService.methods[0] as MethodInfo,
-            GetOperationPeriodRequest.create(),
-            { ...shared, meta: plain },
-          ).response as Promise<OperationPeriod>,
+      const call = within(
+        period(
+          () =>
+            next(
+              OperationService.methods[0] as MethodInfo,
+              GetOperationPeriodRequest.create(),
+              { ...shared, meta: plain, timeout: PERIOD_READ_TIMEOUT_MS },
+            ).response as Promise<OperationPeriod>,
+        ),
+        abort,
+        deadline,
       ).then((p) => {
         sent[OPERATION_PERIOD] = p;
-        return { inner: next(method, input, { ...options, meta: sent }) };
+        return {
+          inner: next(method, input, {
+            ...options,
+            timeout: deadline,
+            meta: sent,
+          }),
+        };
       });
       // A caller awaits only the parts it needs; a failed period read fails
       // each part without an unhandled rejection, as the transport's own do.
