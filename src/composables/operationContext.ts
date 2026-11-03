@@ -9,7 +9,6 @@ import {
   type MethodInfo,
   type RpcInterceptor,
   type RpcMetadata,
-  type RpcOptions,
 } from "@protobuf-ts/runtime-rpc";
 import {
   GetOperationPeriodRequest,
@@ -90,36 +89,51 @@ export function operationContext(): RpcInterceptor {
         return next(method, input, options);
       }
       const meta = options.meta ?? {};
-      const key =
-        meta[OPERATION_KEY] ?? encodeOperationKey(crypto.randomUUID());
-      const named = (period: string): RpcOptions => ({
-        ...options,
-        meta: { ...meta, [OPERATION_KEY]: key, [OPERATION_PERIOD]: period },
-      });
+      // The headers the command is sent with; the call shows them, so a
+      // caller keeping them retries the same command.
+      const sent: RpcMetadata = {
+        ...meta,
+        [OPERATION_KEY]:
+          meta[OPERATION_KEY] ?? encodeOperationKey(crypto.randomUUID()),
+      };
       const given = meta[OPERATION_PERIOD];
       if (typeof given === "string") {
-        return next(method, input, named(given));
+        return next(method, input, { ...options, meta: sent });
       }
       // The period read goes through the same chain, without this call's
-      // context.
+      // context, and is shared by concurrent commands: no one caller's
+      // cancellation or deadline is given to it.
       const plain: RpcMetadata = { ...meta };
       delete plain[OPERATION_KEY];
+      const { abort: _abort, timeout: _timeout, ...shared } = options;
+      // The underlying call is held in a box: a UnaryCall is thenable, and
+      // a promise resolving to it would wait for its whole response.
       const call = period(
         () =>
           next(
             OperationService.methods[0] as MethodInfo,
             GetOperationPeriodRequest.create(),
-            { ...options, meta: plain },
+            { ...shared, meta: plain },
           ).response as Promise<OperationPeriod>,
-      ).then((p) => next(method, input, named(p)));
+      ).then((p) => {
+        sent[OPERATION_PERIOD] = p;
+        return { inner: next(method, input, { ...options, meta: sent }) };
+      });
+      // A caller awaits only the parts it needs; a failed period read fails
+      // each part without an unhandled rejection, as the transport's own do.
+      const part = <T>(pick: (c: Awaited<typeof call>) => Promise<T>) => {
+        const promise = call.then(pick);
+        promise.catch(() => {});
+        return promise;
+      };
       return new UnaryCall(
         method,
-        meta,
+        sent,
         input,
-        call.then((c) => c.headers),
-        call.then((c) => c.response),
-        call.then((c) => c.status),
-        call.then((c) => c.trailers),
+        part((c) => c.inner.headers),
+        part((c) => c.inner.response),
+        part((c) => c.inner.status),
+        part((c) => c.inner.trailers),
       );
     },
   };

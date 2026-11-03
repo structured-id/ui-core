@@ -19,34 +19,44 @@ const CEREMONY = {
 } as unknown as MethodInfo;
 const READ = { name: "GetProject", options: {} } as unknown as MethodInfo;
 
-/** A chain answering the period read with `period` until `untilMs`. */
-function chain(period: bigint, untilMs = Date.now() + 3_600_000) {
+/**
+ * A chain answering the period read with `period` until `untilMs`; with
+ * `refused`, a command's response is refused while its headers, status and
+ * trailers arrive, as a non-OK gRPC answer does.
+ */
+function chain(
+  period: bigint,
+  untilMs = Date.now() + 3_600_000,
+  refused = false,
+) {
   const sent: Array<{ method: MethodInfo; options: RpcOptions }> = [];
   const next = vi.fn(
     (method: MethodInfo, _input: object, options: RpcOptions) => {
       sent.push({ method, options });
-      const response =
-        method.name === OperationService.methods[0].name
-          ? {
-              period,
-              acceptedUntil: {
-                seconds: BigInt(Math.floor(untilMs / 1000)),
-                nanos: 0,
-              },
-            }
-          : {};
-      const done = Promise.resolve({
-        headers: {},
-        response,
-        status: { code: "OK", detail: "" },
-        trailers: {},
+      const read = method.name === OperationService.methods[0].name;
+      const response = read
+        ? Promise.resolve({
+            period,
+            acceptedUntil: {
+              seconds: BigInt(Math.floor(untilMs / 1000)),
+              nanos: 0,
+            },
+          })
+        : refused
+          ? Promise.reject(new Error("refused"))
+          : Promise.resolve({});
+      response.catch(() => {});
+      const status = Promise.resolve({
+        code: refused && !read ? "FAILED_PRECONDITION" : "OK",
+        detail: "",
       });
       return {
-        headers: done.then((d) => d.headers),
-        response: done.then((d) => d.response),
-        status: done.then((d) => d.status),
-        trailers: done.then((d) => d.trailers),
-        then: (f: (v: unknown) => unknown) => done.then(f),
+        headers: Promise.resolve({ answered: "yes" }),
+        response,
+        status,
+        trailers: Promise.resolve({}),
+        then: (f: (v: unknown) => unknown, r?: (e: unknown) => unknown) =>
+          response.then(f, r),
       } as never;
     },
   );
@@ -150,6 +160,64 @@ describe("operation context", () => {
     const a = (await call(interceptor, c)).meta![OPERATION_KEY];
     const b = (await call(interceptor, c)).meta![OPERATION_KEY];
     expect(a).not.toBe(b);
+  });
+
+  // A caller keeping the call's request headers retries the same command:
+  // they hold the key and the period the command was actually sent with.
+  it("shows the context it sent in the call's request headers", async () => {
+    const c = chain(7n);
+    const answered = operationContext().interceptUnary!(
+      c.next as never,
+      KEYED,
+      {},
+      {},
+    );
+    await answered.response;
+    const sent = c.sent.find((s) => s.method.name === KEYED.name)!.options;
+    expect(answered.requestHeaders[OPERATION_KEY]).toBe(
+      sent.meta![OPERATION_KEY],
+    );
+    expect(answered.requestHeaders[OPERATION_PERIOD]).toBe("7");
+  });
+
+  // A refused command still has its own headers, status and trailers: the
+  // wrapper forwards each, rather than failing them all with the response.
+  it("keeps a refused command's status and headers", async () => {
+    const answered = operationContext().interceptUnary!(
+      chain(7n, undefined, true).next as never,
+      KEYED,
+      {},
+      {},
+    );
+    await expect(answered.response).rejects.toThrow("refused");
+    expect((await answered.status).code).toBe("FAILED_PRECONDITION");
+    expect(await answered.headers).toEqual({ answered: "yes" });
+  });
+
+  // The period read is shared by concurrent commands: one caller's
+  // cancellation or deadline is not passed to it, so the others go on.
+  it("does not give the shared period read one caller's cancellation", async () => {
+    const interceptor = operationContext();
+    const c = chain(7n);
+    const cancelled = new AbortController();
+    const first = interceptor.interceptUnary!(
+      c.next as never,
+      KEYED,
+      {},
+      {
+        abort: cancelled.signal,
+        timeout: 5,
+      },
+    );
+    const second = interceptor.interceptUnary!(c.next as never, KEYED, {}, {});
+    cancelled.abort();
+    await second.response;
+    first.response.catch(() => {});
+    const read = c.sent.find(
+      (s) => s.method.name === OperationService.methods[0].name,
+    )!;
+    expect(read.options.abort).toBeUndefined();
+    expect(read.options.timeout).toBeUndefined();
   });
 
   // RFC 9651 §3.3.3: a String escapes DQUOTE and backslash and holds
