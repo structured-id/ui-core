@@ -14,6 +14,7 @@ vi.mock("@protobuf-ts/grpcweb-transport", () => ({
 // Import AFTER mocks
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import { initGrpc, getTransport, closeTransport, useGrpc } from "./useGrpc";
+import { operationKey } from "./operationKey";
 import type { GrpcConfig } from "../types/auth";
 
 // ---------------------------------------------------------------------------
@@ -28,7 +29,7 @@ describe("useGrpc", () => {
 
   describe("initGrpc", () => {
     // The BFF session cookie rides on every call, so credentials are always
-    // included; nothing else configures the transport.
+    // included; state-changing calls carry an operation key.
     it("creates GrpcWebFetchTransport with baseUrl and credentials", () => {
       const config: GrpcConfig = { baseUrl: "https://api.sid.example.com" };
       initGrpc(config);
@@ -36,6 +37,7 @@ describe("useGrpc", () => {
       expect(GrpcWebFetchTransport).toHaveBeenCalledWith({
         baseUrl: "https://api.sid.example.com",
         fetchInit: { credentials: "include" },
+        interceptors: [operationKey],
       });
     });
   });
