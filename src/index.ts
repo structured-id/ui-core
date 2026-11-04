@@ -24,6 +24,15 @@ export {
   closeAccountTransport,
   type AccountApiConfig,
 } from "./composables/useAccountTransport";
+// For an application's own transport: add the interceptor once, shared by
+// its clients, so the period is read once.
+export {
+  operationContext,
+  isKeyed,
+  encodeOperationKey,
+  OPERATION_KEY,
+  OPERATION_PERIOD,
+} from "./composables/operationContext";
 
 // Stores
 export { useAuthStore } from "./stores/auth";
