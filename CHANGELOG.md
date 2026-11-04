@@ -17,6 +17,13 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [4.12.0](https://github.com/structured-id/ui-core/compare/v4.11.0...v4.12.0) (2026-11-04)
+
+
+### Features
+
+* **grpc:** export the operation context interceptor ([#81](https://github.com/structured-id/ui-core/issues/81)) ([93488f9](https://github.com/structured-id/ui-core/commit/93488f9a67911bfa4bbbad4f56060d3f6af25788)), closes [#80](https://github.com/structured-id/ui-core/issues/80)
+
 ## [4.11.0](https://github.com/structured-id/ui-core/compare/v4.10.0...v4.11.0) (2026-11-03)
 
 
