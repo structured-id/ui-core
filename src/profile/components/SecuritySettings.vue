@@ -52,7 +52,7 @@
     </div>
 
     <q-list v-else-if="credentials.length > 0" separator>
-      <q-item v-for="cred in credentials" :key="cred.id">
+      <q-item v-for="cred in credentials" :key="cred.id.toString()">
         <q-item-section avatar>
           <q-icon :name="credIcon(cred.type)" :color="credColor(cred.type)" />
         </q-item-section>
@@ -96,11 +96,9 @@
 </template>
 
 <script setup lang="ts">
-import {
-  type Credential,
-  CredentialType,
-} from "@structured-id/proto/sid/v1/identity/identity";
+import { CredentialType } from "@structured-id/proto/sid/v1/identity/identity";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import type { Credential } from "../composables/useIdentityApi";
 import type { FactorCategory } from "../composables/useSecurityLevel";
 
 defineProps<{

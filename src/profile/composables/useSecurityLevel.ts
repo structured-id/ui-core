@@ -13,6 +13,15 @@ import {
   PrincipalType,
 } from "@structured-id/proto/sid/v1/identity/identity";
 
+/** What the assessment reads of a credential: its kind and authenticator. */
+export type CredentialFacts = Pick<Credential, "type" | "info">;
+
+/** What the assessment reads of a login handle: its kind and proof. */
+export type PrincipalFacts = Pick<
+  Principal,
+  "type" | "verified" | "needsAddressConfirmation"
+>;
+
 // ── Security Level ──
 
 export enum SecurityLevel {
@@ -66,7 +75,7 @@ const RECOVERABILITY_COLORS: Record<RecoverabilityLevel, string> = {
 
 export type FactorCategory = "knowledge" | "possession" | "inherence";
 
-function getCategory(cred: Credential): FactorCategory | null {
+function getCategory(cred: CredentialFacts): FactorCategory | null {
   switch (cred.type) {
     case CredentialType.OPAQUE:
     case CredentialType.LEGACY_HASH:
@@ -89,7 +98,7 @@ function getCategory(cred: Credential): FactorCategory | null {
   }
 }
 
-function isHardwareKey(cred: Credential): boolean {
+function isHardwareKey(cred: CredentialFacts): boolean {
   return (
     cred.type === CredentialType.WEBAUTHN &&
     cred.info.oneofKind === "webauthnInfo" &&
@@ -113,8 +122,8 @@ export interface ActionNudge {
 // ── Composable ──
 
 export function useSecurityLevel(
-  credentials: Ref<Credential[]>,
-  identifiers: Ref<Principal[]>,
+  credentials: Readonly<Ref<readonly CredentialFacts[]>>,
+  identifiers: Readonly<Ref<readonly PrincipalFacts[]>>,
 ) {
   const authFactors = computed(() =>
     credentials.value.filter((c) => c.type !== CredentialType.RECOVERY),

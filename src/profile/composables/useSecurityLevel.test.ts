@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
+import { CredentialId, PrincipalId } from "@structured-id/ids";
+import type {
+  Credential as IdentityCredential,
+  Principal as IdentityPrincipal,
+} from "./useIdentityApi";
 import {
   useSecurityLevel,
   SecurityLevel,
@@ -42,7 +47,6 @@ function makeCred(
 
 function makePrincipal(type: PrincipalType, verified: boolean): Principal {
   return {
-    id: "p-1",
     type,
     value: "test",
     verified,
@@ -54,6 +58,30 @@ function makePrincipal(type: PrincipalType, verified: boolean): Principal {
 // ── Security Level ──
 
 describe("useSecurityLevel", () => {
+  // Regression: the assessment took the wire types, so the typed lists the
+  // identity composable answers (held in shallow refs) did not fit it.
+  it("assesses the identity composable's typed lists", () => {
+    const creds = shallowRef<IdentityCredential[]>([
+      {
+        ...makeCred(CredentialType.OPAQUE),
+        id: CredentialId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d50"),
+      },
+    ]);
+    const principals = shallowRef<IdentityPrincipal[]>([
+      {
+        ...makePrincipal(PrincipalType.EMAIL, true),
+        id: PrincipalId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d51"),
+        sourceEmailId: undefined,
+      },
+    ]);
+    const { factorCount, recoveryMethods } = useSecurityLevel(
+      creds,
+      principals,
+    );
+    expect(factorCount.value).toBe(1);
+    expect(recoveryMethods.value).toContain("recovery_email");
+  });
+
   it("MINIMAL with no credentials", () => {
     const { securityLevel } = useSecurityLevel(ref([]), ref([]));
     expect(securityLevel.value).toBe(SecurityLevel.MINIMAL);
