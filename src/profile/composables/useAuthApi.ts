@@ -13,13 +13,22 @@
  * behind the injected ZkppClientApi: no dependency on the client package.
  */
 import { getTransport, getAccountTransport } from "../../index";
+import {
+  CredentialId,
+  MagicLinkId,
+  OpaqueLoginId,
+  OtpSessionId,
+  ResetSessionId,
+  SessionId,
+  StepUpChallengeId,
+  optional,
+  required,
+} from "@structured-id/ids";
 import { AuthServiceClient } from "@structured-id/proto/sid/v1/authn/auth.client";
 import {
   StepUpMethod,
   type OpaqueLoginStartResponse,
   type OpaqueLoginFinishResponse,
-  type OpaqueRegistrationStartResponse,
-  type OpaqueRegistrationFinishResponse,
   type MfaVerifyResponse,
   type TotpEnrollmentChallenge,
   type FinishTotpEnrollmentResponse,
@@ -87,6 +96,13 @@ function account(): AuthServiceClient {
   return new AuthServiceClient(getAccountTransport());
 }
 
+/**
+ * An answer with its identifier field `K` read into the typed identifier
+ * `V`. Reading validates it: a malformed or missing reference the answer
+ * owes fails here, not on a page.
+ */
+export type WithId<T, K extends keyof T, V> = Omit<T, K> & { [P in K]: V };
+
 // ── MFA TOTP ──
 
 export async function startTotpEnrollment(): Promise<TotpEnrollmentChallenge> {
@@ -97,32 +113,52 @@ export async function startTotpEnrollment(): Promise<TotpEnrollmentChallenge> {
   return response;
 }
 
+export type TotpEnrollmentResult = WithId<
+  FinishTotpEnrollmentResponse,
+  "credentialId",
+  CredentialId
+>;
+
 export async function finishTotpEnrollment(
   code: string,
-): Promise<FinishTotpEnrollmentResponse> {
+): Promise<TotpEnrollmentResult> {
   const { response } = await account().finishTotpEnrollment(
     { code },
     { meta: authMeta() },
   );
-  return response;
+  return {
+    ...response,
+    credentialId: required(CredentialId, response.credentialId),
+  };
 }
 
-export async function verifyTotp(code: string): Promise<MfaVerifyResponse> {
+/** A second factor's answer: the session once the last required step passed. */
+export type MfaVerifyResult = WithId<
+  MfaVerifyResponse,
+  "sessionId",
+  SessionId | undefined
+>;
+
+function mfaVerified(response: MfaVerifyResponse): MfaVerifyResult {
+  return { ...response, sessionId: optional(SessionId, response.sessionId) };
+}
+
+export async function verifyTotp(code: string): Promise<MfaVerifyResult> {
   const { response } = await client().verifyTotp(
     { code },
     { meta: authMeta() },
   );
-  return response;
+  return mfaVerified(response);
 }
 
 // ── MFA SMS ──
 
-export async function verifySmsMfa(code: string): Promise<MfaVerifyResponse> {
+export async function verifySmsMfa(code: string): Promise<MfaVerifyResult> {
   const { response } = await client().verifySmsMfa(
     { code },
     { meta: authMeta() },
   );
-  return response;
+  return mfaVerified(response);
 }
 
 export async function resendSmsMfa(): Promise<ResendSmsMfaResponse> {
@@ -142,32 +178,40 @@ export async function generateRecoveryCodes(): Promise<GenerateRecoveryCodesResp
 
 export async function verifyRecoveryCode(
   code: string,
-): Promise<MfaVerifyResponse> {
+): Promise<MfaVerifyResult> {
   const { response } = await client().verifyRecoveryCode(
     { code },
     { meta: authMeta() },
   );
-  return response;
+  return mfaVerified(response);
 }
 
 // ── OTP ──
 
+/** A verified code's answer: the provisional session, set only when verified. */
+export type VerifyOtpResult = WithId<
+  VerifyOtpResponse,
+  "sessionId",
+  SessionId | undefined
+>;
+
+/** Verify `code` of the request `otpSessionId` (RequestOtpResponse). */
 export async function verifyOtp(
   code: string,
-  sessionId?: string,
-): Promise<VerifyOtpResponse> {
+  otpSessionId: OtpSessionId,
+): Promise<VerifyOtpResult> {
   const { response } = await client().verifyOtp(
-    { code, sessionId },
+    { code, otpSessionId: otpSessionId.toWire() },
     { meta: authMeta() },
   );
-  return response;
+  return { ...response, sessionId: optional(SessionId, response.sessionId) };
 }
 
 export async function resendOtp(
-  sessionId?: string,
+  otpSessionId: OtpSessionId,
 ): Promise<ResendOtpResponse> {
   const { response } = await client().resendOtp(
-    { sessionId },
+    { otpSessionId: otpSessionId.toWire() },
     { meta: authMeta() },
   );
   return response;
@@ -216,16 +260,25 @@ export async function webAuthnAuthenticationStart(
   return response;
 }
 
+export type PasskeySignInResult = WithId<
+  WebAuthnAuthenticationFinishResponse,
+  "sessionId",
+  SessionId
+>;
+
+/**
+ * Finish a passkey sign-in with the assertion; the server finds the ceremony
+ * by the challenge the assertion signs.
+ */
 export async function webAuthnAuthenticationFinish(
   credential: Uint8Array,
   principal?: string,
-  stateKey?: string,
-): Promise<WebAuthnAuthenticationFinishResponse> {
+): Promise<PasskeySignInResult> {
   const { response } = await client().webAuthnAuthenticationFinish(
-    { credential, principal: principal ?? "", stateKey },
+    { credential, principal: principal ?? "" },
     { meta: authMeta() },
   );
-  return response;
+  return { ...response, sessionId: required(SessionId, response.sessionId) };
 }
 
 export async function webAuthnRegistrationStart(
@@ -238,15 +291,24 @@ export async function webAuthnRegistrationStart(
   return response;
 }
 
+export type PasskeyRegistrationResult = WithId<
+  WebAuthnRegistrationFinishResponse,
+  "credentialId",
+  CredentialId
+>;
+
 export async function webAuthnRegistrationFinish(
   credential: Uint8Array,
   label?: string,
-): Promise<WebAuthnRegistrationFinishResponse> {
+): Promise<PasskeyRegistrationResult> {
   const { response } = await account().webAuthnRegistrationFinish(
     { credential, label },
     { meta: authMeta() },
   );
-  return response;
+  return {
+    ...response,
+    credentialId: required(CredentialId, response.credentialId),
+  };
 }
 
 // ── Device Authorization (RFC 8628) ──
@@ -306,27 +368,46 @@ export async function oauth2Authorize(params: {
 
 // ── Magic Link ──
 
+export type MagicLinkRequest = WithId<
+  RequestMagicLinkResponse,
+  "magicLinkId",
+  MagicLinkId
+>;
+
 export async function requestMagicLink(
   principal: string,
   clientId: string,
   redirectUri: string,
-): Promise<RequestMagicLinkResponse> {
+): Promise<MagicLinkRequest> {
   const { response } = await client().requestMagicLink(
     { principal, clientId, redirectUri },
     { meta: authMeta() },
   );
-  return response;
+  return {
+    ...response,
+    magicLinkId: required(MagicLinkId, response.magicLinkId),
+  };
 }
 
+export type MagicLinkSignInResult = WithId<
+  VerifyMagicLinkResponse,
+  "sessionId",
+  SessionId
+>;
+
+/**
+ * Verify the magic link `magicLinkId` with its `token`; the page reads both
+ * from the link (`MagicLinkId.parse` of its text form).
+ */
 export async function verifyMagicLink(
-  sessionId: string,
+  magicLinkId: MagicLinkId,
   token: string,
-): Promise<VerifyMagicLinkResponse> {
+): Promise<MagicLinkSignInResult> {
   const { response } = await client().verifyMagicLink(
-    { sessionId, token },
+    { magicLinkId: magicLinkId.toWire(), token },
     { meta: authMeta() },
   );
-  return response;
+  return { ...response, sessionId: required(SessionId, response.sessionId) };
 }
 
 // ── IdP Link ──
@@ -446,21 +527,34 @@ export async function submitDynamicPrompt(
 
 // ── Step-Up Auth ──
 
+/** A step-up challenge; `challengeId` is absent for a 1-phase method. */
+export type StepUpChallengeResult = WithId<
+  StepUpChallenge,
+  "challengeId",
+  StepUpChallengeId | undefined
+>;
+
+/** Request a step-up challenge for the session the bearer token holds. */
 export async function requestStepUp(
-  sessionId: string,
   method: StepUpMethod,
-): Promise<StepUpChallenge> {
+): Promise<StepUpChallengeResult> {
   const { response } = await client().requestStepUp(
-    { sessionId, method },
+    { method },
     { meta: authMeta() },
   );
-  return response;
+  return {
+    ...response,
+    challengeId: optional(StepUpChallengeId, response.challengeId),
+  };
 }
 
+/**
+ * Elevate the bearer token's session with `proof`; `challengeId` is the
+ * challenge's (absent for a 1-phase method).
+ */
 export async function completeStepUp(
-  sessionId: string,
   method: StepUpMethod,
-  challengeId: string,
+  challengeId: StepUpChallengeId | undefined,
   proof: {
     totpCode?: string;
     webauthnAssertion?: Uint8Array;
@@ -469,9 +563,8 @@ export async function completeStepUp(
 ): Promise<CompleteStepUpResponse> {
   const { response } = await client().completeStepUp(
     {
-      sessionId,
       method,
-      challengeId,
+      challengeId: challengeId?.toWire(),
       proof: proof.totpCode
         ? { oneofKind: "totpCode", totpCode: proof.totpCode }
         : proof.webauthnAssertion
@@ -491,10 +584,10 @@ export async function completeStepUp(
 // ── MFA Credential Management ──
 
 export async function deleteMfaCredential(
-  credentialId: string,
+  credentialId: CredentialId,
 ): Promise<DeleteMfaCredentialResponse> {
   const { response } = await account().deleteMfaCredential(
-    { credentialId },
+    { credentialId: credentialId.toWire() },
     { meta: authMeta() },
   );
   return response;
@@ -529,12 +622,17 @@ export async function requestPasswordReset(
   return response;
 }
 
+/**
+ * Verify the reset `resetSessionId` with its `token`; the page reads both
+ * from the emailed link (`ResetSessionId.parse` of its text form). Later
+ * steps name the reset by the operation in the answer's `history`.
+ */
 export async function verifyPasswordReset(
-  sessionId: string,
+  resetSessionId: ResetSessionId,
   token: string,
 ): Promise<VerifyPasswordResetResponse> {
   const { response } = await client().verifyPasswordReset({
-    sessionId,
+    resetSessionId: resetSessionId.toWire(),
     token,
   });
   return response;
@@ -555,24 +653,29 @@ export async function executePasswordReset(
   return response;
 }
 
+/** A completed reset: the session it signed in, absent when it signed in none. */
+export type PasswordResetResult = WithId<
+  CompletePasswordResetResponse,
+  "sessionId",
+  SessionId | undefined
+>;
+
 /**
  * Complete the reset with the replacement password's record and, when the
  * client proved it, the proof; without a proof the password installs
- * policy-unverified.
+ * policy-unverified. The operation carries the verified reset's authority.
  */
 export async function completePasswordReset(
-  resetSessionId: string,
   operationId: Uint8Array,
   registrationRecord: Uint8Array,
   proof?: PasswordRegistrationProof,
-): Promise<CompletePasswordResetResponse> {
+): Promise<PasswordResetResult> {
   const { response } = await client().completePasswordReset({
-    resetSessionId,
     operationId: operation(operationId),
     registrationRecord,
     proof,
   });
-  return response;
+  return { ...response, sessionId: optional(SessionId, response.sessionId) };
 }
 
 /** The password policy the server's proof checks a new password against. */
@@ -609,18 +712,27 @@ export async function opaqueZkppRegistrationStart(
   return response;
 }
 
+export type RegistrationFinishResult = WithId<
+  OpaqueZkppRegistrationFinishResponse,
+  "credentialId",
+  CredentialId
+>;
+
 /** Finish a registration with the record and, when the client proved, the proof. */
 export async function opaqueZkppRegistrationFinish(
   operationId: Uint8Array,
   registrationRecord: Uint8Array,
   proof?: PasswordRegistrationProof,
-): Promise<OpaqueZkppRegistrationFinishResponse> {
+): Promise<RegistrationFinishResult> {
   const { response } = await client().opaqueZkppRegistrationFinish({
     operationId: operation(operationId),
     registrationRecord,
     proof,
   });
-  return response;
+  return {
+    ...response,
+    credentialId: required(CredentialId, response.credentialId),
+  };
 }
 
 /**
@@ -645,12 +757,16 @@ export async function evaluatePasswordHistory(
  * the current password, empty when the change does not prove it.
  */
 export async function passwordChangeChallenge(
-  credentialId: string,
+  credentialId: CredentialId,
   registrationRequest: Uint8Array,
   credentialRequest: Uint8Array = new Uint8Array(),
 ): Promise<PasswordChangeChallengeResponse> {
   const { response } = await account().passwordChangeChallenge(
-    { credentialId, credentialRequest, registrationRequest },
+    {
+      credentialId: credentialId.toWire(),
+      credentialRequest,
+      registrationRequest,
+    },
     { meta: authMeta() },
   );
   return response;
@@ -663,13 +779,13 @@ export async function passwordChangeChallenge(
  */
 export async function passwordChangeExecute(
   operationId: Uint8Array,
-  credentialId: string,
+  credentialId: CredentialId,
   credentialFinalization: Uint8Array = new Uint8Array(),
 ): Promise<PasswordChangeExecuteResponse> {
   const { response } = await account().passwordChangeExecute(
     {
       operationId: operation(operationId),
-      credentialId,
+      credentialId: credentialId.toWire(),
       credentialFinalization,
     },
     { meta: authMeta() },
@@ -693,14 +809,14 @@ export async function passwordChangeRequirementMs(): Promise<number> {
 /** Finish the change with the new password's record and, when proved, the proof. */
 export async function passwordChangeFinish(
   operationId: Uint8Array,
-  credentialId: string,
+  credentialId: CredentialId,
   registrationRecord: Uint8Array,
   proof?: PasswordRegistrationProof,
 ): Promise<void> {
   await account().passwordChangeFinish(
     {
       operationId: operation(operationId),
-      credentialId,
+      credentialId: credentialId.toWire(),
       registrationRecord,
       proof,
     },
@@ -710,59 +826,42 @@ export async function passwordChangeFinish(
 
 // ── OPAQUE ──
 
+/** The login the start began, for its finish to name. */
+export type LoginStartResult = WithId<
+  OpaqueLoginStartResponse,
+  "loginId",
+  OpaqueLoginId
+>;
+
 export async function opaqueLoginStart(
   principal: string,
   credentialRequest: Uint8Array,
-): Promise<OpaqueLoginStartResponse> {
+): Promise<LoginStartResult> {
   const { response } = await client().opaqueLoginStart({
     principal,
     credentialRequest,
   });
-  return response;
+  return { ...response, loginId: required(OpaqueLoginId, response.loginId) };
 }
 
+export type LoginFinishResult = WithId<
+  OpaqueLoginFinishResponse,
+  "sessionId",
+  SessionId
+>;
+
+/** Finish the login `loginId` (from its start) with the client's KE3. */
 export async function opaqueLoginFinish(
   principal: string,
   credentialFinalization: Uint8Array,
-  serverLoginState: string,
-): Promise<OpaqueLoginFinishResponse> {
+  loginId: OpaqueLoginId,
+): Promise<LoginFinishResult> {
   const { response } = await client().opaqueLoginFinish({
     principal,
     credentialFinalization,
-    serverLoginState,
+    loginId: loginId.toWire(),
   });
-  return response;
-}
-
-/**
- * `claimToken`: the instance claim token (`sidclaim_...`) from the service log.
- * Required while the installation has no administrator; the new profile then
- * becomes its first administrator.
- */
-export async function opaqueRegistrationStart(
-  principal: string,
-  registrationRequest: Uint8Array,
-  claimToken?: string,
-): Promise<OpaqueRegistrationStartResponse> {
-  const { response } = await client().opaqueRegistrationStart({
-    principal,
-    registrationRequest,
-    claimToken,
-  });
-  return response;
-}
-
-export async function opaqueRegistrationFinish(
-  principal: string,
-  registrationRecord: Uint8Array,
-  serverSetup: string,
-): Promise<OpaqueRegistrationFinishResponse> {
-  const { response } = await client().opaqueRegistrationFinish({
-    principal,
-    registrationRecord,
-    serverSetup,
-  });
-  return response;
+  return { ...response, sessionId: required(SessionId, response.sessionId) };
 }
 
 // Re-export types for convenience
@@ -770,8 +869,6 @@ export { StepUpMethod };
 export type {
   OpaqueLoginStartResponse,
   OpaqueLoginFinishResponse,
-  OpaqueRegistrationStartResponse,
-  OpaqueRegistrationFinishResponse,
   UserOrganization,
   MfaVerifyResponse,
   TotpEnrollmentChallenge,

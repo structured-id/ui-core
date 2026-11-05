@@ -10,12 +10,13 @@
  * Otherwise the app's own session comes from its BFF: the handler reads it
  * from the BFF's /auth/userinfo and navigates within the app.
  */
+import type { SessionId } from "@structured-id/ids";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../index";
 import { checkBffSession } from "../../index";
 
 export interface LoginSuccessResult {
-  sessionId?: string;
+  sessionId?: SessionId;
 }
 
 /** Options of {@link useLoginSuccess}. */

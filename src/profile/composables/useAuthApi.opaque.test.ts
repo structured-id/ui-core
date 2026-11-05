@@ -1,16 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  opaqueLoginStart,
-  opaqueLoginFinish,
-  opaqueRegistrationStart,
-  opaqueRegistrationFinish,
-} from "./useAuthApi";
+  IdError,
+  MissingIdError,
+  OpaqueLoginId,
+  SessionId,
+} from "@structured-id/ids";
+import { opaqueLoginStart, opaqueLoginFinish } from "./useAuthApi";
 
 // Mock the gRPC transport + AuthServiceClient
 const mockOpaqueLoginStart = vi.fn();
 const mockOpaqueLoginFinish = vi.fn();
-const mockOpaqueRegistrationStart = vi.fn();
-const mockOpaqueRegistrationFinish = vi.fn();
 
 vi.mock("../../index", () => ({
   getTransport: vi.fn(),
@@ -23,8 +22,6 @@ vi.mock("@structured-id/proto/sid/v1/authn/auth.client", () => ({
     return {
       opaqueLoginStart: mockOpaqueLoginStart,
       opaqueLoginFinish: mockOpaqueLoginFinish,
-      opaqueRegistrationStart: mockOpaqueRegistrationStart,
-      opaqueRegistrationFinish: mockOpaqueRegistrationFinish,
     };
   }),
 }));
@@ -34,18 +31,23 @@ vi.mock("../auth", () => ({
   authMeta: () => ({}),
 }));
 
+const LOGIN = OpaqueLoginId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d9e");
+const SESSION = SessionId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d9f");
+
 describe("OPAQUE gRPC wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("opaqueLoginStart", () => {
-    it("sends principal and credentialRequest, returns response", async () => {
-      const expected = {
-        credentialResponse: new Uint8Array([1, 2, 3]),
-        serverLoginState: "state-123",
-      };
-      mockOpaqueLoginStart.mockResolvedValue({ response: expected });
+    // The start names its login; the finish carries that name back.
+    it("sends principal and credentialRequest, reads the login it began", async () => {
+      mockOpaqueLoginStart.mockResolvedValue({
+        response: {
+          credentialResponse: new Uint8Array([1, 2, 3]),
+          loginId: LOGIN.toWire(),
+        },
+      });
 
       const result = await opaqueLoginStart(
         "alice@test.com",
@@ -56,7 +58,29 @@ describe("OPAQUE gRPC wrappers", () => {
         principal: "alice@test.com",
         credentialRequest: new Uint8Array([10, 20]),
       });
-      expect(result).toBe(expected);
+      expect(result.credentialResponse).toEqual(new Uint8Array([1, 2, 3]));
+      expect(result.loginId.equals(LOGIN)).toBe(true);
+    });
+
+    // A start that names no login, or a malformed one, cannot be finished:
+    // it fails here rather than sending an unusable finish.
+    it("refuses an answer without a valid login", async () => {
+      mockOpaqueLoginStart.mockResolvedValue({
+        response: { credentialResponse: new Uint8Array([1]) },
+      });
+      await expect(
+        opaqueLoginStart("x", new Uint8Array()),
+      ).rejects.toBeInstanceOf(MissingIdError);
+
+      mockOpaqueLoginStart.mockResolvedValue({
+        response: {
+          credentialResponse: new Uint8Array([1]),
+          loginId: { value: new Uint8Array(15) },
+        },
+      });
+      await expect(
+        opaqueLoginStart("x", new Uint8Array()),
+      ).rejects.toBeInstanceOf(IdError);
     });
 
     it("propagates gRPC errors", async () => {
@@ -68,97 +92,35 @@ describe("OPAQUE gRPC wrappers", () => {
   });
 
   describe("opaqueLoginFinish", () => {
-    it("sends principal, finalization, and serverLoginState", async () => {
-      const expected = {
-        sessionId: "sess-1",
-        expiresIn: BigInt(3600),
-      };
-      mockOpaqueLoginFinish.mockResolvedValue({ response: expected });
+    it("sends principal, finalization and the login's bytes, reads the session", async () => {
+      mockOpaqueLoginFinish.mockResolvedValue({
+        response: { sessionId: SESSION.toWire(), expiresIn: BigInt(3600) },
+      });
 
       const result = await opaqueLoginFinish(
         "alice@test.com",
         new Uint8Array([7, 8, 9]),
-        "state-123",
+        LOGIN,
       );
 
       expect(mockOpaqueLoginFinish).toHaveBeenCalledWith({
         principal: "alice@test.com",
         credentialFinalization: new Uint8Array([7, 8, 9]),
-        serverLoginState: "state-123",
+        loginId: { value: LOGIN.toBytes() },
       });
-      expect(result).toBe(expected);
-    });
-  });
-
-  describe("opaqueRegistrationStart", () => {
-    it("sends principal and registrationRequest", async () => {
-      const expected = {
-        registrationResponse: new Uint8Array([4, 5, 6]),
-        serverSetup: "setup-abc",
-      };
-      mockOpaqueRegistrationStart.mockResolvedValue({ response: expected });
-
-      const result = await opaqueRegistrationStart(
-        "bob@test.com",
-        new Uint8Array([11, 12]),
-      );
-
-      expect(mockOpaqueRegistrationStart).toHaveBeenCalledWith({
-        principal: "bob@test.com",
-        registrationRequest: new Uint8Array([11, 12]),
-      });
-      expect(result).toBe(expected);
+      expect(result.sessionId.equals(SESSION)).toBe(true);
+      expect(result.expiresIn).toBe(BigInt(3600));
     });
 
-    // An unclaimed installation accepts only a registration carrying the
-    // claim token; the wrapper must put it on the wire unchanged.
-    it("sends the instance claim token when given", async () => {
-      mockOpaqueRegistrationStart.mockResolvedValue({ response: {} });
-
-      await opaqueRegistrationStart(
-        "owner@test.com",
-        new Uint8Array([1]),
-        "sidclaim_abc",
-      );
-
-      expect(mockOpaqueRegistrationStart).toHaveBeenCalledWith({
-        principal: "owner@test.com",
-        registrationRequest: new Uint8Array([1]),
-        claimToken: "sidclaim_abc",
+    // Every completed sign-in names its session; an answer without one is
+    // not a sign-in the page can manage.
+    it("refuses an answer without its session", async () => {
+      mockOpaqueLoginFinish.mockResolvedValue({
+        response: { expiresIn: BigInt(3600) },
       });
-    });
-  });
-
-  describe("opaqueRegistrationFinish", () => {
-    it("sends principal, record, and serverSetup", async () => {
-      const expected = {
-        profileId: "profile-uuid",
-        credentialId: "cred-uuid",
-        serverPepper: new Uint8Array(),
-      };
-      mockOpaqueRegistrationFinish.mockResolvedValue({ response: expected });
-
-      const result = await opaqueRegistrationFinish(
-        "bob@test.com",
-        new Uint8Array([20, 21]),
-        "setup-abc",
-      );
-
-      expect(mockOpaqueRegistrationFinish).toHaveBeenCalledWith({
-        principal: "bob@test.com",
-        registrationRecord: new Uint8Array([20, 21]),
-        serverSetup: "setup-abc",
-      });
-      expect(result).toBe(expected);
-    });
-
-    it("propagates gRPC errors", async () => {
-      mockOpaqueRegistrationFinish.mockRejectedValue(
-        new Error("ALREADY_EXISTS"),
-      );
       await expect(
-        opaqueRegistrationFinish("x", new Uint8Array(), "s"),
-      ).rejects.toThrow("ALREADY_EXISTS");
+        opaqueLoginFinish("x", new Uint8Array(), LOGIN),
+      ).rejects.toBeInstanceOf(MissingIdError);
     });
   });
 });
