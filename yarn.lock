@@ -565,23 +565,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@structured-id/ids@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@structured-id/ids@npm:0.1.0"
+"@structured-id/ids@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@structured-id/ids@npm:0.3.0"
   dependencies:
     "@protobuf-ts/runtime": "npm:^2.11.1"
-  checksum: 10c0/ead6e60763cf1bf165d422c2e6512d4ac830fdc3e98330f20ffb1eb19fb38dcd8fd5f67a56e80a48c2d946aabdf5164f19c08ac159d35a86ee2f9512f08900d9
+  checksum: 10c0/0fa70bdfa1ce3159cbbe76600ead108dc11a3e614c8f3e4cdd8619b52aadc41d69f2ea87da3b3f08784653b84f37bfa54a46371681350d509533ebbde2828167
   languageName: node
   linkType: hard
 
-"@structured-id/proto@npm:^0.9.0":
-  version: 0.9.0
-  resolution: "@structured-id/proto@npm:0.9.0"
+"@structured-id/proto@npm:^0.11.0":
+  version: 0.11.0
+  resolution: "@structured-id/proto@npm:0.11.0"
   dependencies:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
-    "@structured-id/ids": "npm:^0.1.0"
-  checksum: 10c0/55a218d2bab3801dfda5d3a28abb0682cfc3bc03be9cdfc902d63b1347a4a359bddbbbef38463c61892435f2cd49af6d414ca65a27ac32898603fbf8800dd7c7
+    "@structured-id/ids": "npm:^0.3.0"
+  checksum: 10c0/0917fb51b8c995a45f6ab877946e01f3fa6ad13f8de3d2278aaa530cc76975560b2f34d149baec2b8746f8e473648e4788dcc608927dbab0df9a589a9da1f66b
   languageName: node
   linkType: hard
 
@@ -592,7 +592,8 @@ __metadata:
     "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
-    "@structured-id/proto": "npm:^0.9.0"
+    "@structured-id/ids": "npm:^0.3.0"
+    "@structured-id/proto": "npm:^0.11.0"
     "@structured-world/structured-email-address-ts": "npm:^0.0.22"
     "@structured-world/structured-public-domains": "npm:0.0.x"
     "@types/node": "npm:^26"

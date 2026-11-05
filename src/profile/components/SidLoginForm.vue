@@ -120,6 +120,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import type { SessionId } from "@structured-id/ids";
 import {
   ALL_PRINCIPAL_TYPES,
   DEFAULT_PRINCIPAL_INPUT_TEXTS,
@@ -176,7 +177,7 @@ const props = withDefaults(
       onStep?: (step: number) => void,
     ) => Promise<{
       expiresIn: number;
-      sessionId?: string;
+      sessionId?: SessionId;
     }>;
   }>(),
   {
@@ -206,7 +207,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  success: [result: { expiresIn: number; sessionId?: string }];
+  success: [result: { expiresIn: number; sessionId?: SessionId }];
   error: [error: Error];
   "forgot-password": [];
 }>();

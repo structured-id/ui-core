@@ -14,6 +14,7 @@
  * `@structured-id/opaque`), keeping kernel delivery at the app layer.
  * gRPC calls go through useAuthApi wrappers.
  */
+import type { CredentialId, SessionId } from "@structured-id/ids";
 import {
   completePasswordReset,
   evaluatePasswordHistory,
@@ -25,10 +26,10 @@ import {
   passwordChangeChallenge,
   passwordChangeExecute,
   passwordChangeFinish,
-  type CompletePasswordResetResponse,
   type PasswordHistoryContext,
   type PasswordHistoryEvaluation,
   type PasswordRegistrationProof,
+  type PasswordResetResult,
 } from "./useAuthApi";
 
 // ── Types ──
@@ -38,7 +39,7 @@ import {
  * reaches page code: a browser holds the session cookie the answer set.
  */
 export interface LoginResult {
-  sessionId: string;
+  sessionId: SessionId;
   /** Seconds until the delivered credential expires. */
   expiresIn: number;
 }
@@ -48,7 +49,7 @@ export interface LoginResult {
  * signs in after registering and works through its session.
  */
 export interface RegisterResult {
-  credentialId: string;
+  credentialId: CredentialId;
 }
 
 import {
@@ -69,7 +70,7 @@ export class WrongCurrentPasswordError extends Error {
 /** A password change of the signed-in user. */
 export interface PasswordChange {
   /** The password credential to change. */
-  credentialId: string;
+  credentialId: CredentialId;
   newPassword: string;
   /** The current password, proved inside the change; required while the
    * server requires it, accepted whenever given. */
@@ -485,14 +486,14 @@ export function createAuth(loadClient: ZkppClientLoader) {
 
   /**
    * Replace the password under a verified reset: `context` is the operation
-   * the verification prepared (`VerifyPasswordResetResponse.history`).
+   * the verification prepared (`VerifyPasswordResetResponse.history`), which
+   * carries the reset's authority.
    */
   async function resetPassword(
-    resetSessionId: string,
     context: PasswordHistoryContext | undefined,
     newPassword: string,
     onProgress?: (p: PasswordOperationProgress) => void,
-  ): Promise<CompletePasswordResetResponse> {
+  ): Promise<PasswordResetResult> {
     const plan = new OperationPlan(onProgress);
     const prepared = historyContext(context);
     const done = await install(
@@ -506,7 +507,6 @@ export function createAuth(loadClient: ZkppClientLoader) {
       plan,
     );
     const completed = await completePasswordReset(
-      resetSessionId,
       done.operationId,
       done.record,
       done.proof,
@@ -539,7 +539,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     const finished = await opaqueLoginFinish(
       identifier,
       finalization,
-      started.serverLoginState,
+      started.loginId,
     );
     return {
       sessionId: finished.sessionId,

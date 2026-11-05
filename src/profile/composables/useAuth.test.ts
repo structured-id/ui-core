@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { CredentialId, OpaqueLoginId, SessionId } from "@structured-id/ids";
 import {
   createAuth,
   type ZkppClientApi,
@@ -51,6 +52,9 @@ const api = {
 // ── Fixtures ──
 
 const OPERATION = new Uint8Array(16).fill(7);
+const CRED = CredentialId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d01");
+const LOGIN = OpaqueLoginId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d02");
+const SESSION = SessionId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d03");
 const OWNER_DOMAIN = new Uint8Array(32).fill(1);
 const DOMAIN = new Uint8Array(32).fill(2);
 const KEY = new Uint8Array(32).fill(3);
@@ -121,10 +125,10 @@ describe("createAuth prewarm", () => {
   beforeEach(() => {
     api.loginStart.mockResolvedValue({
       credentialResponse: new Uint8Array([4]),
-      serverLoginState: "server-state",
+      loginId: LOGIN,
     });
     api.loginFinish.mockResolvedValue({
-      sessionId: "s",
+      sessionId: SESSION,
       expiresIn: 60n,
       secondFactors: [],
       enrollableFactors: [],
@@ -178,7 +182,7 @@ describe("createAuth register", () => {
     // current message no longer has.
     const fromOlderServer = {
       profileId: "profile-uuid",
-      credentialId: "cred-uuid",
+      credentialId: CRED,
     };
     api.regFinish.mockResolvedValue(fromOlderServer);
   });
@@ -214,7 +218,7 @@ describe("createAuth register", () => {
     expect(api.regFinish).toHaveBeenCalledWith(OPERATION, RECORD, WIRE_PROOF);
     // Regression: the result passed the server's Profile identifier on to
     // the application; even a server still sending one is not forwarded.
-    expect(result).toEqual({ credentialId: "cred-uuid" });
+    expect(result).toEqual({ credentialId: CRED });
   });
 
   // A password the circuit cannot hold has no history request: nothing is
@@ -366,19 +370,15 @@ describe("createAuth changePassword", () => {
   it("fixes the OPAQUE start in the challenge, executes, proves and finishes", async () => {
     const { changePassword } = createAuth(loader);
     await changePassword({
-      credentialId: "cred-1",
+      credentialId: CRED,
       newPassword: "N3wP@ssword!",
     });
 
     expect(client.registrationStart).toHaveBeenCalledOnce();
     expect(client.registrationStart).toHaveBeenCalledWith("N3wP@ssword!");
-    expect(api.challenge).toHaveBeenCalledWith("cred-1", START.request);
+    expect(api.challenge).toHaveBeenCalledWith(CRED, START.request);
     expect(client.loginStart).not.toHaveBeenCalled();
-    expect(api.execute).toHaveBeenCalledWith(
-      OPERATION,
-      "cred-1",
-      new Uint8Array(),
-    );
+    expect(api.execute).toHaveBeenCalledWith(OPERATION, CRED, new Uint8Array());
     expect(api.evaluate).toHaveBeenCalledWith(OPERATION, HISTORY.blinded);
     expect(client.prove).toHaveBeenCalledWith(
       "N3wP@ssword!",
@@ -387,7 +387,7 @@ describe("createAuth changePassword", () => {
     );
     expect(api.changeFinish).toHaveBeenCalledWith(
       OPERATION,
-      "cred-1",
+      CRED,
       RECORD,
       WIRE_PROOF,
     );
@@ -400,7 +400,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword(
-        { credentialId: "cred-1", newPassword: "N3wP@ssword!" },
+        { credentialId: CRED, newPassword: "N3wP@ssword!" },
         (p) => {
           if (p.fraction === 1) throw new Error("gauge unmounted");
         },
@@ -420,7 +420,7 @@ describe("createAuth changePassword", () => {
     });
     const { changePassword } = createAuth(loader);
     await changePassword(
-      { credentialId: "cred-1", newPassword: "N3wP@ssword!" },
+      { credentialId: CRED, newPassword: "N3wP@ssword!" },
       (p) => {
         if (p.fraction === 0 || order.at(-1) !== `step:${p.step}`)
           order.push(`step:${p.step}`);
@@ -444,7 +444,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await changePassword(
       {
-        credentialId: "cred-1",
+        credentialId: CRED,
         newPassword: "N3wP@ssword!",
         currentPassword: "0ldP@ssword!",
       },
@@ -461,7 +461,7 @@ describe("createAuth changePassword", () => {
     expect(client.registrationStart).toHaveBeenCalledOnce();
     expect(client.loginStart).toHaveBeenCalledWith("0ldP@ssword!");
     expect(api.challenge).toHaveBeenCalledWith(
-      "cred-1",
+      CRED,
       START.request,
       new Uint8Array([1, 2, 3]),
     );
@@ -473,7 +473,7 @@ describe("createAuth changePassword", () => {
     );
     expect(api.execute).toHaveBeenCalledWith(
       OPERATION,
-      "cred-1",
+      CRED,
       new Uint8Array([7, 8, 9]),
     );
     expect(seen[0]).toMatchObject({ step: "protect", fraction: 0 });
@@ -499,7 +499,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await changePassword(
       {
-        credentialId: "cred-1",
+        credentialId: CRED,
         newPassword: "N3wP@ssword!",
         currentPassword: "0ldP@ssword!",
       },
@@ -529,7 +529,7 @@ describe("createAuth changePassword", () => {
     });
     const { changePassword } = createAuth(loader);
     await changePassword({
-      credentialId: "cred-1",
+      credentialId: CRED,
       newPassword: "N3wP@ssword!",
     });
     expect(loader).toHaveBeenCalledOnce();
@@ -552,7 +552,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword({
-        credentialId: "cred-1",
+        credentialId: CRED,
         newPassword: "N3wP@ssword!",
         currentPassword: "wrong",
       }),
@@ -574,7 +574,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword({
-        credentialId: "cred-1",
+        credentialId: CRED,
         newPassword: "N3wP@ssword!",
         currentPassword: "0ldP@ssword!",
       }),
@@ -595,7 +595,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword({
-        credentialId: "cred-1",
+        credentialId: CRED,
         newPassword: "N3wP@ssword!",
         currentPassword: "",
       }),
@@ -619,7 +619,7 @@ describe("createAuth changePassword", () => {
     const { changePassword } = createAuth(loader);
     await expect(
       changePassword({
-        credentialId: "cred-1",
+        credentialId: CRED,
         newPassword: "N3wP@ssword!",
         currentPassword: "0ldP@ssword!",
       }),
@@ -634,7 +634,7 @@ describe("createAuth changePassword", () => {
     });
     const { changePassword } = createAuth(loader);
     await expect(
-      changePassword({ credentialId: "cred-1", newPassword: "pw" }),
+      changePassword({ credentialId: CRED, newPassword: "pw" }),
     ).rejects.toThrow(/did not prepare/);
     expect(api.execute).not.toHaveBeenCalled();
     expect(client.prove).not.toHaveBeenCalled();
@@ -644,7 +644,7 @@ describe("createAuth changePassword", () => {
     api.changeFinish.mockRejectedValue(new Error("PASSWORD_REUSED"));
     const { changePassword } = createAuth(loader);
     await expect(
-      changePassword({ credentialId: "cred-1", newPassword: "pw" }),
+      changePassword({ credentialId: CRED, newPassword: "pw" }),
     ).rejects.toThrow("PASSWORD_REUSED");
   });
 });
@@ -653,28 +653,29 @@ describe("createAuth resetPassword", () => {
   beforeEach(() => {
     api.executeReset.mockResolvedValue({ registrationResponse: RESPONSE });
     api.completeReset.mockResolvedValue({
-      sessionId: "sess-1",
+      sessionId: SESSION,
       expiresIn: 3600,
     });
   });
 
+  // The reset is named by its operation alone: the operation carries the
+  // verified reset's authority, so no reset session travels with it.
   it("executes the OPAQUE start under the reset operation and completes with the proof", async () => {
     const { resetPassword } = createAuth(loader);
-    const done = await resetPassword("reset-1", wireContext(), "N3wP@ssword!");
+    const done = await resetPassword(wireContext(), "N3wP@ssword!");
 
     expect(api.executeReset).toHaveBeenCalledWith(OPERATION, START.request);
     expect(api.completeReset).toHaveBeenCalledWith(
-      "reset-1",
       OPERATION,
       RECORD,
       WIRE_PROOF,
     );
-    expect(done.sessionId).toBe("sess-1");
+    expect(done.sessionId).toBe(SESSION);
   });
 
   it("refuses a verification that prepared no operation", async () => {
     const { resetPassword } = createAuth(loader);
-    await expect(resetPassword("reset-1", undefined, "pw")).rejects.toThrow(
+    await expect(resetPassword(undefined, "pw")).rejects.toThrow(
       /did not prepare/,
     );
     expect(client.registrationStart).not.toHaveBeenCalled();
@@ -685,16 +686,18 @@ describe("createAuth login", () => {
   beforeEach(() => {
     api.loginStart.mockResolvedValue({
       credentialResponse: new Uint8Array([4, 5, 6]),
-      serverLoginState: "server-state",
+      loginId: LOGIN,
     });
     api.loginFinish.mockResolvedValue({
-      sessionId: "sess-1",
+      sessionId: SESSION,
       expiresIn: BigInt(3600),
       secondFactors: [],
       enrollableFactors: [],
     });
   });
 
+  // The finish names the login its start began, by the identifier the start
+  // answered, not by any state of the login.
   it("signs in with the Pallas client in two round trips", async () => {
     const { login } = createAuth(loader);
     const steps: number[] = [];
@@ -714,13 +717,13 @@ describe("createAuth login", () => {
     expect(api.loginFinish).toHaveBeenCalledWith(
       "alice@test.com",
       new Uint8Array([7, 8, 9]),
-      "server-state",
+      LOGIN,
     );
     expect(steps).toEqual([1, 2, 3]);
     // The result carries no credential: the browser holds the session
     // cookie the answer set.
     expect(result).toEqual({
-      sessionId: "sess-1",
+      sessionId: SESSION,
       expiresIn: 3600,
     });
   });
