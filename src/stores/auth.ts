@@ -24,9 +24,11 @@ export const useAuthStore = defineStore("auth", () => {
   const sessionId = ref<string | null>(null);
 
   // ── Profile info (populated from BFF /auth/userinfo) ──────────────
+  //
+  // No Profile id: the userinfo `sub` is the subject this application
+  // knows the user by, not a ProfileId, and self-service calls name no
+  // Profile at all.
 
-  /** Profile ID of the authenticated user (= sub from BFF userinfo). */
-  const profileId = ref<string | null>(null);
   /** Display name. */
   const displayName = ref<string | null>(null);
   /** Email address. */
@@ -46,7 +48,6 @@ export const useAuthStore = defineStore("auth", () => {
    */
   function setBffSession(info: BffUserInfo): void {
     sessionValid.value = true;
-    profileId.value = info.sub;
     displayName.value = info.name ?? null;
     email.value = info.email ?? null;
     preferredUsername.value = info.preferred_username ?? null;
@@ -56,11 +57,9 @@ export const useAuthStore = defineStore("auth", () => {
    * Update profile display data (e.g., after profile edit).
    */
   function setProfile(profile: {
-    id: string;
     displayName?: string | null;
     email?: string | null;
   }): void {
-    profileId.value = profile.id;
     displayName.value = profile.displayName ?? null;
     email.value = profile.email ?? null;
   }
@@ -71,7 +70,6 @@ export const useAuthStore = defineStore("auth", () => {
   function logout(): void {
     sessionValid.value = false;
     sessionId.value = null;
-    profileId.value = null;
     displayName.value = null;
     email.value = null;
     preferredUsername.value = null;
@@ -80,7 +78,6 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     sessionValid,
     sessionId,
-    profileId,
     displayName,
     email,
     preferredUsername,

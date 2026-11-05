@@ -20,8 +20,6 @@ function makeCred(
   opts?: { attachment?: AuthenticatorAttachment; backupState?: boolean },
 ): Credential {
   const cred: Credential = {
-    id: "cred-1",
-    profileId: "",
     type,
     data: new Uint8Array(),
     info: { oneofKind: undefined },

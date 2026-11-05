@@ -11,7 +11,6 @@ describe("useAuthStore (BFF cookie session)", () => {
     const store = useAuthStore();
     expect(store.isAuthenticated).toBe(false);
     expect(store.sessionValid).toBe(false);
-    expect(store.profileId).toBeNull();
     expect(store.displayName).toBeNull();
     expect(store.email).toBeNull();
   });
@@ -19,7 +18,7 @@ describe("useAuthStore (BFF cookie session)", () => {
   it("setBffSession sets sessionValid and profile data", () => {
     const store = useAuthStore();
     store.setBffSession({
-      sub: "profile-uuid-123",
+      sub: "subject-123",
       email: "alice@example.com",
       name: "Alice Smith",
       preferred_username: "alice",
@@ -28,18 +27,20 @@ describe("useAuthStore (BFF cookie session)", () => {
 
     expect(store.isAuthenticated).toBe(true);
     expect(store.sessionValid).toBe(true);
-    expect(store.profileId).toBe("profile-uuid-123");
     expect(store.displayName).toBe("Alice Smith");
     expect(store.email).toBe("alice@example.com");
     expect(store.preferredUsername).toBe("alice");
   });
 
-  it("setBffSession handles null/missing optional fields", () => {
+  // Regression: the userinfo `sub` was kept as the user's ProfileId, though
+  // it is the subject this application knows the user by. The store keeps
+  // no Profile id at all.
+  it("never reads the subject as a Profile id", () => {
     const store = useAuthStore();
-    store.setBffSession({ sub: "uuid-456" });
+    store.setBffSession({ sub: "subject-456" });
 
     expect(store.isAuthenticated).toBe(true);
-    expect(store.profileId).toBe("uuid-456");
+    expect("profileId" in store).toBe(false);
     expect(store.displayName).toBeNull();
     expect(store.email).toBeNull();
     expect(store.preferredUsername).toBeNull();
@@ -47,15 +48,13 @@ describe("useAuthStore (BFF cookie session)", () => {
 
   it("setProfile updates display data", () => {
     const store = useAuthStore();
-    store.setBffSession({ sub: "uuid-1" });
+    store.setBffSession({ sub: "subject-1" });
 
     store.setProfile({
-      id: "uuid-1",
       displayName: "Bob Jones",
       email: "bob@example.com",
     });
 
-    expect(store.profileId).toBe("uuid-1");
     expect(store.displayName).toBe("Bob Jones");
     expect(store.email).toBe("bob@example.com");
   });
@@ -63,7 +62,7 @@ describe("useAuthStore (BFF cookie session)", () => {
   it("logout clears all state", () => {
     const store = useAuthStore();
     store.setBffSession({
-      sub: "uuid-1",
+      sub: "subject-1",
       name: "Alice",
       email: "alice@example.com",
       preferred_username: "alice",
@@ -73,7 +72,6 @@ describe("useAuthStore (BFF cookie session)", () => {
 
     expect(store.isAuthenticated).toBe(false);
     expect(store.sessionValid).toBe(false);
-    expect(store.profileId).toBeNull();
     expect(store.displayName).toBeNull();
     expect(store.email).toBeNull();
     expect(store.preferredUsername).toBeNull();

@@ -9,7 +9,7 @@
     </div>
 
     <q-list v-else-if="sessions.length > 0" separator>
-      <q-item v-for="session in sessions" :key="session.id">
+      <q-item v-for="session in sessions" :key="session.id.toString()">
         <q-item-section avatar>
           <q-icon :name="deviceIcon(session.userAgent)" size="sm" />
         </q-item-section>
@@ -37,7 +37,7 @@
             dense
             color="negative"
             icon="sym_o_logout"
-            :loading="revoking === session.id"
+            :loading="revoking?.equals(session.id) ?? false"
             @click="$emit('revoke', session.id)"
           />
         </q-item-section>
@@ -49,23 +49,24 @@
 </template>
 
 <script setup lang="ts">
-import type { Session } from "@structured-id/proto/sid/v1/identity/identity";
+import type { SessionId } from "@structured-id/ids";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import type { Session } from "../composables/useIdentityApi";
 
-defineProps<{
+const props = defineProps<{
   sessions: Session[];
   loading: boolean;
   error: string | null;
-  revoking: string | null;
-  currentSessionId?: string;
+  revoking: SessionId | null;
+  currentSessionId?: SessionId;
 }>();
 
 defineEmits<{
-  revoke: [sessionId: string];
+  revoke: [sessionId: SessionId];
 }>();
 
 function isCurrentSession(session: Session): boolean {
-  return false; // Overridden via currentSessionId prop comparison
+  return props.currentSessionId?.equals(session.id) ?? false;
 }
 
 function deviceIcon(userAgent: string | undefined): string {
