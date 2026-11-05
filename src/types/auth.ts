@@ -4,8 +4,6 @@ export interface AuthState {
   sessionValid: boolean;
   /** Server-side session identifier (for step-up, session management). */
   sessionId: string | null;
-  /** Profile ID of the authenticated user (UUID). */
-  profileId: string | null;
   /** Display name of the authenticated user. */
   displayName: string | null;
   /** Email address (may be null if not in session claims). */

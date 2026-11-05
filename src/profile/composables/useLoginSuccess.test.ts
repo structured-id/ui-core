@@ -101,7 +101,7 @@ describe("useLoginSuccess (BFF cookie mode)", () => {
 
   it("calls checkBffSession and populates auth store on success", async () => {
     mockCheckBffSession.mockResolvedValue({
-      sub: "profile-uuid-1",
+      sub: "subject-1",
       name: "Alice Smith",
       email: "alice@example.com",
       preferred_username: "alice",
@@ -114,7 +114,6 @@ describe("useLoginSuccess (BFF cookie mode)", () => {
 
     expect(mockCheckBffSession).toHaveBeenCalled();
     expect(auth.isAuthenticated).toBe(true);
-    expect(auth.profileId).toBe("profile-uuid-1");
     expect(auth.displayName).toBe("Alice Smith");
     expect(auth.email).toBe("alice@example.com");
   });

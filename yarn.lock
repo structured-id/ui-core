@@ -574,14 +574,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@structured-id/proto@npm:^0.11.0":
-  version: 0.11.0
-  resolution: "@structured-id/proto@npm:0.11.0"
+"@structured-id/ids@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@structured-id/ids@npm:0.4.0"
+  dependencies:
+    "@protobuf-ts/runtime": "npm:^2.11.1"
+  checksum: 10c0/9963dfc26cb08a893d0c63f2ea3d54242281963f9f25408c2f85dc279f98bb3e638c94bd270b3eba9406d8736d7a5635c53b2eede5fb9d1dd6f6cd6ba0f80fcd
+  languageName: node
+  linkType: hard
+
+"@structured-id/proto@npm:^0.12.0":
+  version: 0.12.0
+  resolution: "@structured-id/proto@npm:0.12.0"
   dependencies:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/ids": "npm:^0.3.0"
-  checksum: 10c0/0917fb51b8c995a45f6ab877946e01f3fa6ad13f8de3d2278aaa530cc76975560b2f34d149baec2b8746f8e473648e4788dcc608927dbab0df9a589a9da1f66b
+  checksum: 10c0/bbdcbf30ac3d642f60c3962628ede89c6203170ed8a82bea1701124e6fd12954ec3f8b0a95d6ac81e522e5420d4b4b581a04974131a80ced66d28da59de32efc
   languageName: node
   linkType: hard
 
@@ -592,8 +601,8 @@ __metadata:
     "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
-    "@structured-id/ids": "npm:^0.3.0"
-    "@structured-id/proto": "npm:^0.11.0"
+    "@structured-id/ids": "npm:^0.4.0"
+    "@structured-id/proto": "npm:^0.12.0"
     "@structured-world/structured-email-address-ts": "npm:^0.0.22"
     "@structured-world/structured-public-domains": "npm:0.0.x"
     "@types/node": "npm:^26"
