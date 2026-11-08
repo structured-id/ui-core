@@ -3,8 +3,9 @@
  * the sign-in surface's transport. See `../upstream` for what is kept
  * between leaving for the provider and its return.
  */
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { UpstreamProviderId, required } from "@structured-id/ids";
 import { getTransport } from "../../index";
 import type { EnabledProviderInfo } from "@structured-id/proto/sid/v1/federation/upstream";
 import { UpstreamServiceClient } from "@structured-id/proto/sid/v1/federation/upstream.client";
@@ -15,23 +16,37 @@ import {
   upstreamCallbackUri,
 } from "../upstream";
 import { useLoginSuccess, type LoginSuccessOptions } from "./useLoginSuccess";
+import { holdPendingSignIn, pendingSignIn } from "../pendingSignIn";
 
 export type { EnabledProviderInfo };
 
+/** A provider the issuer trusts, named by its typed id. */
+export type UpstreamProvider = Omit<EnabledProviderInfo, "id"> & {
+  id: UpstreamProviderId;
+};
+
 /** The calls a sign-in makes; the issuer's upstream service by default. */
 export interface UpstreamApi {
-  list(): Promise<EnabledProviderInfo[]>;
+  list(): Promise<UpstreamProvider[]>;
   initiate(
-    provider: string,
+    provider: UpstreamProviderId,
     redirectUri: string,
   ): Promise<{ authorizationUrl: string; stateToken: string }>;
   complete(
-    provider: string,
+    provider: UpstreamProviderId,
     code: string,
     state: string,
     redirectUri: string,
-  ): Promise<"signed-in" | "linking-required">;
+  ): Promise<UpstreamOutcome>;
 }
+
+/**
+ * What the issuer answered a completed return: signed in, signed in but
+ * owing a second factor (kept as the tab's pending sign-in), or no Profile
+ * linked to the upstream account.
+ */
+export type UpstreamOutcome =
+  "signed-in" | "second-factor" | "linking-required";
 
 /** The issuer's upstream service on the sign-in surface. */
 export function upstreamApi(): UpstreamApi {
@@ -39,27 +54,32 @@ export function upstreamApi(): UpstreamApi {
   return {
     async list() {
       const { response } = await client().listEnabledProviders({});
-      return [...response.providers].sort(
-        (a, b) => a.displayOrder - b.displayOrder,
-      );
+      return response.providers
+        .map((provider) => ({
+          ...provider,
+          id: required(UpstreamProviderId, provider.id),
+        }))
+        .sort((a, b) => a.displayOrder - b.displayOrder);
     },
     async initiate(provider, redirectUri) {
       const { response } = await client().initiateUpstreamAuth({
-        providerId: provider,
+        providerId: provider.toWire(),
         redirectUri,
       });
       return response;
     },
     async complete(provider, code, state, redirectUri) {
       const { response } = await client().handleUpstreamCallback({
-        providerId: provider,
+        providerId: provider.toWire(),
         code,
         state,
         redirectUri,
       });
       switch (response.result.oneofKind) {
         case "success":
-          return "signed-in";
+          return holdPendingSignIn(response.result.success)
+            ? "second-factor"
+            : "signed-in";
         case "linkingRequired":
           return "linking-required";
         default:
@@ -95,7 +115,7 @@ export function pageBrowser(
  * starts the sign-in for this origin's callback page.
  */
 export async function startUpstream(
-  provider: string,
+  provider: UpstreamProviderId,
   rd: string | null,
   api: UpstreamApi = upstreamApi(),
   browser: UpstreamBrowser = pageBrowser(),
@@ -124,7 +144,7 @@ export function abandonUpstream(
 export type UpstreamReturn =
   | {
       /** `failed`: the issuer could not complete it. */
-      outcome: "signed-in" | "linking-required" | "failed";
+      outcome: UpstreamOutcome | "failed";
       rd: string | null;
     }
   | { outcome: "unknown" };
@@ -170,7 +190,10 @@ export function useUpstreamSignIn(
   rd: () => string | null,
   options: UpstreamSignInOptions = {},
 ) {
-  const providers = ref<EnabledProviderInfo[]>([]);
+  // Shallow: a typed id keeps its bytes in private fields, which a deep
+  // reactive proxy cannot read.
+  const providers = shallowRef<UpstreamProvider[]>([]);
+  /** The text form of the provider the sign-in is leaving for. */
   const loading = ref<string | null>(null);
   const error = ref<string | null>(null);
   const api = () => options.api ?? upstreamApi();
@@ -184,8 +207,8 @@ export function useUpstreamSignIn(
     }
   }
 
-  async function signInWith(provider: string) {
-    loading.value = provider;
+  async function signInWith(provider: UpstreamProviderId) {
+    loading.value = provider.toString();
     error.value = null;
     try {
       await startUpstream(
@@ -262,7 +285,7 @@ export function useUpstreamCallback(
         return;
       }
       continued.value = done.rd;
-      if (done.outcome !== "signed-in") {
+      if (done.outcome === "linking-required" || done.outcome === "failed") {
         failure.value = done.outcome;
         return;
       }
@@ -270,7 +293,10 @@ export function useUpstreamCallback(
         path: route.path,
         query: done.rd ? { rd: done.rd } : {},
       });
-      await onLoginSuccess();
+      // A sign-in owing its second factor continues to the factor's page.
+      await onLoginSuccess(
+        done.outcome === "second-factor" ? { pending: pendingSignIn() } : {},
+      );
     } catch {
       failure.value = "failed";
     }

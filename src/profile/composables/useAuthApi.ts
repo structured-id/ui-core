@@ -17,6 +17,7 @@ import {
   CredentialId,
   MagicLinkId,
   OpaqueLoginId,
+  OrgId,
   OtpSessionId,
   ResetSessionId,
   SessionId,
@@ -75,6 +76,12 @@ import type {
 } from "@structured-id/proto/sid/v1/authn/password_history";
 import { PasswordHistoryEvaluatorServiceClient } from "@structured-id/proto/sid/v1/authn/password_history.client";
 import { authMeta } from "../auth";
+import {
+  endPendingSignIn,
+  holdPendingSignIn,
+  pendingSignInMeta,
+  type PendingSignIn,
+} from "../pendingSignIn";
 
 /** The history evaluator: in CE served beside the credential service. */
 function evaluator(): PasswordHistoryEvaluatorServiceClient {
@@ -105,11 +112,26 @@ export type WithId<T, K extends keyof T, V> = Omit<T, K> & { [P in K]: V };
 
 // ── MFA TOTP ──
 
-export async function startTotpEnrollment(): Promise<TotpEnrollmentChallenge> {
-  const { response } = await account().startTotpEnrollment(
-    {},
-    { meta: authMeta() },
-  );
+/**
+ * Who enrolls a factor: the signed-in user from the account pages, or the
+ * pending sign-in enrolling its first factor on the sign-in surface.
+ */
+export type Enrolling = "account" | "sign-in";
+
+function enrollmentClient(by: Enrolling): {
+  client: AuthServiceClient;
+  meta: Record<string, string>;
+} {
+  return by === "sign-in"
+    ? { client: client(), meta: signInMeta() }
+    : { client: account(), meta: authMeta() };
+}
+
+export async function startTotpEnrollment(
+  by: Enrolling = "account",
+): Promise<TotpEnrollmentChallenge> {
+  const { client: enroller, meta } = enrollmentClient(by);
+  const { response } = await enroller.startTotpEnrollment({}, { meta });
   return response;
 }
 
@@ -119,13 +141,16 @@ export type TotpEnrollmentResult = WithId<
   CredentialId
 >;
 
+/**
+ * Finish the TOTP enrollment with its first code. A sign-in that enrolled
+ * its first factor then completes with a fresh code ({@link verifyTotp}).
+ */
 export async function finishTotpEnrollment(
   code: string,
+  by: Enrolling = "account",
 ): Promise<TotpEnrollmentResult> {
-  const { response } = await account().finishTotpEnrollment(
-    { code },
-    { meta: authMeta() },
-  );
+  const { client: enroller, meta } = enrollmentClient(by);
+  const { response } = await enroller.finishTotpEnrollment({ code }, { meta });
   return {
     ...response,
     credentialId: required(CredentialId, response.credentialId),
@@ -139,14 +164,26 @@ export type MfaVerifyResult = WithId<
   SessionId | undefined
 >;
 
+/**
+ * A verification's answer. The session it names ends the pending sign-in
+ * the verification completed; any failure keeps it, so the same completion
+ * can be repeated.
+ */
 function mfaVerified(response: MfaVerifyResponse): MfaVerifyResult {
-  return { ...response, sessionId: optional(SessionId, response.sessionId) };
+  const sessionId = optional(SessionId, response.sessionId);
+  if (sessionId) endPendingSignIn();
+  return { ...response, sessionId };
+}
+
+/** Metadata of a call that completes the pending sign-in, if this tab has one. */
+function signInMeta(): Record<string, string> {
+  return { ...authMeta(), ...pendingSignInMeta() };
 }
 
 export async function verifyTotp(code: string): Promise<MfaVerifyResult> {
   const { response } = await client().verifyTotp(
     { code },
-    { meta: authMeta() },
+    { meta: signInMeta() },
   );
   return mfaVerified(response);
 }
@@ -156,13 +193,13 @@ export async function verifyTotp(code: string): Promise<MfaVerifyResult> {
 export async function verifySmsMfa(code: string): Promise<MfaVerifyResult> {
   const { response } = await client().verifySmsMfa(
     { code },
-    { meta: authMeta() },
+    { meta: signInMeta() },
   );
   return mfaVerified(response);
 }
 
 export async function resendSmsMfa(): Promise<ResendSmsMfaResponse> {
-  const { response } = await client().resendSmsMfa({}, { meta: authMeta() });
+  const { response } = await client().resendSmsMfa({}, { meta: signInMeta() });
   return response;
 }
 
@@ -181,7 +218,7 @@ export async function verifyRecoveryCode(
 ): Promise<MfaVerifyResult> {
   const { response } = await client().verifyRecoveryCode(
     { code },
-    { meta: authMeta() },
+    { meta: signInMeta() },
   );
   return mfaVerified(response);
 }
@@ -264,11 +301,12 @@ export type PasskeySignInResult = WithId<
   WebAuthnAuthenticationFinishResponse,
   "sessionId",
   SessionId
->;
+> & { pending: PendingSignIn | null };
 
 /**
  * Finish a passkey sign-in with the assertion; the server finds the ceremony
- * by the challenge the assertion signs.
+ * by the challenge the assertion signs. `pending` is the second factor the
+ * sign-in still owes, kept for its completion.
  */
 export async function webAuthnAuthenticationFinish(
   credential: Uint8Array,
@@ -278,7 +316,11 @@ export async function webAuthnAuthenticationFinish(
     { credential, principal: principal ?? "" },
     { meta: authMeta() },
   );
-  return { ...response, sessionId: required(SessionId, response.sessionId) };
+  return {
+    ...response,
+    sessionId: required(SessionId, response.sessionId),
+    pending: holdPendingSignIn(response),
+  };
 }
 
 export async function webAuthnRegistrationStart(
@@ -425,19 +467,26 @@ export async function confirmIdpLink(
 
 // ── Organization Selector ──
 
-export async function listUserOrganizations(): Promise<ListUserOrganizationsResponse> {
+/** An organization the sign-in may continue in, named by its typed id. */
+export type UserOrganizationRef = WithId<UserOrganization, "id", OrgId>;
+
+/** The organizations the signed-in user may continue in. */
+export async function listUserOrganizations(): Promise<UserOrganizationRef[]> {
   const { response } = await client().listUserOrganizations(
     {},
     { meta: authMeta() },
   );
-  return response;
+  return response.organizations.map((organization) => ({
+    ...organization,
+    id: required(OrgId, organization.id),
+  }));
 }
 
 export async function selectOrganization(
-  organizationId: string,
+  organizationId: OrgId,
 ): Promise<SelectOrganizationResponse> {
   const { response } = await client().selectOrganization(
-    { organizationId },
+    { organizationId: organizationId.toWire() },
     { meta: authMeta() },
   );
   return response;
@@ -848,9 +897,13 @@ export type LoginFinishResult = WithId<
   OpaqueLoginFinishResponse,
   "sessionId",
   SessionId
->;
+> & { pending: PendingSignIn | null };
 
-/** Finish the login `loginId` (from its start) with the client's KE3. */
+/**
+ * Finish the login `loginId` (from its start) with the client's KE3.
+ * `pending` is the second factor the sign-in still owes, kept for its
+ * completion.
+ */
 export async function opaqueLoginFinish(
   principal: string,
   credentialFinalization: Uint8Array,
@@ -861,7 +914,11 @@ export async function opaqueLoginFinish(
     credentialFinalization,
     loginId: loginId.toWire(),
   });
-  return { ...response, sessionId: required(SessionId, response.sessionId) };
+  return {
+    ...response,
+    sessionId: required(SessionId, response.sessionId),
+    pending: holdPendingSignIn(response),
+  };
 }
 
 // Re-export types for convenience

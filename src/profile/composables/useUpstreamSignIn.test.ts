@@ -9,18 +9,24 @@ import {
   useUpstreamCallback,
   type UpstreamApi,
   type UpstreamBrowser,
+  type UpstreamOutcome,
 } from "./useUpstreamSignIn";
 import { UPSTREAM_CALLBACK_PATH, peekUpstream } from "../upstream";
+import { SECOND_FACTOR_PATH } from "./useLoginSuccess";
+import { endPendingSignIn, holdPendingSignIn } from "../pendingSignIn";
+import { StepUpMethod } from "@structured-id/proto/sid/v1/authn/auth";
+import { UpstreamProviderId } from "@structured-id/ids";
 
 vi.mock("../../composables/useBffAuth", () => ({
   checkBffSession: vi.fn().mockResolvedValue(null),
 }));
 
+const P1 = UpstreamProviderId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d20");
 const ORIGIN = "https://ee.sid.example.com";
 const ISSUER = "https://sid.example.com";
 const RD = `${ISSUER}/i/0123456789abcdef0123456789abcdef/oauth2/authorize?client_id=ops&request_uri=${encodeURIComponent("urn:ietf:params:oauth:request_uri:r")}`;
 
-function api(outcome: "signed-in" | "linking-required" = "signed-in") {
+function api(outcome: UpstreamOutcome = "signed-in") {
   return {
     list: vi.fn().mockResolvedValue([]),
     initiate: vi.fn().mockResolvedValue({
@@ -43,7 +49,10 @@ function browser(): UpstreamBrowser & { left: string[] } {
   };
 }
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  endPendingSignIn();
+  sessionStorage.clear();
+});
 
 describe("startUpstream", () => {
   // The issuer starts the sign-in for this origin's exact callback page; the
@@ -51,18 +60,17 @@ describe("startUpstream", () => {
   it("starts at the issuer and leaves for the provider", async () => {
     const calls = api();
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     expect(calls.initiate).toHaveBeenCalledWith(
-      "p1",
+      P1,
       `${ORIGIN}${UPSTREAM_CALLBACK_PATH}`,
     );
     expect(page.left).toEqual([
       "https://central.sid.example.com/i/h/oauth2/authorize?x=1",
     ]);
-    expect(peekUpstream(sessionStorage, "s1")).toEqual({
-      provider: "p1",
-      rd: RD,
-    });
+    const kept = peekUpstream(sessionStorage, "s1");
+    expect(kept?.provider.toString()).toBe(P1.toString());
+    expect(kept?.rd).toBe(RD);
   });
 
   // A refused start keeps nothing and leaves nowhere.
@@ -70,9 +78,7 @@ describe("startUpstream", () => {
     const calls = api();
     calls.initiate.mockRejectedValue(new Error("refused"));
     const page = browser();
-    await expect(startUpstream("p1", RD, calls, page)).rejects.toThrow(
-      "refused",
-    );
+    await expect(startUpstream(P1, RD, calls, page)).rejects.toThrow("refused");
     expect(page.left).toEqual([]);
     expect(sessionStorage.length).toBe(0);
   });
@@ -84,7 +90,7 @@ describe("abandonUpstream", () => {
   // nothing is left behind.
   it("takes the kept request of a refused return", async () => {
     const page = browser();
-    await startUpstream("p1", RD, api(), page);
+    await startUpstream(P1, RD, api(), page);
     expect(abandonUpstream("s1", page)).toBe(RD);
     expect(peekUpstream(sessionStorage, "s1")).toBeUndefined();
     expect(abandonUpstream("s1", page)).toBeNull();
@@ -97,10 +103,12 @@ describe("completeUpstream", () => {
   it("completes the sign-in this tab started", async () => {
     const calls = api();
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     const done = await completeUpstream("c1", "s1", calls, page);
+    // The provider the return completes at is the one the start kept.
+    expect(calls.complete.mock.calls[0][0].toString()).toBe(P1.toString());
     expect(calls.complete).toHaveBeenCalledWith(
-      "p1",
+      expect.any(UpstreamProviderId),
       "c1",
       "s1",
       `${ORIGIN}${UPSTREAM_CALLBACK_PATH}`,
@@ -116,7 +124,7 @@ describe("completeUpstream", () => {
     expect(await completeUpstream("c1", "s1", calls, page)).toEqual({
       outcome: "unknown",
     });
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     await completeUpstream("c1", "s1", calls, page);
     expect(await completeUpstream("c1", "s1", calls, page)).toEqual({
       outcome: "unknown",
@@ -128,7 +136,7 @@ describe("completeUpstream", () => {
   it("reports an account that needs linking", async () => {
     const calls = api("linking-required");
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     expect(await completeUpstream("c1", "s1", calls, page)).toEqual({
       outcome: "linking-required",
       rd: RD,
@@ -147,6 +155,7 @@ async function callbackAt(
     routes: [
       { path: UPSTREAM_CALLBACK_PATH, component: { template: "<div />" } },
       { path: "/account", component: { template: "<div />" } },
+      { path: SECOND_FACTOR_PATH, component: { template: "<div />" } },
     ],
   });
   await router.push(at);
@@ -179,7 +188,7 @@ describe("useUpstreamCallback", () => {
   it("continues the request kept for the state", async () => {
     const calls = api();
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     const { result, left } = await callbackAt(
       `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1`,
       calls,
@@ -195,7 +204,7 @@ describe("useUpstreamCallback", () => {
   it("continues no request named only by the callback's own query", async () => {
     const calls = api();
     const page = browser();
-    await startUpstream("p1", null, calls, page);
+    await startUpstream(P1, null, calls, page);
     const { result, router, left } = await callbackAt(
       `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1&rd=${encodeURIComponent(RD)}`,
       calls,
@@ -211,7 +220,7 @@ describe("useUpstreamCallback", () => {
   it("answers a provider error with the waiting request", async () => {
     const calls = api();
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     const { result } = await callbackAt(
       `${UPSTREAM_CALLBACK_PATH}?error=access_denied&state=s1`,
       calls,
@@ -230,7 +239,7 @@ describe("useUpstreamCallback", () => {
     const calls = api();
     calls.complete.mockRejectedValue(new Error("unavailable"));
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     const { result, left } = await callbackAt(
       `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1`,
       calls,
@@ -257,11 +266,35 @@ describe("useUpstreamCallback", () => {
     expect(left).toEqual([]);
   });
 
+  // Regression: a provider sign-in of an account owing its second factor
+  // was reported signed in and continued to the request. It goes to the
+  // second-factor page with the request it waits for.
+  it("continues a sign-in owing its second factor to the factor's page", async () => {
+    const calls = api("second-factor");
+    holdPendingSignIn({
+      secondFactors: [StepUpMethod.TOTP],
+      enrollableFactors: [],
+      browserCsrf: "csrf-1",
+    });
+    const page = browser();
+    await startUpstream(P1, RD, calls, page);
+    const { result, router, left } = await callbackAt(
+      `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1`,
+      calls,
+      page,
+    );
+    await result.complete();
+    expect(result.failure.value).toBeNull();
+    expect(left).toEqual([]);
+    expect(router.currentRoute.value.path).toBe(SECOND_FACTOR_PATH);
+    expect(router.currentRoute.value.query.rd).toBe(RD);
+  });
+
   // An account that needs linking is reported with its waiting request.
   it("reports linking with the waiting request", async () => {
     const calls = api("linking-required");
     const page = browser();
-    await startUpstream("p1", RD, calls, page);
+    await startUpstream(P1, RD, calls, page);
     const { result, left } = await callbackAt(
       `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1`,
       calls,

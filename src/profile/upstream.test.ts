@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { UpstreamProviderId } from "@structured-id/ids";
 import {
   UPSTREAM_CALLBACK_PATH,
   peekUpstream,
@@ -8,6 +9,7 @@ import {
   upstreamRequestOfPage,
 } from "./upstream";
 
+const P1 = UpstreamProviderId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d20");
 const RD =
   "https://sid.example.com/i/0123456789abcdef0123456789abcdef/oauth2/authorize?client_id=ops&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3Ar";
 
@@ -35,25 +37,26 @@ describe("the kept return", () => {
   // The return to the callback page finds the provider and the request it
   // started with, under the provider's state.
   it("is found under its state", () => {
-    rememberUpstream(sessionStorage, "s1", { provider: "p1", rd: RD });
-    expect(peekUpstream(sessionStorage, "s1")).toEqual({
-      provider: "p1",
-      rd: RD,
-    });
+    rememberUpstream(sessionStorage, "s1", { provider: P1, rd: RD });
+    const kept = peekUpstream(sessionStorage, "s1");
+    expect(kept?.provider.toString()).toBe(P1.toString());
+    expect(kept?.rd).toBe(RD);
     expect(peekUpstream(sessionStorage, "s2")).toBeUndefined();
   });
 
   // A sign-in without an authorization request returns without one.
   it("keeps the absence of a request", () => {
-    rememberUpstream(sessionStorage, "s1", { provider: "p1", rd: null });
+    rememberUpstream(sessionStorage, "s1", { provider: P1, rd: null });
     expect(peekUpstream(sessionStorage, "s1")?.rd).toBeNull();
   });
 
   // A return completes once: taking it removes it, so a reloaded or replayed
   // callback finds nothing to continue.
   it("is taken once", () => {
-    rememberUpstream(sessionStorage, "s1", { provider: "p1", rd: RD });
-    expect(takeUpstream(sessionStorage, "s1")?.provider).toBe("p1");
+    rememberUpstream(sessionStorage, "s1", { provider: P1, rd: RD });
+    expect(takeUpstream(sessionStorage, "s1")?.provider.toString()).toBe(
+      P1.toString(),
+    );
     expect(takeUpstream(sessionStorage, "s1")).toBeUndefined();
   });
 
@@ -61,8 +64,13 @@ describe("the kept return", () => {
   it("ignores what it did not write", () => {
     sessionStorage.setItem("sid.upstream.s1", "not json");
     sessionStorage.setItem("sid.upstream.s2", JSON.stringify({ rd: RD }));
+    sessionStorage.setItem(
+      "sid.upstream.s3",
+      JSON.stringify({ provider: "not-an-id", rd: RD }),
+    );
     expect(peekUpstream(sessionStorage, "s1")).toBeUndefined();
     expect(peekUpstream(sessionStorage, "s2")).toBeUndefined();
+    expect(peekUpstream(sessionStorage, "s3")).toBeUndefined();
   });
 });
 
@@ -84,7 +92,7 @@ describe("upstreamRequestOfPage", () => {
   // provider's return does not carry; the entry stays for the page to take.
   // An rd in the callback's own query is never used.
   it("reads the callback's request only from its kept return", () => {
-    rememberUpstream(sessionStorage, "s1", { provider: "p1", rd: RD });
+    rememberUpstream(sessionStorage, "s1", { provider: P1, rd: RD });
     const callback = location(`${UPSTREAM_CALLBACK_PATH}?code=c&state=s1`);
     expect(upstreamRequestOfPage(callback, sessionStorage)).toBe(RD);
     expect(peekUpstream(sessionStorage, "s1")).toBeDefined();
@@ -106,7 +114,7 @@ describe("upstreamRequestOfPage", () => {
 
   // An app with its own callback path reads its own callback page.
   it("follows the app's callback path", () => {
-    rememberUpstream(sessionStorage, "s1", { provider: "p1", rd: RD });
+    rememberUpstream(sessionStorage, "s1", { provider: P1, rd: RD });
     expect(
       upstreamRequestOfPage(
         location("/upstream/return?state=s1"),

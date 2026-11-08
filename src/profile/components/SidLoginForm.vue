@@ -120,7 +120,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import type { SessionId } from "@structured-id/ids";
+import type { LoginSuccessResult } from "../composables/useLoginSuccess";
 import {
   ALL_PRINCIPAL_TYPES,
   DEFAULT_PRINCIPAL_INPUT_TEXTS,
@@ -175,10 +175,7 @@ const props = withDefaults(
       identifier: string,
       password: string,
       onStep?: (step: number) => void,
-    ) => Promise<{
-      expiresIn: number;
-      sessionId?: SessionId;
-    }>;
+    ) => Promise<LoginSuccessResult & { expiresIn: number }>;
   }>(),
   {
     title: "Sign in",
@@ -207,7 +204,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  success: [result: { expiresIn: number; sessionId?: SessionId }];
+  success: [result: LoginSuccessResult & { expiresIn: number }];
   error: [error: Error];
   "forgot-password": [];
 }>();

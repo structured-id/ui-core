@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { createApp, defineComponent } from "vue";
 import { createRouter, createMemoryHistory } from "vue-router";
-import { authorizationContinuation, useLoginSuccess } from "./useLoginSuccess";
+import { StepUpMethod } from "@structured-id/proto/sid/v1/authn/auth";
+import {
+  SECOND_FACTOR_PATH,
+  authorizationContinuation,
+  useLoginSuccess,
+} from "./useLoginSuccess";
 import { useAuthStore } from "../../stores/auth";
 
 // Mock checkBffSession from BFF composable
@@ -26,6 +31,7 @@ async function withApp<T>(
       { path: "/login", component: { template: "<div />" } },
       { path: "/account", component: { template: "<div />" } },
       { path: "/admin", component: { template: "<div />" } },
+      { path: SECOND_FACTOR_PATH, component: { template: "<div />" } },
     ],
   });
   await router.push(at);
@@ -188,6 +194,27 @@ describe("useLoginSuccess (BFF cookie mode)", () => {
 
     expect(leaveTo).not.toHaveBeenCalled();
     expect(router.currentRoute.value.path).toBe("/account");
+  });
+
+  // Regression: a sign-in that still owes its second factor went into the
+  // app (or back to the authorization request) as if signed in. It goes to
+  // the second-factor page instead, carrying the request it waits for, and
+  // reads no app session.
+  it("continues a sign-in owing its second factor to the factor's page", async () => {
+    const leaveTo = vi.fn();
+    const { result, router } = await withApp(
+      () => useLoginSuccess("/account", { issuerOrigin: ISSUER, leaveTo }),
+      `/login?rd=${encodeURIComponent(CONTINUATION)}`,
+    );
+
+    await result.onLoginSuccess({
+      pending: { secondFactors: [StepUpMethod.TOTP], enrollableFactors: [] },
+    });
+
+    expect(router.currentRoute.value.path).toBe(SECOND_FACTOR_PATH);
+    expect(router.currentRoute.value.query.rd).toBe(CONTINUATION);
+    expect(leaveTo).not.toHaveBeenCalled();
+    expect(mockCheckBffSession).not.toHaveBeenCalled();
   });
 
   it("navigates when BFF session returns null (cookie not yet set)", async () => {

@@ -132,6 +132,7 @@ describe("createAuth prewarm", () => {
       expiresIn: 60n,
       secondFactors: [],
       enrollableFactors: [],
+      pending: null,
     });
   });
 
@@ -693,6 +694,7 @@ describe("createAuth login", () => {
       expiresIn: BigInt(3600),
       secondFactors: [],
       enrollableFactors: [],
+      pending: null,
     });
   });
 
@@ -725,7 +727,24 @@ describe("createAuth login", () => {
     expect(result).toEqual({
       sessionId: SESSION,
       expiresIn: 3600,
+      pending: null,
     });
+  });
+
+  // A sign-in owing its second factor states it, for the page to continue
+  // to the factor instead of into the app.
+  it("states the second factor the sign-in owes", async () => {
+    const pending = { secondFactors: [1], enrollableFactors: [] };
+    api.loginFinish.mockResolvedValue({
+      sessionId: SESSION,
+      expiresIn: BigInt(300),
+      secondFactors: [1],
+      enrollableFactors: [],
+      pending,
+    });
+    const { login } = createAuth(loader);
+    const result = await login("alice@test.com", "pw");
+    expect(result.pending).toEqual(pending);
   });
 
   it("propagates a wrong password (the client cannot finish)", async () => {
