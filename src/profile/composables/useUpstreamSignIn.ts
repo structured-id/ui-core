@@ -3,8 +3,9 @@
  * the sign-in surface's transport. See `../upstream` for what is kept
  * between leaving for the provider and its return.
  */
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { UpstreamProviderId, required } from "@structured-id/ids";
 import { getTransport } from "../../index";
 import type { EnabledProviderInfo } from "@structured-id/proto/sid/v1/federation/upstream";
 import { UpstreamServiceClient } from "@structured-id/proto/sid/v1/federation/upstream.client";
@@ -19,15 +20,20 @@ import { holdPendingSignIn, pendingSignIn } from "../pendingSignIn";
 
 export type { EnabledProviderInfo };
 
+/** A provider the issuer trusts, named by its typed id. */
+export type UpstreamProvider = Omit<EnabledProviderInfo, "id"> & {
+  id: UpstreamProviderId;
+};
+
 /** The calls a sign-in makes; the issuer's upstream service by default. */
 export interface UpstreamApi {
-  list(): Promise<EnabledProviderInfo[]>;
+  list(): Promise<UpstreamProvider[]>;
   initiate(
-    provider: string,
+    provider: UpstreamProviderId,
     redirectUri: string,
   ): Promise<{ authorizationUrl: string; stateToken: string }>;
   complete(
-    provider: string,
+    provider: UpstreamProviderId,
     code: string,
     state: string,
     redirectUri: string,
@@ -48,20 +54,23 @@ export function upstreamApi(): UpstreamApi {
   return {
     async list() {
       const { response } = await client().listEnabledProviders({});
-      return [...response.providers].sort(
-        (a, b) => a.displayOrder - b.displayOrder,
-      );
+      return response.providers
+        .map((provider) => ({
+          ...provider,
+          id: required(UpstreamProviderId, provider.id),
+        }))
+        .sort((a, b) => a.displayOrder - b.displayOrder);
     },
     async initiate(provider, redirectUri) {
       const { response } = await client().initiateUpstreamAuth({
-        providerId: provider,
+        providerId: provider.toWire(),
         redirectUri,
       });
       return response;
     },
     async complete(provider, code, state, redirectUri) {
       const { response } = await client().handleUpstreamCallback({
-        providerId: provider,
+        providerId: provider.toWire(),
         code,
         state,
         redirectUri,
@@ -106,7 +115,7 @@ export function pageBrowser(
  * starts the sign-in for this origin's callback page.
  */
 export async function startUpstream(
-  provider: string,
+  provider: UpstreamProviderId,
   rd: string | null,
   api: UpstreamApi = upstreamApi(),
   browser: UpstreamBrowser = pageBrowser(),
@@ -181,7 +190,10 @@ export function useUpstreamSignIn(
   rd: () => string | null,
   options: UpstreamSignInOptions = {},
 ) {
-  const providers = ref<EnabledProviderInfo[]>([]);
+  // Shallow: a typed id keeps its bytes in private fields, which a deep
+  // reactive proxy cannot read.
+  const providers = shallowRef<UpstreamProvider[]>([]);
+  /** The text form of the provider the sign-in is leaving for. */
   const loading = ref<string | null>(null);
   const error = ref<string | null>(null);
   const api = () => options.api ?? upstreamApi();
@@ -195,8 +207,8 @@ export function useUpstreamSignIn(
     }
   }
 
-  async function signInWith(provider: string) {
-    loading.value = provider;
+  async function signInWith(provider: UpstreamProviderId) {
+    loading.value = provider.toString();
     error.value = null;
     try {
       await startUpstream(

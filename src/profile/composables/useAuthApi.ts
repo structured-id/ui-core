@@ -17,6 +17,7 @@ import {
   CredentialId,
   MagicLinkId,
   OpaqueLoginId,
+  OrgId,
   OtpSessionId,
   ResetSessionId,
   SessionId,
@@ -466,19 +467,26 @@ export async function confirmIdpLink(
 
 // ── Organization Selector ──
 
-export async function listUserOrganizations(): Promise<ListUserOrganizationsResponse> {
+/** An organization the sign-in may continue in, named by its typed id. */
+export type UserOrganizationRef = WithId<UserOrganization, "id", OrgId>;
+
+/** The organizations the signed-in user may continue in. */
+export async function listUserOrganizations(): Promise<UserOrganizationRef[]> {
   const { response } = await client().listUserOrganizations(
     {},
     { meta: authMeta() },
   );
-  return response;
+  return response.organizations.map((organization) => ({
+    ...organization,
+    id: required(OrgId, organization.id),
+  }));
 }
 
 export async function selectOrganization(
-  organizationId: string,
+  organizationId: OrgId,
 ): Promise<SelectOrganizationResponse> {
   const { response } = await client().selectOrganization(
-    { organizationId },
+    { organizationId: organizationId.toWire() },
     { meta: authMeta() },
   );
   return response;

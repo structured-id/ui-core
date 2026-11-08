@@ -9,6 +9,7 @@
  * The kept entry is no credential: the issuer keeps the request's state,
  * PKCE verifier and nonce itself and checks `state` on completion.
  */
+import { UpstreamProviderId } from "@structured-id/ids";
 
 /** Where the provider returns the browser, unless the app names its own. */
 export const UPSTREAM_CALLBACK_PATH = "/account/upstream/callback";
@@ -27,20 +28,23 @@ export function upstreamCallbackUri(
 /** What the return to the callback page needs. */
 export interface PendingUpstream {
   /** The provider the sign-in started at. */
-  provider: string;
+  provider: UpstreamProviderId;
   /** The authorization request the sign-in completes, if one sent the user. */
   rd: string | null;
 }
 
 const PREFIX = "sid.upstream.";
 
-/** Keep `pending` for the return carrying `state`. */
+/** Keep `pending` for the return carrying `state`; the provider by its text form. */
 export function rememberUpstream(
   storage: Storage,
   state: string,
   pending: PendingUpstream,
 ): void {
-  storage.setItem(PREFIX + state, JSON.stringify(pending));
+  storage.setItem(
+    PREFIX + state,
+    JSON.stringify({ provider: pending.provider.toString(), rd: pending.rd }),
+  );
 }
 
 /** What was kept for `state`, left in place; `undefined` when nothing is. */
@@ -51,12 +55,11 @@ export function peekUpstream(
   const kept = storage.getItem(PREFIX + state);
   if (kept === null) return undefined;
   try {
-    const parsed = JSON.parse(kept) as Partial<PendingUpstream>;
-    if (typeof parsed.provider !== "string" || !parsed.provider) {
-      return undefined;
-    }
+    const parsed = JSON.parse(kept) as { provider?: unknown; rd?: unknown };
+    if (typeof parsed.provider !== "string") return undefined;
     return {
-      provider: parsed.provider,
+      // An entry whose provider is no identifier was not kept by this code.
+      provider: UpstreamProviderId.parse(parsed.provider),
       rd: typeof parsed.rd === "string" ? parsed.rd : null,
     };
   } catch {
