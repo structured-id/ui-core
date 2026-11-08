@@ -13,7 +13,7 @@ import {
 } from "./useUpstreamSignIn";
 import { UPSTREAM_CALLBACK_PATH, peekUpstream } from "../upstream";
 import { SECOND_FACTOR_PATH } from "./useLoginSuccess";
-import { holdPendingSignIn } from "../pendingSignIn";
+import { endPendingSignIn, holdPendingSignIn } from "../pendingSignIn";
 import { StepUpMethod } from "@structured-id/proto/sid/v1/authn/auth";
 import { UpstreamProviderId } from "@structured-id/ids";
 
@@ -49,7 +49,10 @@ function browser(): UpstreamBrowser & { left: string[] } {
   };
 }
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  endPendingSignIn();
+  sessionStorage.clear();
+});
 
 describe("startUpstream", () => {
   // The issuer starts the sign-in for this origin's exact callback page; the

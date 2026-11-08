@@ -8,7 +8,7 @@ import {
   verifyRecoveryCode,
   verifyTotp,
 } from "./useAuthApi";
-import { pendingSignIn } from "../pendingSignIn";
+import { endPendingSignIn, pendingSignIn } from "../pendingSignIn";
 
 // The AuthService methods by client method name, separately for the sign-in
 // surface and the account API.
@@ -63,6 +63,7 @@ async function signInOwingTotp() {
 }
 
 beforeEach(() => {
+  endPendingSignIn();
   sessionStorage.clear();
   for (const surface of Object.values(rpc)) {
     for (const fn of Object.values(surface)) fn.mockReset();

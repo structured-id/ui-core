@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StepUpMethod } from "@structured-id/proto/sid/v1/authn/auth";
 import {
   endPendingSignIn,
@@ -13,7 +13,10 @@ const owing = {
   browserCsrf: "csrf-1",
 };
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  endPendingSignIn();
+  sessionStorage.clear();
+});
 
 describe("pending sign-in", () => {
   // A sign-in owing its second factor is kept with the CSRF token its
@@ -68,14 +71,56 @@ describe("pending sign-in", () => {
     expect(pendingSignInMeta()).toEqual({});
   });
 
-  // A record this tab cannot read is no pending sign-in.
-  it("reads a corrupt record as none", () => {
+  // Regression: with tab storage denied by browser policy, reading
+  // `sessionStorage` threw, so even a complete sign-in failed. A complete
+  // sign-in needs no storage, and a pending one is still held for the
+  // completion this page load sends.
+  it("works without tab storage", () => {
+    const denied = Object.getOwnPropertyDescriptor(window, "sessionStorage");
+    Object.defineProperty(window, "sessionStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("denied", "SecurityError");
+      },
+    });
+    try {
+      expect(
+        holdPendingSignIn({ secondFactors: [], enrollableFactors: [] }),
+      ).toBeNull();
+      holdPendingSignIn(owing);
+      expect(pendingSignIn()?.secondFactors).toEqual([StepUpMethod.TOTP]);
+      expect(pendingSignInMeta()).toEqual({ "x-csrf-token": "csrf-1" });
+      endPendingSignIn();
+      expect(pendingSignIn()).toBeNull();
+    } finally {
+      Object.defineProperty(window, "sessionStorage", denied!);
+    }
+  });
+
+  // A reload completes the sign-in from the tab's copy of the record.
+  it("is completed after a reload from the tab's copy", async () => {
+    holdPendingSignIn(owing);
+    const reloaded = await freshLoad();
+    expect(reloaded.pendingSignIn()?.secondFactors).toEqual([
+      StepUpMethod.TOTP,
+    ]);
+    expect(reloaded.pendingSignInMeta()).toEqual({ "x-csrf-token": "csrf-1" });
+  });
+
+  // A copy the reloaded page cannot read is no pending sign-in.
+  it("reads a corrupt copy as none", async () => {
     sessionStorage.setItem("sid.pending-sign-in", "{not json");
-    expect(pendingSignIn()).toBeNull();
+    expect((await freshLoad()).pendingSignIn()).toBeNull();
     sessionStorage.setItem(
       "sid.pending-sign-in",
       JSON.stringify({ csrf: 1, secondFactors: [], enrollableFactors: [] }),
     );
-    expect(pendingSignIn()).toBeNull();
+    expect((await freshLoad()).pendingSignIn()).toBeNull();
   });
 });
+
+/** The module as a new page load finds it: nothing held, only the tab's copy. */
+async function freshLoad(): Promise<typeof import("./pendingSignIn")> {
+  vi.resetModules();
+  return import("./pendingSignIn");
+}
