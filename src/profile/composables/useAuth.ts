@@ -15,6 +15,7 @@
  * gRPC calls go through useAuthApi wrappers.
  */
 import type { CredentialId, SessionId } from "@structured-id/ids";
+import type { PendingSignIn } from "../pendingSignIn";
 import {
   completePasswordReset,
   evaluatePasswordHistory,
@@ -42,6 +43,8 @@ export interface LoginResult {
   sessionId: SessionId;
   /** Seconds until the delivered credential expires. */
   expiresIn: number;
+  /** The second factor the sign-in still owes; null when it is complete. */
+  pending: PendingSignIn | null;
 }
 
 /**
@@ -544,6 +547,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
     return {
       sessionId: finished.sessionId,
       expiresIn: Number(finished.expiresIn),
+      pending: finished.pending,
     };
   }
 

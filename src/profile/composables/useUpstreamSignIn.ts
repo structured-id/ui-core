@@ -15,6 +15,7 @@ import {
   upstreamCallbackUri,
 } from "../upstream";
 import { useLoginSuccess, type LoginSuccessOptions } from "./useLoginSuccess";
+import { holdPendingSignIn, pendingSignIn } from "../pendingSignIn";
 
 export type { EnabledProviderInfo };
 
@@ -30,8 +31,16 @@ export interface UpstreamApi {
     code: string,
     state: string,
     redirectUri: string,
-  ): Promise<"signed-in" | "linking-required">;
+  ): Promise<UpstreamOutcome>;
 }
+
+/**
+ * What the issuer answered a completed return: signed in, signed in but
+ * owing a second factor (kept as the tab's pending sign-in), or no Profile
+ * linked to the upstream account.
+ */
+export type UpstreamOutcome =
+  "signed-in" | "second-factor" | "linking-required";
 
 /** The issuer's upstream service on the sign-in surface. */
 export function upstreamApi(): UpstreamApi {
@@ -59,7 +68,9 @@ export function upstreamApi(): UpstreamApi {
       });
       switch (response.result.oneofKind) {
         case "success":
-          return "signed-in";
+          return holdPendingSignIn(response.result.success)
+            ? "second-factor"
+            : "signed-in";
         case "linkingRequired":
           return "linking-required";
         default:
@@ -124,7 +135,7 @@ export function abandonUpstream(
 export type UpstreamReturn =
   | {
       /** `failed`: the issuer could not complete it. */
-      outcome: "signed-in" | "linking-required" | "failed";
+      outcome: UpstreamOutcome | "failed";
       rd: string | null;
     }
   | { outcome: "unknown" };
@@ -262,7 +273,7 @@ export function useUpstreamCallback(
         return;
       }
       continued.value = done.rd;
-      if (done.outcome !== "signed-in") {
+      if (done.outcome === "linking-required" || done.outcome === "failed") {
         failure.value = done.outcome;
         return;
       }
@@ -270,7 +281,10 @@ export function useUpstreamCallback(
         path: route.path,
         query: done.rd ? { rd: done.rd } : {},
       });
-      await onLoginSuccess();
+      // A sign-in owing its second factor continues to the factor's page.
+      await onLoginSuccess(
+        done.outcome === "second-factor" ? { pending: pendingSignIn() } : {},
+      );
     } catch {
       failure.value = "failed";
     }

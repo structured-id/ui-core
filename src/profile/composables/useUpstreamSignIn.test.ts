@@ -9,8 +9,12 @@ import {
   useUpstreamCallback,
   type UpstreamApi,
   type UpstreamBrowser,
+  type UpstreamOutcome,
 } from "./useUpstreamSignIn";
 import { UPSTREAM_CALLBACK_PATH, peekUpstream } from "../upstream";
+import { SECOND_FACTOR_PATH } from "./useLoginSuccess";
+import { holdPendingSignIn } from "../pendingSignIn";
+import { StepUpMethod } from "@structured-id/proto/sid/v1/authn/auth";
 
 vi.mock("../../composables/useBffAuth", () => ({
   checkBffSession: vi.fn().mockResolvedValue(null),
@@ -20,7 +24,7 @@ const ORIGIN = "https://ee.sid.example.com";
 const ISSUER = "https://sid.example.com";
 const RD = `${ISSUER}/i/0123456789abcdef0123456789abcdef/oauth2/authorize?client_id=ops&request_uri=${encodeURIComponent("urn:ietf:params:oauth:request_uri:r")}`;
 
-function api(outcome: "signed-in" | "linking-required" = "signed-in") {
+function api(outcome: UpstreamOutcome = "signed-in") {
   return {
     list: vi.fn().mockResolvedValue([]),
     initiate: vi.fn().mockResolvedValue({
@@ -147,6 +151,7 @@ async function callbackAt(
     routes: [
       { path: UPSTREAM_CALLBACK_PATH, component: { template: "<div />" } },
       { path: "/account", component: { template: "<div />" } },
+      { path: SECOND_FACTOR_PATH, component: { template: "<div />" } },
     ],
   });
   await router.push(at);
@@ -255,6 +260,30 @@ describe("useUpstreamCallback", () => {
     expect(result.failure.value).toBe("unknown");
     expect(calls.complete).not.toHaveBeenCalled();
     expect(left).toEqual([]);
+  });
+
+  // Regression: a provider sign-in of an account owing its second factor
+  // was reported signed in and continued to the request. It goes to the
+  // second-factor page with the request it waits for.
+  it("continues a sign-in owing its second factor to the factor's page", async () => {
+    const calls = api("second-factor");
+    holdPendingSignIn({
+      secondFactors: [StepUpMethod.TOTP],
+      enrollableFactors: [],
+      browserCsrf: "csrf-1",
+    });
+    const page = browser();
+    await startUpstream("p1", RD, calls, page);
+    const { result, router, left } = await callbackAt(
+      `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1`,
+      calls,
+      page,
+    );
+    await result.complete();
+    expect(result.failure.value).toBeNull();
+    expect(left).toEqual([]);
+    expect(router.currentRoute.value.path).toBe(SECOND_FACTOR_PATH);
+    expect(router.currentRoute.value.query.rd).toBe(RD);
   });
 
   // An account that needs linking is reported with its waiting request.

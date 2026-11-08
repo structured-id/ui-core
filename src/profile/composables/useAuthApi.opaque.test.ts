@@ -94,7 +94,12 @@ describe("OPAQUE gRPC wrappers", () => {
   describe("opaqueLoginFinish", () => {
     it("sends principal, finalization and the login's bytes, reads the session", async () => {
       mockOpaqueLoginFinish.mockResolvedValue({
-        response: { sessionId: SESSION.toWire(), expiresIn: BigInt(3600) },
+        response: {
+          sessionId: SESSION.toWire(),
+          expiresIn: BigInt(3600),
+          secondFactors: [],
+          enrollableFactors: [],
+        },
       });
 
       const result = await opaqueLoginFinish(
@@ -110,6 +115,7 @@ describe("OPAQUE gRPC wrappers", () => {
       });
       expect(result.sessionId.equals(SESSION)).toBe(true);
       expect(result.expiresIn).toBe(BigInt(3600));
+      expect(result.pending).toBeNull();
     });
 
     // Every completed sign-in names its session; an answer without one is

@@ -14,13 +14,24 @@ import type { SessionId } from "@structured-id/ids";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../index";
 import { checkBffSession } from "../../index";
+import type { PendingSignIn } from "../pendingSignIn";
 
 export interface LoginSuccessResult {
   sessionId?: SessionId;
+  /** The second factor the sign-in still owes; absent or null when complete. */
+  pending?: PendingSignIn | null;
 }
+
+/**
+ * The app's page that completes a sign-in owing its second factor, reading
+ * what it owes from `pendingSignIn()`.
+ */
+export const SECOND_FACTOR_PATH = "/account/login/mfa";
 
 /** Options of {@link useLoginSuccess}. */
 export interface LoginSuccessOptions {
+  /** The app's second-factor page; {@link SECOND_FACTOR_PATH} by default. */
+  secondFactorPath?: string;
   /**
    * Origin of the SID installation whose issuers may send users to this
    * sign-in page (e.g. `https://sid.example.com`). Without it, `rd` is never
@@ -96,7 +107,17 @@ export function useLoginSuccess(
   const auth = useAuthStore();
   const router = useRouter();
 
-  async function onLoginSuccess(_result?: LoginSuccessResult) {
+  async function onLoginSuccess(result?: LoginSuccessResult) {
+    if (result?.pending) {
+      // Not signed in yet: the second factor completes the sign-in, and the
+      // authorization request it waits for goes along.
+      const rd = router.currentRoute.value.query.rd;
+      await router.push({
+        path: options.secondFactorPath ?? SECOND_FACTOR_PATH,
+        query: typeof rd === "string" ? { rd } : {},
+      });
+      return;
+    }
     const back = options.issuerOrigin
       ? authorizationContinuation(
           router.currentRoute.value.query.rd,

@@ -143,6 +143,8 @@ describe("passkey sign-in", () => {
     answers("webAuthnAuthenticationFinish", {
       sessionId: SESSION.toWire(),
       expiresIn: 60n,
+      secondFactors: [],
+      enrollableFactors: [],
     });
     const credential = new Uint8Array([1, 2]);
     const result = await webAuthnAuthenticationFinish(credential, "a@b.c");
