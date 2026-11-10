@@ -14,6 +14,7 @@ import {
   refusalMessage,
   rpcReason,
   rpcRefusal,
+  SignInRefusedError,
 } from "./rpcRefusal";
 
 /** A refused call as the gRPC-Web transport raises it: the status in the trailer. */
@@ -141,6 +142,16 @@ describe("rpcRefusal", () => {
     expect(refusalMessage("not an error", "Request failed")).toBe(
       "Request failed",
     );
+  });
+
+  // A password the device refused reads as the server's refusal of a sign-in,
+  // never as the client's own wording, so a wrong password and an unknown
+  // account look alike.
+  it("shows a refused sign-in as the server's sign-in refusal", () => {
+    const refused = new Error("invalid login");
+    expect(
+      refusalMessage(new SignInRefusedError(refused), "Login failed"),
+    ).toBe(REFUSAL_TEXTS[ErrorReason.AUTHENTICATION_FAILED]);
   });
 
   // A refusal that names the fields it concerns lets the form show each
