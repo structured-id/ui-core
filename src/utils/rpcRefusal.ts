@@ -232,14 +232,30 @@ export const REFUSAL_TEXTS: Readonly<
 };
 
 /**
+ * A password sign-in refused on this device: it did not verify (RFC 9807
+ * §6.4). It reads as the server's own refusal of a sign-in, so the text does
+ * not tell a wrong password from an unknown account.
+ */
+export class SignInRefusedError extends Error {
+  constructor(cause: unknown) {
+    super("The sign-in did not verify", { cause });
+    this.name = "SignInRefusedError";
+  }
+}
+
+/**
  * The text to show for a failed call: the server's text for people, else the
  * client's text for SID's reason, else `fallback`, the caller's context. A
- * client-side `Error` (no call refused) keeps its own message.
+ * client-side `Error` (no call refused) keeps its own message, except a
+ * refused sign-in, which reads as the server's refusal of one.
  */
 export function refusalMessage(
   err: unknown,
   fallback = "Request failed",
 ): string {
+  if (err instanceof SignInRefusedError) {
+    return REFUSAL_TEXTS[ErrorReason.AUTHENTICATION_FAILED];
+  }
   const refusal = rpcRefusal(err);
   if (refusal) {
     if (refusal.localized) return refusal.localized;

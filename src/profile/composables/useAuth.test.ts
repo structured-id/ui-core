@@ -7,6 +7,7 @@ import {
   type PasswordOperationProgress,
   WrongCurrentPasswordError,
 } from "./useAuth";
+import { SignInRefusedError } from "../../utils/rpcRefusal";
 
 // Mock the gRPC wrappers
 vi.mock("./useAuthApi", () => ({
@@ -747,14 +748,26 @@ describe("createAuth login", () => {
     expect(result.pending).toEqual(pending);
   });
 
-  it("propagates a wrong password (the client cannot finish)", async () => {
-    vi.mocked(client.loginFinish).mockRejectedValue(
-      new Error("login finish: InvalidLoginError"),
-    );
+  // A wrong password showed the client's own "invalid login" to the user; it
+  // is the sign-in's refusal, and nothing more is sent.
+  it("reports a wrong password as a refused sign-in", async () => {
+    const refused = new Error("invalid login");
+    refused.name = "ZkppInvalidLoginError";
+    vi.mocked(client.loginFinish).mockRejectedValue(refused);
     const { login } = createAuth(loader);
-    await expect(login("alice@test.com", "wrong")).rejects.toThrow(
-      "InvalidLoginError",
-    );
+    const failure = await login("alice@test.com", "wrong").catch((e) => e);
+    expect(failure).toBeInstanceOf(SignInRefusedError);
+    expect((failure as SignInRefusedError).cause).toBe(refused);
+    expect(api.loginFinish).not.toHaveBeenCalled();
+  });
+
+  // Only the client's refusal judged the password: a malformed response or
+  // another fault comes through as itself.
+  it("reports a sign-in failure other than a refusal as itself", async () => {
+    const fault = new Error("response: invalid length");
+    vi.mocked(client.loginFinish).mockRejectedValue(fault);
+    const { login } = createAuth(loader);
+    await expect(login("alice@test.com", "pw")).rejects.toBe(fault);
     expect(api.loginFinish).not.toHaveBeenCalled();
   });
 });

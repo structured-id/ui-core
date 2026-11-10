@@ -16,6 +16,7 @@
  */
 import type { CredentialId, SessionId } from "@structured-id/ids";
 import type { PendingSignIn } from "../pendingSignIn";
+import { SignInRefusedError } from "../../utils/rpcRefusal";
 import {
   completePasswordReset,
   evaluatePasswordHistory,
@@ -533,12 +534,20 @@ export function createAuth(loadClient: ZkppClientLoader) {
     const started = await opaqueLoginStart(identifier, start.request);
     onStep?.(3);
     // An ordinary sign-in runs under the empty context.
-    const finalization = await c.loginFinish(
-      password,
-      start.state,
-      started.credentialResponse,
-      new Uint8Array(),
-    );
+    let finalization: Uint8Array;
+    try {
+      finalization = await c.loginFinish(
+        password,
+        start.state,
+        started.credentialResponse,
+        new Uint8Array(),
+      );
+    } catch (e) {
+      // The client's refusal is the sign-in's answer; any other failure (a
+      // stopped client, a malformed response) is itself.
+      if (isRefusedSignIn(e)) throw new SignInRefusedError(e);
+      throw e;
+    }
     const finished = await opaqueLoginFinish(
       identifier,
       finalization,
