@@ -17,6 +17,13 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [4.15.2](https://github.com/structured-id/ui-core/compare/v4.15.1...v4.15.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **refusal:** say what an MFA_REQUIRED refusal asks for ([#103](https://github.com/structured-id/ui-core/issues/103)) ([b30475c](https://github.com/structured-id/ui-core/commit/b30475c00bc0fe263bec04a3317b6345b67d5bf8)), closes [#102](https://github.com/structured-id/ui-core/issues/102)
+
 ## [4.15.1](https://github.com/structured-id/ui-core/compare/v4.15.0...v4.15.1) (2026-11-10)
 
 
