@@ -10,6 +10,7 @@ import {
 } from "@structured-id/proto/google/rpc/error_details";
 import { ErrorReason } from "@structured-id/proto/sid/v1/common/errors";
 import {
+  MFA_CONTINUATION_TEXTS,
   REFUSAL_TEXTS,
   refusalMessage,
   rpcReason,
@@ -193,6 +194,42 @@ describe("rpcRefusal", () => {
       },
     ]);
     expect(rpcRefusal(refused([info]))?.fieldViolations).toEqual([]);
+  });
+
+  // Bug prevented: every MFA_REQUIRED read "Set up a second factor first.",
+  // so a session that was only too old was told to set up a factor it may
+  // already hold, and that setup was refused the same way. The text follows
+  // what the server asks for in `continuation`.
+  it("says what an MFA_REQUIRED refusal asks for", () => {
+    const mfa = (continuation?: string) =>
+      refused(
+        [
+          Any.pack(
+            ErrorInfo.create({
+              reason: "MFA_REQUIRED",
+              domain: "structured.id",
+              metadata: continuation ? { continuation } : {},
+            }),
+            ErrorInfo,
+          ),
+        ],
+        "a%20stronger%20authentication%20is%20required",
+      );
+    expect(refusalMessage(mfa("reauthenticate"))).toBe(
+      MFA_CONTINUATION_TEXTS.reauthenticate,
+    );
+    expect(refusalMessage(mfa("step_up"))).toBe(MFA_CONTINUATION_TEXTS.step_up);
+    expect(refusalMessage(mfa("authenticate"))).toBe(
+      MFA_CONTINUATION_TEXTS.authenticate,
+    );
+    expect(refusalMessage(mfa())).toBe(REFUSAL_TEXTS[ErrorReason.MFA_REQUIRED]);
+    // A continuation this client does not know keeps the reason's text.
+    expect(refusalMessage(mfa("later"))).toBe(
+      REFUSAL_TEXTS[ErrorReason.MFA_REQUIRED],
+    );
+    expect(MFA_CONTINUATION_TEXTS.reauthenticate).not.toBe(
+      REFUSAL_TEXTS[ErrorReason.MFA_REQUIRED],
+    );
   });
 
   it("survives an unreadable trailer", () => {

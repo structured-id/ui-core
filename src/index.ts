@@ -80,6 +80,7 @@ export {
   rpcRefusal,
   rpcReason,
   refusalMessage,
+  MFA_CONTINUATION_TEXTS,
   REFUSAL_TEXTS,
   SID_ERROR_DOMAIN,
   SignInRefusedError,
