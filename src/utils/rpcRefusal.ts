@@ -232,6 +232,17 @@ export const REFUSAL_TEXTS: Readonly<
 };
 
 /**
+ * What an `MFA_REQUIRED` refusal asks of the user, by the `continuation` its
+ * `ErrorInfo` names. Without one (no second factor enrolled) the reason's own
+ * text stands.
+ */
+export const MFA_CONTINUATION_TEXTS = {
+  authenticate: "Sign in to your account first.",
+  step_up: "Confirm it's you with your second factor to continue.",
+  reauthenticate: "Sign in again to make this change.",
+} as const;
+
+/**
  * A password sign-in refused on this device: it did not verify (RFC 9807
  * §6.4). It reads as the server's own refusal of a sign-in, so the text does
  * not tell a wrong password from an unknown account.
@@ -259,6 +270,14 @@ export function refusalMessage(
   const refusal = rpcRefusal(err);
   if (refusal) {
     if (refusal.localized) return refusal.localized;
+    if (refusal.reasonCode === ErrorReason.MFA_REQUIRED) {
+      const asked = refusal.metadata["continuation"];
+      if (asked && Object.hasOwn(MFA_CONTINUATION_TEXTS, asked)) {
+        return MFA_CONTINUATION_TEXTS[
+          asked as keyof typeof MFA_CONTINUATION_TEXTS
+        ];
+      }
+    }
     if (
       refusal.reasonCode !== null &&
       refusal.reasonCode !== ErrorReason.ERROR_REASON_UNSPECIFIED
