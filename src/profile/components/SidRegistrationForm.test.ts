@@ -83,6 +83,8 @@ function mountForm(props = {}) {
   return mount(SidRegistrationForm, {
     props: { registerFn, ...props },
     global: { stubs: quasarStubs },
+    // Visibility is a computed style: only an element in the document has one.
+    attachTo: document.body,
   });
 }
 
