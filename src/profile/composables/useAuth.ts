@@ -147,22 +147,25 @@ export interface ZkppClientApi {
       onProgress?: (p: PasswordOperationProgress) => void;
     },
   ): Promise<ZkppProof | null>;
+  /** The registration record to send, with the credential's export key
+   * (RFC 9807 §6.4), which stays with the client and is never sent. */
   registrationFinish(
     password: string,
     state: string,
     response: Uint8Array,
-  ): Promise<Uint8Array>;
+  ): Promise<{ record: Uint8Array; exportKey: Uint8Array }>;
   loginStart(password: string): Promise<{ request: Uint8Array; state: string }>;
   /** `context` is the OPAQUE context (RFC 9807 §6): empty for an ordinary
-   * sign-in, the operation's own for a sign-in inside another operation. A
-   * sign-in that does not verify fails with an error named
+   * sign-in, the operation's own for a sign-in inside another operation.
+   * Answers KE3 to send with the credential's export key, which is never
+   * sent. A sign-in that does not verify fails with an error named
    * `ZkppInvalidLoginError`; any other failure keeps its own error. */
   loginFinish(
     password: string,
     state: string,
     response: Uint8Array,
     context: Uint8Array,
-  ): Promise<Uint8Array>;
+  ): Promise<{ finalization: Uint8Array; exportKey: Uint8Array }>;
 }
 
 /**
@@ -359,7 +362,8 @@ export function createAuth(loadClient: ZkppClientLoader) {
     });
     // The record (the client's stretching) and the server's check.
     plan.enter("verify");
-    const record = await c.registrationFinish(
+    // Only the record is sent; the export key stays with the client.
+    const { record } = await c.registrationFinish(
       password,
       start.state,
       registrationResponse,
@@ -447,12 +451,12 @@ export function createAuth(loadClient: ZkppClientLoader) {
       const operation = historyContext(challenge.history).operationId;
       const context = await changeContext(operation, start.request);
       try {
-        credentialFinalization = await c.loginFinish(
+        ({ finalization: credentialFinalization } = await c.loginFinish(
           currentPassword,
           login.state,
           challenge.credentialResponse,
           context,
-        );
+        ));
       } catch (e) {
         // Only the client's refusal judged the password: the server already
         // counted the guess when it issued KE2, so nothing more is sent. Any
@@ -536,12 +540,12 @@ export function createAuth(loadClient: ZkppClientLoader) {
     // An ordinary sign-in runs under the empty context.
     let finalization: Uint8Array;
     try {
-      finalization = await c.loginFinish(
+      ({ finalization } = await c.loginFinish(
         password,
         start.state,
         started.credentialResponse,
         new Uint8Array(),
-      );
+      ));
     } catch (e) {
       // The client's refusal is the sign-in's answer; any other failure (a
       // stopped client, a malformed response) is itself.
