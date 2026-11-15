@@ -97,18 +97,28 @@ const WIRE_PROOF = {
   evaluationProofs: [ANSWER.proof],
 };
 
+/** The credential's export key the client keeps; never sent. */
+const EXPORT_KEY = new Uint8Array(32).fill(0xee);
+
+/** The client as `@structured-id/opaque` answers: the record or the
+ * finalization together with the credential's export key. */
 function fakeClient(): ZkppClientApi {
   return {
     stopped: false,
     registrationStart: vi.fn().mockResolvedValue(START),
     historyRequest: vi.fn().mockResolvedValue(HISTORY),
     prove: vi.fn().mockResolvedValue(PROOF),
-    registrationFinish: vi.fn().mockResolvedValue(RECORD),
+    registrationFinish: vi
+      .fn()
+      .mockResolvedValue({ record: RECORD, exportKey: EXPORT_KEY }),
     loginStart: vi.fn().mockResolvedValue({
       request: new Uint8Array([1, 2, 3]),
       state: "login-state",
     }),
-    loginFinish: vi.fn().mockResolvedValue(new Uint8Array([7, 8, 9])),
+    loginFinish: vi.fn().mockResolvedValue({
+      finalization: new Uint8Array([7, 8, 9]),
+      exportKey: EXPORT_KEY,
+    }),
   };
 }
 
