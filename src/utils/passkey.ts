@@ -12,6 +12,8 @@ export type PasskeyFailure =
   | "cancelled"
   /** The authenticator already holds a passkey of this account (`InvalidStateError`). */
   | "already-registered"
+  /** The page stopped a request it started itself (`AbortError`): nothing to tell. */
+  | "aborted"
   /** Anything else, the browser's message kept in `cause`. */
   | "failed";
 
@@ -48,6 +50,11 @@ function refusal(error: unknown): PasskeyError {
         cause: error,
       },
     );
+  }
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return new PasskeyError("aborted", "The request was stopped", {
+      cause: error,
+    });
   }
   if (error instanceof DOMException && error.name === "InvalidStateError") {
     return new PasskeyError(
@@ -88,20 +95,50 @@ export async function createPasskey(options: Uint8Array): Promise<Uint8Array> {
   return responseBytes(credential);
 }
 
+/** How an assertion is asked for. */
+export interface PasskeyRequest {
+  /**
+   * Wait for the user to pick a passkey from the sign-in field's autofill
+   * (`mediation: "conditional"`, WebAuthn Level 3 §5.1.4.1), instead of
+   * opening the browser's passkey dialog now. The field declares
+   * `autocomplete="username webauthn"`.
+   */
+  conditional?: boolean;
+  /** Stops the request; it then rejects with the failure `aborted`. */
+  signal?: AbortSignal;
+}
+
 /**
  * Assert a passkey for a sign-in or step-up start's `options`; resolves to
  * the response its finish takes. With no allowed credentials in `options`
  * the browser offers the discoverable passkeys it holds for the RP.
  */
-export async function getPasskey(options: Uint8Array): Promise<Uint8Array> {
+export async function getPasskey(
+  options: Uint8Array,
+  request: PasskeyRequest = {},
+): Promise<Uint8Array> {
   const publicKey = PublicKeyCredential.parseRequestOptionsFromJSON(
     publicKeyOf<PublicKeyCredentialRequestOptionsJSON>(options),
   );
   let credential: Credential | null;
   try {
-    credential = await navigator.credentials.get({ publicKey });
+    credential = await navigator.credentials.get({
+      publicKey,
+      ...(request.conditional ? { mediation: "conditional" as const } : {}),
+      ...(request.signal ? { signal: request.signal } : {}),
+    });
   } catch (error) {
     throw refusal(error);
   }
   return responseBytes(credential);
+}
+
+/**
+ * Whether the browser lists passkeys in a sign-in field's autofill; without
+ * it a page offers its passkey button alone.
+ */
+export async function passkeyAutofillAvailable(): Promise<boolean> {
+  if (typeof PublicKeyCredential === "undefined") return false;
+  const check = PublicKeyCredential.isConditionalMediationAvailable;
+  return typeof check === "function" ? check.call(PublicKeyCredential) : false;
 }

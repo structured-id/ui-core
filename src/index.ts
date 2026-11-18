@@ -66,7 +66,9 @@ export {
   PasskeyError,
   createPasskey,
   getPasskey,
+  passkeyAutofillAvailable,
   type PasskeyFailure,
+  type PasskeyRequest,
 } from "./utils";
 
 export {
