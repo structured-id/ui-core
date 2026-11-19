@@ -187,6 +187,18 @@ export const REFUSAL_TEXTS: Readonly<
   [ErrorReason.FEATURE_NOT_CONFIGURED]:
     "This feature is not configured; an administrator can enable it.",
   [ErrorReason.REGISTRATION_DISABLED]: "Registration is closed right now.",
+  [ErrorReason.ROLE_ASSIGNMENT_SET_CHANGED]:
+    "These role assignments were changed meanwhile; reload them and decide again.",
+  [ErrorReason.ENTRY_CONNECTION_NOT_FOUND]:
+    "This entry connection does not exist.",
+  [ErrorReason.ENTRY_CONNECTION_ALREADY_EXISTS]:
+    "This issuer already has an entry connection.",
+  [ErrorReason.SITE_ADMISSION_NOT_AUTHENTIC]:
+    "This site's admission statement could not be verified.",
+  [ErrorReason.SITE_ADMISSION_REVISION_CONFLICT]:
+    "This settings revision is already held with other conditions.",
+  [ErrorReason.SITE_ADMISSION_SUPERSEDED]:
+    "A newer settings revision is already in place.",
   [ErrorReason.RATE_LIMIT_EXCEEDED]: "Too many attempts; try again later.",
   [ErrorReason.QUOTA_EXCEEDED]: "A limit is reached; remove something first.",
   [ErrorReason.CONCURRENT_MODIFICATION]:

@@ -68,6 +68,11 @@ import {
   type PasswordChangeChallengeResponse,
   type PasswordChangeExecuteResponse,
   type GetZkppPolicyResponse,
+  type StartEmailRegistrationResponse,
+  type ResendEmailRegistrationResponse,
+  type VerifyEmailRegistrationResponse,
+  type PasskeyRegistrationStartResponse,
+  type PasskeyRegistrationFinishResponse,
 } from "@structured-id/proto/sid/v1/authn/auth";
 import type {
   PasswordHistoryContext,
@@ -351,6 +356,119 @@ export async function webAuthnRegistrationFinish(
     ...response,
     credentialId: required(CredentialId, response.credentialId),
   };
+}
+
+// ── Passwordless registration (email code, first passkey) ──
+
+/**
+ * The CSRF token of the confirmed registration this page holds: its context
+ * cookie admits the first passkey only with it. Browser-only state, ended by
+ * the passkey's commit.
+ */
+let registrationCsrf: string | null = null;
+
+function registrationMeta(): Record<string, string> {
+  if (registrationCsrf === null) {
+    throw new Error("There is no confirmed registration to add a passkey to");
+  }
+  return { "x-csrf-token": registrationCsrf };
+}
+
+/** Forget the confirmed registration this page holds. */
+export function endEmailRegistration(): void {
+  registrationCsrf = null;
+}
+
+export type EmailRegistrationStart = WithId<
+  StartEmailRegistrationResponse,
+  "otpSessionId",
+  OtpSessionId
+>;
+
+/**
+ * Start registering `principal`, an email address; a code is mailed to it.
+ * The invite code or the installation's claim token are sent when the page
+ * holds them.
+ */
+export async function startEmailRegistration(
+  principal: string,
+  admission: { inviteCode?: string; claimToken?: string } = {},
+): Promise<EmailRegistrationStart> {
+  const { response } = await client().startEmailRegistration({
+    principal,
+    inviteCode: admission.inviteCode,
+    claimToken: admission.claimToken,
+  });
+  return {
+    ...response,
+    otpSessionId: required(OtpSessionId, response.otpSessionId),
+  };
+}
+
+/** A new code for the registration `otpSessionId` names. */
+export async function resendEmailRegistration(
+  otpSessionId: OtpSessionId,
+): Promise<ResendEmailRegistrationResponse> {
+  const { response } = await client().resendEmailRegistration({
+    otpSessionId: otpSessionId.toWire(),
+  });
+  return response;
+}
+
+/**
+ * Confirm the address with its `code`. The registration's context arrives
+ * as an HttpOnly cookie; its CSRF token is kept for the passkey steps.
+ */
+export async function verifyEmailRegistration(
+  otpSessionId: OtpSessionId,
+  code: string,
+): Promise<VerifyEmailRegistrationResponse> {
+  const { response } = await client().verifyEmailRegistration({
+    otpSessionId: otpSessionId.toWire(),
+    code,
+  });
+  if (!response.browserCsrf) {
+    throw new Error("The issuer confirmed the address without a CSRF token");
+  }
+  registrationCsrf = response.browserCsrf;
+  return response;
+}
+
+/** Start the confirmed registration's first passkey. */
+export async function passkeyRegistrationStart(
+  label?: string,
+): Promise<PasskeyRegistrationStartResponse> {
+  const meta = registrationMeta();
+  const { response } = await client().passkeyRegistrationStart(
+    { label },
+    { meta },
+  );
+  return response;
+}
+
+export type FirstPasskeyResult = WithId<
+  PasskeyRegistrationFinishResponse,
+  "credentialId",
+  CredentialId
+>;
+
+/**
+ * Commit the account with its first passkey. A failure keeps the context,
+ * so the same finish can be repeated; the commit ends it. No session opens:
+ * the account then signs in with the passkey.
+ */
+export async function passkeyRegistrationFinish(
+  credential: Uint8Array,
+  label?: string,
+): Promise<FirstPasskeyResult> {
+  const meta = registrationMeta();
+  const { response } = await client().passkeyRegistrationFinish(
+    { credential, label },
+    { meta },
+  );
+  const credentialId = required(CredentialId, response.credentialId);
+  endEmailRegistration();
+  return { ...response, credentialId };
 }
 
 // ── Device Authorization (RFC 8628) ──
