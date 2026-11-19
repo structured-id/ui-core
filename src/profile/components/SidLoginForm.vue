@@ -80,7 +80,7 @@
         />
       </q-form>
 
-      <slot name="below-form">
+      <slot name="below-form" :identifier="typedLogin">
         <div v-if="showForgotPassword" class="text-right q-mt-xs">
           <router-link
             v-if="forgotPasswordUrl"
@@ -226,6 +226,14 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const opaqueStep = ref(0);
 const opaqueStepLabel = ref("");
+
+/**
+ * The login typed, as typed (outer spaces trimmed), or null for an empty
+ * field. A method offered beside the password (a passkey for this account)
+ * sends it unchanged: the addressed issuer looks it up under its own policy,
+ * which a local login need not share with the field's global shape check.
+ */
+const typedLogin = computed(() => identifier.value.trim() || null);
 
 function setStep(step: number) {
   opaqueStep.value = step;

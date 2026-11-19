@@ -96,6 +96,29 @@ describe("SidLoginForm", () => {
     ).toContain("Hello");
   });
 
+  // A method beside the password (a passkey for the typed account) needs the
+  // login the user typed, unchanged: a local login such as "devauth-admin"
+  // is the issuer's to look up, even where the field's global shape check
+  // would refuse it. An empty field gives null, so the method can tell "no
+  // login" from a login that must resolve.
+  it("gives the below-form slot the typed login as typed", async () => {
+    const w = mount(SidLoginForm, {
+      props: { loginFn, principalTypes: ["email", "username"] },
+      global: { stubs: quasarStubs },
+      slots: {
+        "below-form": `<template #below-form="{ identifier }"><output>{{ identifier === null ? "none" : identifier }}</output></template>`,
+      },
+    });
+    const principal = w.findAll("input")[0];
+    expect(w.find("output").text()).toBe("none");
+    await principal.setValue("   ");
+    expect(w.find("output").text()).toBe("none");
+    await principal.setValue(" devauth-admin ");
+    expect(w.find("output").text()).toBe("devauth-admin");
+    await principal.setValue("Alice");
+    expect(w.find("output").text()).toBe("Alice");
+  });
+
   // Fewer than three characters are nobody yet: the form cannot sign in
   // with them, so its button stays disabled until a third is typed.
   it("cannot sign in with fewer than three characters", async () => {
