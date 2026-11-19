@@ -292,11 +292,16 @@ export async function resendPhoneVerification(): Promise<{
 
 // ── WebAuthn ──
 
+/**
+ * Start a passkey sign-in for the login `principal`, or, without one, for a
+ * discoverable passkey: the field is optional, and its absence (never an
+ * empty login) asks the server to resolve the account from the credential.
+ */
 export async function webAuthnAuthenticationStart(
   principal?: string,
 ): Promise<WebAuthnAuthenticationStartResponse> {
   const { response } = await client().webAuthnAuthenticationStart(
-    { principal: principal ?? "" },
+    principal ? { principal } : {},
     { meta: authMeta() },
   );
   return response;
@@ -318,7 +323,7 @@ export async function webAuthnAuthenticationFinish(
   principal?: string,
 ): Promise<PasskeySignInResult> {
   const { response } = await client().webAuthnAuthenticationFinish(
-    { credential, principal: principal ?? "" },
+    principal ? { credential, principal } : { credential },
     { meta: authMeta() },
   );
   return {
