@@ -40,6 +40,7 @@
           :label="identifierLabel"
           :types="principalTypes"
           :texts="principalTexts"
+          :local-username="localLogin"
           data-test="principal"
           @update:principal-type="principalType = $event"
           @update:valid="principalValid = $event"
@@ -170,6 +171,13 @@ const props = withDefaults(
     principalTypes?: AcceptedPrincipalType[];
     /** Replacements for the identifier field's texts. */
     principalTexts?: Partial<PrincipalInputTexts>;
+    /**
+     * The installation's own sign-in, where the issuer looks an assigned
+     * local username up under its own policy: such a username is accepted
+     * beyond the global shape and sent unchanged. Off for Central's global
+     * sign-in.
+     */
+    localLogin?: boolean;
     /** External login function — receives (identifier, password, stepCallback) */
     loginFn: (
       identifier: string,
@@ -186,6 +194,7 @@ const props = withDefaults(
     identifierLabel: undefined,
     principalTypes: () => ["email", "phone", "username"],
     principalTexts: () => ({}),
+    localLogin: false,
     passwordLabel: "Password",
     passwordRequiredText: REQUIRED_FIELD_TEXT,
     showForgotPassword: true,
@@ -246,13 +255,14 @@ async function onSubmit() {
   opaqueStep.value = 0;
 
   try {
-    const normalized = normalizePrincipal(identifier.value);
+    // A local username goes to its issuer as typed; the global rules would
+    // refuse what that issuer admits.
+    const login =
+      props.localLogin && principalType.value === "username"
+        ? identifier.value
+        : normalizePrincipal(identifier.value).value;
     setStep(1);
-    const result = await props.loginFn(
-      normalized.value,
-      password.value,
-      setStep,
-    );
+    const result = await props.loginFn(login, password.value, setStep);
     emit("success", result);
   } catch (e) {
     const err = e instanceof Error ? e : new Error("Login failed");
