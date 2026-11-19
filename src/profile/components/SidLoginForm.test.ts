@@ -18,7 +18,8 @@ const quasarStubs = {
   "q-linear-progress": { template: "<div />" },
   "q-icon": { template: "<span />" },
   "q-form": {
-    template: "<form @submit.prevent=\"$emit('submit')\"><slot /></form>",
+    template:
+      "<form @submit.prevent=\"$emit('submit', $event)\"><slot /></form>",
     emits: ["submit"],
   },
   "q-input": defineComponent({
@@ -117,6 +118,32 @@ describe("SidLoginForm", () => {
     expect(w.find("output").text()).toBe("devauth-admin");
     await principal.setValue("Alice");
     expect(w.find("output").text()).toBe("Alice");
+  });
+
+  // Bug prevented (dev): on an installation's own sign-in page the issuer
+  // looks up an assigned local username under its own policy, and
+  // "devauth-admin" holds a "-" the global shape refuses. The local form
+  // shows no global hint, enables the password sign-in and hands the login
+  // to loginFn unchanged; the default (global) form keeps refusing it.
+  it("signs in with an assigned local username unchanged in local mode", async () => {
+    loginFn.mockClear();
+    const local = mountLogin({ localLogin: true });
+    const [principal, password] = local.findAll("input");
+    await principal.setValue("devauth-admin");
+    await password.setValue("secret");
+    expect(local.find("button").attributes("disabled")).toBeUndefined();
+    expect(local.text()).not.toContain("letters, digits and underscores");
+    await local.find("form").trigger("submit");
+    expect(loginFn.mock.calls[0]?.slice(0, 2)).toEqual([
+      "devauth-admin",
+      "secret",
+    ]);
+
+    const global = mountLogin();
+    const [gPrincipal, gPassword] = global.findAll("input");
+    await gPrincipal.setValue("devauth-admin");
+    await gPassword.setValue("secret");
+    expect(global.find("button").attributes("disabled")).toBeDefined();
   });
 
   // Fewer than three characters are nobody yet: the form cannot sign in

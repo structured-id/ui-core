@@ -69,6 +69,13 @@ interface Props {
    * being typed into is not yet wrong.
    */
   lazyRules?: boolean;
+  /**
+   * The field signs in at the installation's own issuer, which looks an
+   * assigned local username up under its own policy: the global username
+   * shape does not apply, only spaces and the length bounds are refused.
+   * Registration and Central's global lookup keep it off.
+   */
+  localUsername?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -80,6 +87,7 @@ const props = withDefaults(defineProps<Props>(), {
   fieldError: null,
   texts: () => ({}),
   lazyRules: true,
+  localUsername: false,
 });
 
 const text = computed<PrincipalInputTexts>(() => ({
@@ -179,7 +187,8 @@ const typeRule = (val: string): string | true => {
     case "username": {
       const name = val;
       if (/\s/u.test(name)) return text.value.usernameSpaces;
-      if (!USERNAME_SHAPE.test(name)) return text.value.usernameCharacters;
+      if (!props.localUsername && !USERNAME_SHAPE.test(name))
+        return text.value.usernameCharacters;
       // Counted in code points of the NFC form, as the server counts the
       // display; the value itself is sent unchanged.
       const length = [...name.normalize("NFC")].length;
@@ -187,6 +196,8 @@ const typeRule = (val: string): string | true => {
         return text.value.usernameTooShort(props.minUsernameLength);
       if (length > USERNAME_MAX_LENGTH)
         return text.value.usernameTooLong(USERNAME_MAX_LENGTH);
+      // A local username's remaining form is its issuer's to judge.
+      if (props.localUsername) return true;
       if (name.startsWith("_") || name.endsWith("_"))
         return text.value.usernameUnderscoreEdge;
       if (name.includes("__")) return text.value.usernameDoubleUnderscore;
