@@ -69,6 +69,14 @@ describe("authorizationContinuation", () => {
     );
   });
 
+  // Bug prevented (dev): a base issuer (the platform's, or a standalone
+  // installation's) has its authorization endpoint at the origin's root, and
+  // a sign-in for it never returned to the request it was made for.
+  it("accepts the continuation at a root-addressed issuer", () => {
+    const root = `${ISSUER}/oauth2/authorize?client_id=app&request_uri=${encodeURIComponent("urn:ietf:params:oauth:request_uri:ref_1")}`;
+    expect(authorizationContinuation(root, ISSUER)).toBe(root);
+  });
+
   // Each substitution an attacker could make in `rd` is refused: another
   // origin, scheme or port, credentials, a fragment, another path, a full
   // request instead of a reference, extra or missing parameters.
@@ -88,6 +96,10 @@ describe("authorizationContinuation", () => {
       at("https://user:pw@sid.example.com"),
       `${CONTINUATION}#x`,
       `${ISSUER}/i/${HANDLE}/oauth2/token?client_id=app&request_uri=${ref}`,
+      `${ISSUER}/oauth2/token?client_id=app&request_uri=${ref}`,
+      `${ISSUER}/x/oauth2/authorize?client_id=app&request_uri=${ref}`,
+      `${ISSUER}/oauth2/authorize?client_id=app&redirect_uri=https%3A%2F%2Fevil.example.com`,
+      `https://evil.example.com/oauth2/authorize?client_id=app&request_uri=${ref}`,
       `${ISSUER}/i/NOTAHANDLE/oauth2/authorize?client_id=app&request_uri=${ref}`,
       `${ISSUER}/i/${HANDLE}/oauth2/authorize?client_id=app&redirect_uri=https%3A%2F%2Fevil.example.com`,
       `${CONTINUATION}&redirect_uri=https%3A%2F%2Fevil.example.com`,

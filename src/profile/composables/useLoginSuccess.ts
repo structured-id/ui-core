@@ -42,16 +42,21 @@ export interface LoginSuccessOptions {
   leaveTo?: (url: string) => void;
 }
 
-/** Path of an issuer's authorization endpoint: `/i/<32 hex>/oauth2/authorize`. */
-const AUTHORIZE_PATH = /^\/i\/[0-9a-f]{32}\/oauth2\/authorize$/;
+/**
+ * Path of an issuer's authorization endpoint: `/i/<32 hex>/oauth2/authorize`
+ * for a path-addressed issuer, `/oauth2/authorize` for a base issuer at the
+ * origin's root (the platform's, or a standalone installation's).
+ */
+const AUTHORIZE_PATH = /^(\/i\/[0-9a-f]{32})?\/oauth2\/authorize$/;
 
 /** Prefix of the reference a kept authorization request is continued by. */
 const REQUEST_URI_PREFIX = "urn:ietf:params:oauth:request_uri:";
 
 /**
  * `rd` when it is exactly the continuation of an authorization request at an
- * issuer of `issuerOrigin`: that origin, an issuer's authorization endpoint,
- * and no parameter but `client_id` and `request_uri`. Anything else is null.
+ * issuer of `issuerOrigin`: that origin, an issuer's authorization endpoint
+ * (path-addressed or at the root), and no parameter but `client_id` and
+ * `request_uri`. Anything else is null.
  */
 export function authorizationContinuation(
   rd: unknown,
