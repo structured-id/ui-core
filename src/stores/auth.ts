@@ -54,6 +54,14 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   /**
+   * Mark the page signed in by the installation's own session (the
+   * administration console), which carries no profile display data.
+   */
+  function setInstallationSession(): void {
+    sessionValid.value = true;
+  }
+
+  /**
    * Update profile display data (e.g., after profile edit).
    */
   function setProfile(profile: {
@@ -83,6 +91,7 @@ export const useAuthStore = defineStore("auth", () => {
     preferredUsername,
     isAuthenticated,
     setBffSession,
+    setInstallationSession,
     setProfile,
     logout,
   };

@@ -55,6 +55,15 @@ export function initAccountApi(config: AccountApiConfig): void {
   });
 }
 
+/**
+ * Carry the API calls on `transport` instead: a page that acts in the
+ * installation's own session (the administration console) calls the
+ * installation's API rather than an application host.
+ */
+export function useApiTransport(transport: RpcTransport): void {
+  _account = transport;
+}
+
 /** The account API transport. Throws if it was not set up. */
 export function getAccountTransport(): RpcTransport {
   if (!_account) {

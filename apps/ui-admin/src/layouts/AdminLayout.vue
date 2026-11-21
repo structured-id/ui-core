@@ -81,19 +81,17 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useQuasar } from "quasar";
 import { useRoute } from "vue-router";
 import { consoleNav, type AdminNavLink } from "#admin/navigation";
-import { consoleBase } from "#admin/base";
-import { bffLogout } from "@structured-id/ui-core";
+import { installationSignInUrl } from "@structured-id/ui-core";
 import { useAuthStore } from "#admin/stores/auth";
 
-const $q = useQuasar();
 const auth = useAuthStore();
 const leftDrawerOpen = ref(false);
 
-// The installation's own account pages, served on the same origin.
-const ACCOUNT_PAGES = "/account/";
+// The installation's own account pages, where the user manages and ends
+// the session the console acts in.
+const ACCOUNT_PAGES = installationSignInUrl();
 
 const displayName = computed(() => auth.displayName);
 const email = computed(() => auth.email);
@@ -102,19 +100,11 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-// Ends the session at the console's browser adapter; the console's own
-// state is cleared only once the adapter confirms, then sign-in starts again.
-async function handleLogout() {
-  const result = await bffLogout();
-  if (!result.ended) {
-    $q.notify({
-      type: "negative",
-      message: "Sign-out failed; the session may still be active",
-    });
-    return;
-  }
+// The console acts in the installation's own session, which its account
+// pages end: sign-out happens there.
+function handleLogout() {
   auth.logout();
-  window.location.assign(consoleBase());
+  window.location.assign(ACCOUNT_PAGES);
 }
 
 // The menu the console's route carries: the CE entries, plus those a

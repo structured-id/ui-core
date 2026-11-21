@@ -21,9 +21,17 @@ export {
 export {
   initAccountApi,
   getAccountTransport,
+  useApiTransport,
   closeAccountTransport,
   type AccountApiConfig,
 } from "./composables/useAccountTransport";
+export {
+  initInstallationSession,
+  checkInstallationSession,
+  installationTransport,
+  installationSignInUrl,
+  type InstallationSession,
+} from "./composables/useInstallationSession";
 // For an application's own transport: add the interceptor once, shared by
 // its clients, so the period is read once.
 export {

@@ -8,7 +8,7 @@
  * import { adminRoutes, guardConsole, setupConsoleTransports } from "@structured-id/ui-admin";
  *
  * const routes = adminRoutes({ pages: eePages, nav: eeNav });
- * setupConsoleTransports();
+ * await setupConsoleTransports();
  * await guardConsole(router);
  * ```
  */
