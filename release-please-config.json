@@ -4,7 +4,15 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "@structured-id/ui-core"
+      "package-name": "@structured-id/ui-core",
+      "exclude-paths": ["apps"]
+    },
+    "apps/ui-admin": {
+      "release-type": "node",
+      "package-name": "@structured-id/ui-admin",
+      "component": "ui-admin",
+      "include-component-in-tag": true,
+      "initial-version": "0.1.0"
     }
   }
 }
