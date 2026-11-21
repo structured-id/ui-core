@@ -9,12 +9,19 @@ const realmMocks = vi.hoisted(() => ({
     response: {
       realmName: "master",
       displayName: "Master Realm",
-      frontendUrl: "https://sid.example.com",
       enabled: true,
       userManagedAccess: false,
     },
   }),
   updateRealm: vi.fn().mockResolvedValue({ response: {} }),
+  getInstallationAddresses: vi.fn().mockResolvedValue({
+    response: {
+      publicUrl: "https://sid.example.com/",
+      publicUrlOverridden: false,
+      consoleUrl: "https://sid.example.com/admin/",
+    },
+  }),
+  updateInstallationAddresses: vi.fn(),
   getLoginSettings: vi.fn().mockResolvedValue({
     response: {
       registrationEnabled: true,
@@ -128,6 +135,8 @@ vi.mock("@structured-id/proto/sid/v1/admin/settings.client", () => ({
   RealmServiceClient: class {
     getRealm = realmMocks.getRealm;
     updateRealm = realmMocks.updateRealm;
+    getInstallationAddresses = realmMocks.getInstallationAddresses;
+    updateInstallationAddresses = realmMocks.updateInstallationAddresses;
     getLoginSettings = realmMocks.getLoginSettings;
     updateLoginSettings = realmMocks.updateLoginSettings;
     getEmailSettings = realmMocks.getEmailSettings;
@@ -279,7 +288,6 @@ describe("SettingsPage", () => {
       response: {
         realmName: "master",
         displayName: "Updated Realm",
-        frontendUrl: "https://sid.example.com",
         enabled: true,
         userManagedAccess: false,
       },
@@ -291,6 +299,29 @@ describe("SettingsPage", () => {
     await store.updateRealm({ displayName: "Updated Realm" });
     expect(realmMocks.updateRealm).toHaveBeenCalledOnce();
     expect(store.realm?.displayName).toBe("Updated Realm");
+  });
+
+  // The addresses load with the page; the installation's own URL is shown
+  // as no override, and an emptied console address is sent as the empty
+  // string that restores /admin/, not left out.
+  it("loads the addresses and sends an emptied console address", async () => {
+    realmMocks.updateInstallationAddresses.mockResolvedValue({
+      response: {
+        publicUrl: "https://sid.example.com/",
+        publicUrlOverridden: false,
+        consoleUrl: "https://sid.example.com/admin/",
+      },
+    });
+    mountPage();
+    await flushPromises();
+    const store = useSettingsStore();
+    expect(store.addresses?.consoleUrl).toBe("https://sid.example.com/admin/");
+
+    await store.updateAddresses({ publicUrl: "", consoleUrl: "" });
+    expect(realmMocks.updateInstallationAddresses).toHaveBeenCalledWith({
+      publicUrl: "",
+      consoleUrl: "",
+    });
   });
 
   it("store.setFeature calls gRPC", async () => {
