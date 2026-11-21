@@ -68,6 +68,9 @@ describe("ProfileSchemaPage: one draft in both editors", () => {
     await nextTick();
     await nextTick();
     expect(vm.viewMode).toBe("json");
+    // Regression: returning to the JSON editor rewrote the text from the
+    // visual draft, losing what was typed.
+    expect(vm.jsonText).toBe("{");
     expect(store.value!.error).toBe("Invalid JSON");
     expect(vm.localSchema!.groups[0].name).toBe("Typed");
   });
