@@ -14,6 +14,19 @@ function getClient() {
   return new ScimServiceClient(getAccountTransport());
 }
 
+/** A table page: which page (from 1) and how many rows it shows. */
+export interface TablePage {
+  page: number;
+  rowsPerPage: number;
+}
+
+const FIRST_PAGE: TablePage = { page: 1, rowsPerPage: 25 };
+
+/** The SCIM paging of a table page: 1-based start index and count (RFC 7644 §3.4.2.4). */
+function scimPage({ page, rowsPerPage }: TablePage) {
+  return { startIndex: (page - 1) * rowsPerPage + 1, count: rowsPerPage };
+}
+
 export const useScimStore = defineStore("scim", () => {
   const users = ref<ScimUser[]>([]);
   const usersTotalResults = ref(0);
@@ -27,14 +40,14 @@ export const useScimStore = defineStore("scim", () => {
 
   // ── Users ──
 
-  async function fetchUsers(filter?: string, startIndex?: number) {
+  /** One table page of users under `filter`; the table pages through the server. */
+  async function fetchUsers(filter?: string, page: TablePage = FIRST_PAGE) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listUsers({
         filter: filter || "",
-        startIndex: startIndex ?? 1,
-        count: 25,
+        ...scimPage(page),
       });
       users.value = response.resources;
       usersTotalResults.value = response.totalResults;
@@ -63,14 +76,14 @@ export const useScimStore = defineStore("scim", () => {
 
   // ── Groups ──
 
-  async function fetchGroups(filter?: string, startIndex?: number) {
+  /** One table page of groups under `filter`; the table pages through the server. */
+  async function fetchGroups(filter?: string, page: TablePage = FIRST_PAGE) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listGroups({
         filter: filter || "",
-        startIndex: startIndex ?? 1,
-        count: 25,
+        ...scimPage(page),
       });
       groups.value = response.resources;
       groupsTotalResults.value = response.totalResults;

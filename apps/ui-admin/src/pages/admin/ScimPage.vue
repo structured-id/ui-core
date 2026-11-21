@@ -38,7 +38,7 @@
               dense
               placeholder='SCIM filter (e.g. userName eq "alice")'
               clearable
-              @keyup.enter="store.fetchUsers(userFilter)"
+              @keyup.enter="searchUsers"
             >
               <template #prepend>
                 <q-icon name="sym_o_filter_alt" />
@@ -51,18 +51,20 @@
               icon="sym_o_search"
               label="Search"
               no-caps
-              @click="store.fetchUsers(userFilter)"
+              @click="searchUsers"
             />
           </div>
         </div>
 
         <q-table
+          v-model:pagination="userPagination"
           :rows="store.users"
           :columns="userColumns"
           row-key="id"
           flat
           bordered
-          :pagination="{ rowsPerPage: 25 }"
+          :loading="store.loading"
+          @request="requestUsers"
         >
           <template #body-cell-active="props">
             <q-td :props="props">
@@ -140,7 +142,7 @@
               dense
               placeholder='SCIM filter (e.g. displayName co "eng")'
               clearable
-              @keyup.enter="store.fetchGroups(groupFilter)"
+              @keyup.enter="searchGroups"
             >
               <template #prepend>
                 <q-icon name="sym_o_filter_alt" />
@@ -153,18 +155,20 @@
               icon="sym_o_search"
               label="Search"
               no-caps
-              @click="store.fetchGroups(groupFilter)"
+              @click="searchGroups"
             />
           </div>
         </div>
 
         <q-table
+          v-model:pagination="groupPagination"
           :rows="store.groups"
           :columns="groupColumns"
           row-key="id"
           flat
           bordered
-          :pagination="{ rowsPerPage: 25 }"
+          :loading="store.loading"
+          @request="requestGroups"
         >
           <template #body-cell-members="props">
             <q-td :props="props">
@@ -466,6 +470,43 @@ const $q = useQuasar();
 const tab = ref("users");
 const userFilter = ref("");
 const groupFilter = ref("");
+
+// The tables page through the server; each keeps the filter its search ran
+// with, so paging continues that search rather than the field's draft.
+const userPagination = ref({ page: 1, rowsPerPage: 25, rowsNumber: 0 });
+const groupPagination = ref({ page: 1, rowsPerPage: 25, rowsNumber: 0 });
+let userQuery = "";
+let groupQuery = "";
+
+type TableRequest = {
+  pagination: { page: number; rowsPerPage: number };
+};
+
+async function requestUsers({ pagination }: TableRequest) {
+  await store.fetchUsers(userQuery, pagination);
+  userPagination.value = {
+    ...pagination,
+    rowsNumber: store.usersTotalResults,
+  };
+}
+
+async function requestGroups({ pagination }: TableRequest) {
+  await store.fetchGroups(groupQuery, pagination);
+  groupPagination.value = {
+    ...pagination,
+    rowsNumber: store.groupsTotalResults,
+  };
+}
+
+function searchUsers() {
+  userQuery = userFilter.value ?? "";
+  void requestUsers({ pagination: { ...userPagination.value, page: 1 } });
+}
+
+function searchGroups() {
+  groupQuery = groupFilter.value ?? "";
+  void requestGroups({ pagination: { ...groupPagination.value, page: 1 } });
+}
 const deleteUserDialog = ref(false);
 const deleteGroupDialog = ref(false);
 const userToDelete = ref<ScimUser | null>(null);
@@ -657,10 +698,10 @@ async function executeDeleteGroup() {
 async function loadTabData(tabName: string) {
   switch (tabName) {
     case "users":
-      await store.fetchUsers();
+      await requestUsers({ pagination: userPagination.value });
       break;
     case "groups":
-      await store.fetchGroups();
+      await requestGroups({ pagination: groupPagination.value });
       break;
     case "config":
       await store.fetchProviderConfig();
