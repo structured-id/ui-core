@@ -85,5 +85,8 @@
     }
   },
   "packageManager": "yarn@4.18.1",
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "resolutions": {
+    "@vue/language-core@npm:3.3.14": "patch:@vue/language-core@npm%3A3.3.14#~/.yarn/patches/@vue-language-core-npm-3.3.14-0c361b9bd6.patch"
+  }
 }

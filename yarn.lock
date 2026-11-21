@@ -1982,6 +1982,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@vue/language-core@patch:@vue/language-core@npm%3A3.3.14#~/.yarn/patches/@vue-language-core-npm-3.3.14-0c361b9bd6.patch":
+  version: 3.3.14
+  resolution: "@vue/language-core@patch:@vue/language-core@npm%3A3.3.14#~/.yarn/patches/@vue-language-core-npm-3.3.14-0c361b9bd6.patch::version=3.3.14&hash=09d3b2"
+  dependencies:
+    "@volar/language-core": "npm:2.4.30"
+    "@vue/compiler-dom": "npm:^3.5.0"
+    "@vue/shared": "npm:^3.5.0"
+    alien-signals: "npm:^3.2.1"
+    muggle-string: "npm:^0.4.1"
+    path-browserify: "npm:^1.0.1"
+    picomatch: "npm:^4.0.4"
+  checksum: 10c0/faac24b8679ddbfa8bcc898e218ea9a68d54fe4e9b5d052e2c2ec10e60c9a75c545f2c5c183fdc3276d3332bdd10f768de07dc185c4a7c48f88de331840d25a0
+  languageName: node
+  linkType: hard
+
 "@vue/reactivity@npm:3.5.46":
   version: 3.5.46
   resolution: "@vue/reactivity@npm:3.5.46"
