@@ -86,16 +86,26 @@ export const useSecurityPoliciesStore = defineStore("securityPolicies", () => {
     }
   }
 
-  async function fetchAnomalyEventLog(ruleId?: string) {
+  /** The rule the shown anomaly log is filtered by; "load more" continues it. */
+  let anomalyRule: string | undefined;
+
+  /**
+   * The anomaly log: a new filter starts it over, `more` appends the next
+   * page of the same filter. The log grows without bound, so it is paged.
+   */
+  async function fetchAnomalyEventLog(ruleId?: string, more = false) {
     loading.value = true;
     error.value = null;
+    if (!more) anomalyRule = ruleId;
     try {
       const { response } = await getClient().getAnomalyEventLog({
         pageSize: 50,
-        pageToken: "",
-        ruleId,
+        pageToken: more ? anomalyNextPageToken.value : "",
+        ruleId: anomalyRule,
       });
-      anomalyEvents.value = response.events;
+      anomalyEvents.value = more
+        ? [...anomalyEvents.value, ...response.events]
+        : response.events;
       anomalyNextPageToken.value = response.nextPageToken;
     } catch (err) {
       error.value =

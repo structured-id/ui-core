@@ -59,12 +59,20 @@ export const useRolesStore = defineStore("roles", () => {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().listRoles({
-        projectId: projectId.toWire(),
-        pageSize: 100,
-        pageToken: "",
-      });
-      roles.value = response.roles;
+      // Every role, page by page: the page searches and pages locally.
+      const client = getClient();
+      const all: Role[] = [];
+      let pageToken = "";
+      do {
+        const { response } = await client.listRoles({
+          projectId: projectId.toWire(),
+          pageSize: 100,
+          pageToken,
+        });
+        all.push(...response.roles);
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      roles.value = all;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load roles";
     } finally {

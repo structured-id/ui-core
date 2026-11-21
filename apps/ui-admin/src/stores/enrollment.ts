@@ -214,14 +214,25 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().listInvites({
-        pageSize: 100,
-        pageToken: "",
-        status: status ?? InviteStatus.UNSPECIFIED,
-        search: search ?? "",
-      });
-      invites.value = response.invites;
-      invitesTotalCount.value = response.totalCount;
+      // Every matching invite, page by page: the table pages locally and an
+      // invite past the first page must still be revocable.
+      const client = getClient();
+      const all: Invite[] = [];
+      let pageToken = "";
+      let total = 0;
+      do {
+        const { response } = await client.listInvites({
+          pageSize: 100,
+          pageToken,
+          status: status ?? InviteStatus.UNSPECIFIED,
+          search: search ?? "",
+        });
+        all.push(...response.invites);
+        total = response.totalCount;
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      invites.value = all;
+      invitesTotalCount.value = total;
     } catch (err) {
       error.value = message(err, "Failed to load invites");
     } finally {

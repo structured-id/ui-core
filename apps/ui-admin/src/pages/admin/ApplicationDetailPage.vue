@@ -445,47 +445,9 @@
             color="primary"
           />
 
+          <!-- The grant itself is the application's only device setting the
+               API stores; code format, lifetime and polling are the issuer's. -->
           <template v-if="deviceAuthForm.enabled">
-            <!-- User Code Format -->
-            <div class="text-subtitle2 q-mt-md">User Code Format</div>
-            <q-select
-              v-model="deviceAuthForm.userCodeFormat"
-              outlined
-              dense
-              :options="userCodeFormatOptions"
-              emit-value
-              map-options
-              hint="Format of the code users will type on their authorizing device"
-            />
-
-            <!-- Code Expiry -->
-            <div class="text-subtitle2 q-mt-md">Code Expiry (seconds)</div>
-            <q-input
-              v-model.number="deviceAuthForm.codeExpiry"
-              outlined
-              dense
-              type="number"
-              :rules="[
-                (v: number) => v >= 60 || 'Minimum 60 seconds',
-                (v: number) => v <= 3600 || 'Maximum 3600 seconds',
-              ]"
-              hint="Time before device_code and user_code expire (default: 600 = 10 min)"
-            />
-
-            <!-- Poll Interval -->
-            <div class="text-subtitle2 q-mt-md">Poll Interval (seconds)</div>
-            <q-input
-              v-model.number="deviceAuthForm.pollInterval"
-              outlined
-              dense
-              type="number"
-              :rules="[
-                (v: number) => v >= 1 || 'Minimum 1 second',
-                (v: number) => v <= 60 || 'Maximum 60 seconds',
-              ]"
-              hint="Minimum delay between device polling attempts (default: 5)"
-            />
-
             <!-- Verification URI (read-only) -->
             <div class="text-subtitle2 q-mt-md">Verification URI</div>
             <q-input
@@ -505,18 +467,6 @@
                 />
               </template>
             </q-input>
-
-            <!-- QR Code -->
-            <div class="text-subtitle2 q-mt-md">QR Code</div>
-            <q-toggle
-              v-model="deviceAuthForm.showQrCode"
-              label="Show QR code on device screen (encodes verification_uri_complete)"
-              color="primary"
-            />
-            <div class="text-caption text-grey">
-              When enabled, devices can display a QR code that users scan with
-              their phone, bypassing manual code entry.
-            </div>
           </template>
 
           <q-btn
@@ -699,19 +649,9 @@ const scopeForm = reactive({
 
 const deviceAuthForm = reactive({
   enabled: false,
-  userCodeFormat: "XXXX-XXXX",
-  codeExpiry: 600,
-  pollInterval: 5,
-  showQrCode: true,
 });
 
 const DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
-
-const userCodeFormatOptions = [
-  { value: "XXXX-XXXX", label: "XXXX-XXXX (8 alphanumeric, recommended)" },
-  { value: "XXXXXX", label: "XXXXXX (6 alphanumeric)" },
-  { value: "000000", label: "000000 (6 numeric)" },
-];
 
 const verificationUri = computed(() => {
   return `${window.location.origin}/device`;
@@ -847,7 +787,12 @@ async function saveDeviceAuth() {
   const grantTypes = deviceAuthForm.enabled
     ? [...currentGrants, DEVICE_CODE_GRANT]
     : currentGrants;
-  await updateClient({ grantTypes }, "Device auth settings updated");
+  await updateClient(
+    { grantTypes },
+    deviceAuthForm.enabled
+      ? "Device authorization enabled"
+      : "Device authorization disabled",
+  );
 }
 
 function confirmDelete() {

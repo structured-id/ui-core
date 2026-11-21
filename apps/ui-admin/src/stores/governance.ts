@@ -45,10 +45,18 @@ export const useGovernanceStore = defineStore("governance", () => {
   async function fetchPendingRequests() {
     error.value = null;
     try {
-      const { response } = await getGovernanceClient().listPendingRequests({
-        pagination: { pageSize: 100, pageToken: "" },
-      });
-      pendingRequests.value = response.requests;
+      // Every pending request, page by page: each one awaits a decision here.
+      const client = getGovernanceClient();
+      const all: typeof pendingRequests.value = [];
+      let pageToken = "";
+      do {
+        const { response } = await client.listPendingRequests({
+          pagination: { pageSize: 100, pageToken },
+        });
+        all.push(...response.requests);
+        pageToken = response.pagination?.nextPageToken ?? "";
+      } while (pageToken);
+      pendingRequests.value = all;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load pending requests";

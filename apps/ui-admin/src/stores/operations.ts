@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, toRaw } from "vue";
 import {
   FeatureFlagServiceClient,
   SystemHealthServiceClient,
@@ -224,15 +224,29 @@ export const useOperationsStore = defineStore("operations", () => {
     }
   }
 
-  async function updateDefaultPreferences(
-    prefs: DefaultNotificationPreferences,
-  ) {
+  /** Edits made to the shown preferences; an answer older than the last is not applied. */
+  let preferenceEdits = 0;
+
+  /** The page changed the shown preferences. */
+  function preferencesEdited() {
+    preferenceEdits += 1;
+  }
+
+  /**
+   * Save the shown preferences as they are now. The answer replaces them
+   * only when no edit was made after this save started: the toggles edit the
+   * shown state directly, and an earlier answer must not undo a newer edit.
+   */
+  async function updateDefaultPreferences() {
+    if (!defaultPreferences.value) return;
+    const sentAfter = preferenceEdits;
     saving.value = true;
     error.value = null;
     try {
-      const { response } =
-        await channelClient().updateDefaultPreferences(prefs);
-      defaultPreferences.value = response;
+      const { response } = await channelClient().updateDefaultPreferences(
+        structuredClone(toRaw(defaultPreferences.value)),
+      );
+      if (preferenceEdits === sentAfter) defaultPreferences.value = response;
       return response;
     } catch (err) {
       error.value =
@@ -270,5 +284,6 @@ export const useOperationsStore = defineStore("operations", () => {
     fetchDeliveryHealth,
     fetchDefaultPreferences,
     updateDefaultPreferences,
+    preferencesEdited,
   };
 });

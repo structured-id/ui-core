@@ -30,12 +30,20 @@ export const useGroupsStore = defineStore("groups", () => {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().listGroups({
-        projectId: projectId.toWire(),
-        pageSize: 100,
-        pageToken: "",
-      });
-      groups.value = response.groups;
+      // Every group, page by page: the page searches and pages locally.
+      const client = getClient();
+      const all: Group[] = [];
+      let pageToken = "";
+      do {
+        const { response } = await client.listGroups({
+          projectId: projectId.toWire(),
+          pageSize: 100,
+          pageToken,
+        });
+        all.push(...response.groups);
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      groups.value = all;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load groups";

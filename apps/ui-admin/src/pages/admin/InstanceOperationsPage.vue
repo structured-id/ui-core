@@ -1033,12 +1033,11 @@ function loadDeliveryHealth() {
 // ── Preferences save ──
 let prefTimer: ReturnType<typeof setTimeout> | null = null;
 function savePrefDebounced() {
+  // The toggle already changed the shown state: an earlier save's answer
+  // must not undo it.
+  store.preferencesEdited();
   if (prefTimer) clearTimeout(prefTimer);
-  prefTimer = setTimeout(() => {
-    if (store.defaultPreferences) {
-      store.updateDefaultPreferences(store.defaultPreferences);
-    }
-  }, 500);
+  prefTimer = setTimeout(() => void store.updateDefaultPreferences(), 500);
 }
 
 // ── Timestamp formatting ──

@@ -311,10 +311,7 @@
           row-key="id"
           flat
           bordered
-          :pagination="{
-            rowsPerPage: 25,
-            rowsNumber: store.eventsTotalCount,
-          }"
+          :pagination="{ rowsPerPage: 25 }"
         >
           <template #body-cell-type="props">
             <q-td :props="props">
@@ -356,6 +353,9 @@
             </q-td>
           </template>
         </q-table>
+        <div v-if="store.eventsNextToken" class="text-center q-mt-sm">
+          <q-btn flat no-caps label="Load more" @click="moreUserEvents" />
+        </div>
       </q-tab-panel>
 
       <!-- Admin Events Tab -->
@@ -432,10 +432,7 @@
           row-key="id"
           flat
           bordered
-          :pagination="{
-            rowsPerPage: 25,
-            rowsNumber: store.adminEventsTotalCount,
-          }"
+          :pagination="{ rowsPerPage: 25 }"
         >
           <template #body-cell-type="props">
             <q-td :props="props">
@@ -464,6 +461,9 @@
             </q-td>
           </template>
         </q-table>
+        <div v-if="store.adminEventsNextToken" class="text-center q-mt-sm">
+          <q-btn flat no-caps label="Load more" @click="moreAdminEvents" />
+        </div>
       </q-tab-panel>
 
       <!-- Audit Trail Tab -->
@@ -566,10 +566,7 @@
           row-key="id"
           flat
           bordered
-          :pagination="{
-            rowsPerPage: 25,
-            rowsNumber: store.auditTotalCount,
-          }"
+          :pagination="{ rowsPerPage: 25 }"
         >
           <template #body-cell-timestamp="props">
             <q-td :props="props">
@@ -607,6 +604,9 @@
             </q-td>
           </template>
         </q-table>
+        <div v-if="store.auditNextToken" class="text-center q-mt-sm">
+          <q-btn flat no-caps label="Load more" @click="moreAuditTrail" />
+        </div>
       </q-tab-panel>
 
       <!-- Config Tab -->
@@ -1199,38 +1199,65 @@ function dateToTimestamp(
   return { seconds: BigInt(Math.floor(d.getTime() / 1000)), nanos: 0 };
 }
 
+// Each search keeps the filters it ran with: "Load more" continues that
+// search, not whatever the filter fields hold now.
+let userQuery: Omit<Parameters<typeof store.fetchEvents>[0], "pageToken"> = {
+  pageSize: 25,
+};
+let adminQuery: Omit<
+  Parameters<typeof store.fetchAdminEvents>[0],
+  "pageToken"
+> = { pageSize: 25 };
+let auditQuery: Omit<Parameters<typeof store.fetchAuditTrail>[0], "pageToken"> =
+  { pageSize: 25 };
+
 function loadUserEvents() {
-  store.fetchEvents({
+  userQuery = {
     pageSize: 25,
-    pageToken: "",
     type: eventFilters.value.type,
     profileId: eventFilters.value.profileId || undefined,
     clientId: eventFilters.value.clientId || undefined,
     ipAddress: eventFilters.value.ipAddress || undefined,
     from: dateToTimestamp(eventFilters.value.dateFrom),
     to: dateToTimestamp(eventFilters.value.dateTo),
-  });
+  };
+  store.fetchEvents({ ...userQuery, pageToken: "" });
+}
+
+function moreUserEvents() {
+  store.fetchEvents({ ...userQuery, pageToken: store.eventsNextToken });
 }
 
 function loadAdminEvents() {
-  store.fetchAdminEvents({
+  adminQuery = {
     pageSize: 25,
-    pageToken: "",
     type: adminFilters.value.type,
     adminId: adminFilters.value.adminId || undefined,
     resourceType: adminFilters.value.resourceType || undefined,
     from: dateToTimestamp(adminFilters.value.dateFrom),
     to: dateToTimestamp(adminFilters.value.dateTo),
+  };
+  store.fetchAdminEvents({ ...adminQuery, pageToken: "" });
+}
+
+function moreAdminEvents() {
+  store.fetchAdminEvents({
+    ...adminQuery,
+    pageToken: store.adminEventsNextToken,
   });
 }
 
 function loadAuditTrail() {
-  store.fetchAuditTrail({
+  auditQuery = {
     pageSize: 25,
-    pageToken: "",
     actorId: auditFilters.value.actorId || undefined,
     resourceType: auditFilters.value.resourceType || undefined,
-  });
+  };
+  store.fetchAuditTrail({ ...auditQuery, pageToken: "" });
+}
+
+function moreAuditTrail() {
+  store.fetchAuditTrail({ ...auditQuery, pageToken: store.auditNextToken });
 }
 
 function showEventDetails(event: SidEvent) {

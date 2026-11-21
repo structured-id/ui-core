@@ -59,7 +59,10 @@ export const useEventsStore = defineStore("events", () => {
     error.value = null;
     try {
       const { response } = await getEventClient().listEvents(req);
-      events.value = response.events;
+      // A page after the first continues the list the same filters began.
+      events.value = req.pageToken
+        ? [...events.value, ...response.events]
+        : response.events;
       eventsTotalCount.value = response.totalCount;
       eventsNextToken.value = response.nextPageToken;
     } catch (err) {
@@ -98,7 +101,9 @@ export const useEventsStore = defineStore("events", () => {
     error.value = null;
     try {
       const { response } = await getEventClient().listAdminEvents(req);
-      adminEvents.value = response.events;
+      adminEvents.value = req.pageToken
+        ? [...adminEvents.value, ...response.events]
+        : response.events;
       adminEventsTotalCount.value = response.totalCount;
       adminEventsNextToken.value = response.nextPageToken;
     } catch (err) {
@@ -158,7 +163,9 @@ export const useEventsStore = defineStore("events", () => {
     error.value = null;
     try {
       const { response } = await getAuditClient().getAuditTrail(req);
-      auditEntries.value = response.entries;
+      auditEntries.value = req.pageToken
+        ? [...auditEntries.value, ...response.entries]
+        : response.entries;
       auditTotalCount.value = response.totalCount;
       auditNextToken.value = response.nextPageToken;
     } catch (err) {

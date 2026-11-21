@@ -45,16 +45,24 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  /** Every application of the project, page by page: the list page searches and pages locally. */
   async function fetchApplications(projectId: ProjectId) {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().listApplications({
-        projectId: projectId.toWire(),
-        pageSize: 100,
-        pageToken: "",
-      });
-      applications.value = response.applications;
+      const client = getClient();
+      const all: Application[] = [];
+      let pageToken = "";
+      do {
+        const { response } = await client.listApplications({
+          projectId: projectId.toWire(),
+          pageSize: 100,
+          pageToken,
+        });
+        all.push(...response.applications);
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      applications.value = all;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load applications";

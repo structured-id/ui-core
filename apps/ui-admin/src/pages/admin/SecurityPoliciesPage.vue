@@ -408,6 +408,17 @@
           <div v-else-if="!store.loading" class="text-grey q-pa-md text-center">
             No anomaly events recorded.
           </div>
+          <div
+            v-if="store.anomalyEvents.length && store.anomalyNextPageToken"
+            class="text-center q-mt-sm"
+          >
+            <q-btn
+              flat
+              no-caps
+              label="Load more"
+              @click="store.fetchAnomalyEventLog(undefined, true)"
+            />
+          </div>
         </div>
       </q-tab-panel>
 
