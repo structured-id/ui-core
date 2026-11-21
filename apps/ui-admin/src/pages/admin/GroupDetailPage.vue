@@ -260,7 +260,8 @@ async function saveSettings() {
   try {
     await store.updateGroup(
       required(GroupId, store.currentGroup.id),
-      settingsForm.description || undefined,
+      // Empty text clears the description; unset would keep it.
+      settingsForm.description,
     );
     $q.notify({ type: "positive", message: "Group updated" });
   } catch {

@@ -241,7 +241,7 @@ export const useFlowsStore = defineStore("flows", () => {
     error.value = null;
     try {
       const { response } = await getFlowClient().addStepBinding(req);
-      stepBindings.value.push(response);
+      if (flowShown === req.flowId) stepBindings.value.push(response);
       return response;
     } catch (err) {
       error.value =
@@ -263,8 +263,10 @@ export const useFlowsStore = defineStore("flows", () => {
     error.value = null;
     try {
       const { response } = await getFlowClient().updateStepBinding(req);
-      const idx = stepBindings.value.findIndex((b) => b.id === req.bindingId);
-      if (idx !== -1) stepBindings.value[idx] = response;
+      if (flowShown === req.flowId) {
+        const idx = stepBindings.value.findIndex((b) => b.id === req.bindingId);
+        if (idx !== -1) stepBindings.value[idx] = response;
+      }
       return response;
     } catch (err) {
       error.value =
@@ -280,7 +282,11 @@ export const useFlowsStore = defineStore("flows", () => {
     error.value = null;
     try {
       await getFlowClient().removeStepBinding({ flowId, bindingId });
-      stepBindings.value = stepBindings.value.filter((b) => b.id !== bindingId);
+      if (flowShown === flowId) {
+        stepBindings.value = stepBindings.value.filter(
+          (b) => b.id !== bindingId,
+        );
+      }
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to remove step binding";
@@ -298,7 +304,7 @@ export const useFlowsStore = defineStore("flows", () => {
         flowId,
         bindingIds,
       });
-      stepBindings.value = response.bindings;
+      if (flowShown === flowId) stepBindings.value = response.bindings;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to reorder steps";

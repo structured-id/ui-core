@@ -38,6 +38,8 @@ export async function guardConsole(router: Router): Promise<void> {
       next();
       return;
     }
-    startBffLogin(undefined, to.fullPath);
+    // The return path is origin-local: the router's href carries the
+    // console base, which `to.fullPath` leaves out.
+    startBffLogin(undefined, router.resolve(to).href);
   });
 }

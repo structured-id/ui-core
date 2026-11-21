@@ -461,7 +461,8 @@ async function saveSettings() {
   if (!store.currentRole) return;
   try {
     await store.updateRole(required(RoleId, store.currentRole.id), {
-      description: settingsForm.description || undefined,
+      // Empty text clears the description; unset would keep it.
+      description: settingsForm.description,
       permissions: settingsForm.permissions,
     });
     $q.notify({ type: "positive", message: "Role updated" });
