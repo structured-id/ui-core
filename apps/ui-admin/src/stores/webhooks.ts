@@ -73,14 +73,21 @@ export const useWebhooksStore = defineStore("webhooks", () => {
     }
   }
 
+  /** The endpoint asked for last; only its answer is shown. */
+  let endpointShown = "";
+
   async function fetchEndpoint(endpointId: string) {
+    if (endpointShown !== endpointId) {
+      endpointShown = endpointId;
+      currentEndpoint.value = null;
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getWebhookClient().getEndpoint({
         endpointId,
       });
-      currentEndpoint.value = response;
+      if (endpointShown === endpointId) currentEndpoint.value = response;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load endpoint";
@@ -114,7 +121,10 @@ export const useWebhooksStore = defineStore("webhooks", () => {
     error.value = null;
     try {
       const { response } = await getWebhookClient().updateEndpoint(req);
-      currentEndpoint.value = response;
+      // Another endpoint shown meanwhile keeps its detail.
+      if (currentEndpoint.value?.endpointId === req.endpointId) {
+        currentEndpoint.value = response;
+      }
       const idx = endpoints.value.findIndex(
         (e) => e.endpointId === req.endpointId,
       );

@@ -134,7 +134,9 @@ export const useUsersStore = defineStore("users", () => {
         middleName: updates.middleName,
         avatarUrl: updates.avatarUrl,
       });
-      currentProfile.value = response.profile ?? null;
+      // Another user opened meanwhile keeps its detail; the list still
+      // takes the answer.
+      if (shows(id)) currentProfile.value = response.profile ?? null;
       const idx = profiles.value.findIndex((p) => names(p.id, id));
       if (idx !== -1 && response.profile) {
         profiles.value[idx] = response.profile;

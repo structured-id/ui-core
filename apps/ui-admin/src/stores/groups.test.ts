@@ -5,6 +5,8 @@ import { GroupId, ProfileId } from "@structured-id/ids";
 const mocks = vi.hoisted(() => ({
   listGroupMembers: vi.fn(),
   removeFromGroup: vi.fn().mockResolvedValue({ response: {} }),
+  getGroup: vi.fn(),
+  updateGroup: vi.fn(),
 }));
 
 vi.mock("@structured-id/ui-core", () => ({ getAccountTransport: () => ({}) }));
@@ -13,6 +15,8 @@ vi.mock("@structured-id/proto/sid/v1/authz/authz.client", () => ({
   AuthzServiceClient: class {
     listGroupMembers = mocks.listGroupMembers;
     removeFromGroup = mocks.removeFromGroup;
+    getGroup = mocks.getGroup;
+    updateGroup = mocks.updateGroup;
   },
 }));
 
@@ -21,6 +25,37 @@ import { useGroupsStore } from "./groups";
 const A = GroupId.parse("0192f3a4-7c1e-7b2a-9d4e-00000000000a");
 const B = GroupId.parse("0192f3a4-7c1e-7b2a-9d4e-00000000000b");
 const ALICE = ProfileId.parse("0192f3a4-7c1e-7b2a-9d4e-0000000000a1");
+
+describe("groups store: shown group", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+  });
+
+  // Regression: a late load or save of A replaced B's detail after B was
+  // opened; B's page then saved and acted on A.
+  it("keeps another group opened during a load or a save", async () => {
+    let loadA!: (v: unknown) => void;
+    mocks.getGroup
+      .mockReturnValueOnce(new Promise((r) => (loadA = r)))
+      .mockResolvedValueOnce({
+        response: { group: { id: B.toWire(), name: "b" } },
+      });
+    const store = useGroupsStore();
+
+    const loadingA = store.getGroup(A);
+    await store.getGroup(B);
+    loadA({ response: { group: { id: A.toWire(), name: "a" } } });
+    await loadingA;
+    expect(store.currentGroup?.name).toBe("b");
+
+    mocks.updateGroup.mockResolvedValueOnce({
+      response: { group: { id: A.toWire(), name: "a2" } },
+    });
+    await store.updateGroup(A, "x");
+    expect(store.currentGroup?.name).toBe("b");
+  });
+});
 
 describe("groups store: members", () => {
   beforeEach(() => {

@@ -54,14 +54,21 @@ export const useGroupsStore = defineStore("groups", () => {
     }
   }
 
+  /** The group whose detail is shown; another group's starts empty. */
+  let groupShown: GroupId | null = null;
+
   async function getGroup(id: GroupId) {
+    if (!groupShown?.equals(id)) {
+      groupShown = id;
+      currentGroup.value = null;
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getGroup({
         identifier: { oneofKind: "id", id: id.toWire() },
       });
-      currentGroup.value = response.group ?? null;
+      if (groupShown?.equals(id)) currentGroup.value = response.group ?? null;
       return response.group;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load group";
@@ -101,7 +108,9 @@ export const useGroupsStore = defineStore("groups", () => {
         id: id.toWire(),
         description,
       });
-      currentGroup.value = response.group ?? null;
+      // Another group opened meanwhile keeps its detail; the list still
+      // takes the answer.
+      if (groupShown?.equals(id)) currentGroup.value = response.group ?? null;
       const idx = groups.value.findIndex((g) => names(g.id, id));
       if (idx !== -1 && response.group) {
         groups.value[idx] = response.group;

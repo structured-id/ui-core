@@ -47,6 +47,16 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
+  /**
+   * A change's answer for `id`: always in the list, in the detail only while
+   * `id` is still the account shown, so a late answer never replaces another
+   * account opened since (whose page derives its actions from the detail).
+   */
+  function showAnswer(id: MachineUserId, machineUser?: MachineUserInfo) {
+    if (shows(id)) currentMachineUser.value = machineUser ?? null;
+    replaceListed(id, machineUser);
+  }
+
   async function fetchMachineUsers() {
     loading.value = true;
     error.value = null;
@@ -148,8 +158,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
         maxTokenLifetime: update.maxTokenLifetime,
         expiresAt: update.expiresAt,
       });
-      currentMachineUser.value = response.machineUser ?? null;
-      replaceListed(id, response.machineUser);
+      showAnswer(id, response.machineUser);
       return response;
     } catch (err) {
       error.value =
@@ -185,8 +194,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
       const { response } = await getClient().suspendMachineUser({
         machineUserId: id.toWire(),
       });
-      currentMachineUser.value = response.machineUser ?? null;
-      replaceListed(id, response.machineUser);
+      showAnswer(id, response.machineUser);
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to suspend machine user";
@@ -203,8 +211,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
       const { response } = await getClient().reactivateMachineUser({
         machineUserId: id.toWire(),
       });
-      currentMachineUser.value = response.machineUser ?? null;
-      replaceListed(id, response.machineUser);
+      showAnswer(id, response.machineUser);
     } catch (err) {
       error.value =
         err instanceof Error

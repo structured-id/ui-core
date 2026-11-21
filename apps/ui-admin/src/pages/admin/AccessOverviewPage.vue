@@ -267,6 +267,7 @@ import {
   type wire,
 } from "@structured-id/ids";
 import { names, shown } from "#admin/ids";
+import { csvField } from "#admin/csv";
 
 const $q = useQuasar();
 const store = useGovernanceStore();
@@ -467,13 +468,6 @@ function isExpiringSoon(ts: Timestamp): boolean {
   return Number(ts.seconds) - now < threeDays;
 }
 
-function escapeCsvField(value: string): string {
-  if (value.includes('"') || value.includes(",") || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return `"${value}"`;
-}
-
 function exportCsv() {
   const header = "User,Email,Role,Since,Expires\n";
   const rows = filteredAssignments.value
@@ -483,7 +477,7 @@ function exportCsv() {
       const role = resolveRoleName(a.roleId);
       const since = formatDate(a.createdAt);
       const expires = a.expiresAt ? formatDate(a.expiresAt) : "permanent";
-      return [user, email, role, since, expires].map(escapeCsvField).join(",");
+      return [user, email, role, since, expires].map(csvField).join(",");
     })
     .join("\n");
 

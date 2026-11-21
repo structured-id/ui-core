@@ -48,12 +48,19 @@ export const useAdminRolesStore = defineStore("adminRoles", () => {
     }
   }
 
+  /** The role asked for last; only its answer is shown. */
+  let roleShown = "";
+
   async function fetchRole(roleId: string) {
+    if (roleShown !== roleId) {
+      roleShown = roleId;
+      currentRole.value = null;
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getAdminRole({ roleId });
-      currentRole.value = response;
+      if (roleShown === roleId) currentRole.value = response;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load role";
     } finally {
