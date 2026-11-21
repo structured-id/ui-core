@@ -3,7 +3,7 @@
     <sid-login-form
       :login-fn="login"
       local-login
-      register-url="/account/register"
+      :register-url="withContinuation('/account/register', route.query)"
       forgot-password-url="/account/reset"
       @success="onLoginSuccess"
     />
@@ -12,10 +12,13 @@
 
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { useRoute } from "vue-router";
+import { withContinuation } from "src/continuation";
 import { SidLoginForm, useLoginSuccess } from "@structured-id/ui-core/profile";
 import CeremonyFrame from "src/components/CeremonyFrame.vue";
 import { useAuth } from "src/composables/useAuth";
 
+const route = useRoute();
 const { login, prewarm } = useAuth();
 
 // Back to the authorization request the issuer sent the browser here for

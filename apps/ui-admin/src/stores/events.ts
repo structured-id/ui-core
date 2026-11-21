@@ -70,6 +70,19 @@ export const useEventsStore = defineStore("events", () => {
     }
   }
 
+  /**
+   * One page for the live stream, answered to the caller: the stream keeps
+   * its own list, so a poll never replaces the User Events search results.
+   */
+  async function pollEvents(req: {
+    pageSize: number;
+    pageToken: string;
+    type?: EventType;
+  }) {
+    const { response } = await getEventClient().listEvents(req);
+    return response;
+  }
+
   // ── Admin Events ──
 
   async function fetchAdminEvents(req: {
@@ -216,6 +229,7 @@ export const useEventsStore = defineStore("events", () => {
     loading,
     error,
     fetchEvents,
+    pollEvents,
     fetchAdminEvents,
     fetchEventConfig,
     updateEventConfig,

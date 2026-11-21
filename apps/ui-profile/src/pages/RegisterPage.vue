@@ -32,7 +32,7 @@
       :claim-required="claimRequired"
       :invite-required="inviteRequired"
       :initial-invite-code="initialInviteCode"
-      login-url="/account/login"
+      :login-url="withContinuation('/account/login', route.query)"
       @success="afterRegistration"
     />
   </ceremony-frame>
@@ -54,6 +54,7 @@ import {
 } from "@structured-id/ui-core/profile";
 import { refusalMessage } from "@structured-id/ui-core";
 import CeremonyFrame from "src/components/CeremonyFrame.vue";
+import { withContinuation } from "src/continuation";
 import { useAuth } from "src/composables/useAuth";
 
 const route = useRoute();

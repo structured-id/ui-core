@@ -104,6 +104,18 @@ describe("RegisterPage", () => {
     expect(form(w).props("initialInviteCode")).toBe("ABCD1234");
   });
 
+  // The way back to sign-in keeps the authorization continuation.
+  it("keeps the continuation on its sign-in link", async () => {
+    api.getInstanceStatus.mockResolvedValue({ claim: 1 });
+    query.rd = "https://sid.example.com/oauth2/authorize?client_id=a";
+    const w = mountPage();
+    await flushPromises();
+
+    expect(form(w).props("loginUrl")).toBe(
+      `/account/login?rd=${encodeURIComponent(query.rd)}`,
+    );
+  });
+
   // An administrator-only installation offers no form at all.
   it("offers no registration when only administrators create accounts", async () => {
     api.getInstanceStatus.mockResolvedValue({ claim: 2 });

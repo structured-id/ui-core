@@ -706,13 +706,12 @@ import { useEventsStore } from "src/stores/events";
 import {
   EventType,
   AdminEventType,
-} from "@structured-id/proto/sid/v1/admin/events";
-import type {
   Event as SidEvent,
   AdminEvent,
   AuditEntry,
-  EventConfig,
 } from "@structured-id/proto/sid/v1/admin/events";
+import type { EventConfig } from "@structured-id/proto/sid/v1/admin/events";
+import { prettyJson } from "src/composables/protoJson";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import {
   eventTypeLabel,
@@ -943,22 +942,23 @@ const eventCatalog = [
 async function pollStream() {
   if (streamPaused.value) return;
   try {
-    await store.fetchEvents({
+    // The stream's own page: the User Events search keeps its results.
+    const page = await store.pollEvents({
       pageSize: 10,
       pageToken: lastStreamFetch,
       type: streamFilter.value.type,
     });
-    if (store.events.length > 0) {
+    if (page.events.length > 0) {
       // Prepend new events (newest first)
       const existingIds = new Set(streamEvents.value.map((e) => e.id));
-      const newEvents = store.events.filter((e) => !existingIds.has(e.id));
+      const newEvents = page.events.filter((e) => !existingIds.has(e.id));
       if (newEvents.length > 0) {
         streamEvents.value = [...newEvents, ...streamEvents.value].slice(
           0,
           500,
         );
       }
-      lastStreamFetch = store.eventsNextToken;
+      lastStreamFetch = page.nextPageToken;
     }
   } catch {
     // Silent — polling errors are not critical
@@ -1234,17 +1234,17 @@ function loadAuditTrail() {
 }
 
 function showEventDetails(event: SidEvent) {
-  detailsJson.value = JSON.stringify(event, null, 2);
+  detailsJson.value = prettyJson(SidEvent, event);
   showDetailsDialog.value = true;
 }
 
 function showAdminEventDetails(event: AdminEvent) {
-  detailsJson.value = JSON.stringify(event, null, 2);
+  detailsJson.value = prettyJson(AdminEvent, event);
   showDetailsDialog.value = true;
 }
 
 function showAuditDetails(entry: AuditEntry) {
-  detailsJson.value = JSON.stringify(entry, null, 2);
+  detailsJson.value = prettyJson(AuditEntry, entry);
   showDetailsDialog.value = true;
 }
 

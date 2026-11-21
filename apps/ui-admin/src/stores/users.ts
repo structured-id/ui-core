@@ -22,15 +22,27 @@ export const useUsersStore = defineStore("users", () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
+  /**
+   * Every profile, page by page: the console searches and pages the list
+   * locally, and the API offers no server-side search. The list changes only
+   * once every page is read.
+   */
   async function fetchProfiles() {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().listProfiles({
-        pageSize: 100,
-        pageToken: "",
-      });
-      profiles.value = response.profiles;
+      const client = getClient();
+      const all: Profile[] = [];
+      let pageToken = "";
+      do {
+        const { response } = await client.listProfiles({
+          pageSize: 100,
+          pageToken,
+        });
+        all.push(...response.profiles);
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      profiles.value = all;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load users";
     } finally {
