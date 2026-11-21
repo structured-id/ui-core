@@ -6,13 +6,13 @@ import type {
   SessionStats,
 } from "@structured-id/proto/sid/v1/admin/sessions";
 import { SessionAuthMethod } from "@structured-id/proto/sid/v1/admin/sessions";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import type { ProfileId, SessionId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getClient() {
-  return new SessionServiceClient(getTransport());
+  return new SessionServiceClient(getAccountTransport());
 }
 
 export const useSessionsStore = defineStore("sessions", () => {

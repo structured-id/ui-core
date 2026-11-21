@@ -98,10 +98,10 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-// Ends the session at the browser adapter on this origin; the console's own
+// Ends the session at the console's browser adapter; the console's own
 // state is cleared only once the adapter confirms, then sign-in starts again.
 async function handleLogout() {
-  const result = await bffLogout(window.location.origin);
+  const result = await bffLogout();
   if (!result.ended) {
     $q.notify({
       type: "negative",

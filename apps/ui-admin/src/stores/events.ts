@@ -16,15 +16,15 @@ import type {
   AdminEventType,
 } from "@structured-id/proto/sid/v1/admin/events";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
 
 function getEventClient() {
-  return new EventServiceClient(getTransport());
+  return new EventServiceClient(getAccountTransport());
 }
 
 function getAuditClient() {
-  return new AuditServiceClient(getTransport());
+  return new AuditServiceClient(getAccountTransport());
 }
 
 export const useEventsStore = defineStore("events", () => {

@@ -8,12 +8,12 @@ import {
   type UpdateApplicationRequest,
   type UpdateClientRoleRequest,
 } from "@structured-id/proto/sid/v1/projects/projects";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { ApplicationId, ProjectId } from "@structured-id/ids";
 import { names, sameWire } from "src/ids";
 
 function getClient() {
-  return new ProjectServiceClient(getTransport());
+  return new ProjectServiceClient(getAccountTransport());
 }
 
 /** An application is active while either of its roles takes part in token issuance. */

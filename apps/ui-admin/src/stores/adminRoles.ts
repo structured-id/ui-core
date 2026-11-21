@@ -13,11 +13,11 @@ import {
   AdminPrincipalType,
   AssignmentType,
 } from "@structured-id/proto/sid/v1/admin/admin_roles";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 
 function getClient() {
-  return new AdminRoleServiceClient(getTransport());
+  return new AdminRoleServiceClient(getAccountTransport());
 }
 
 export const useAdminRolesStore = defineStore("adminRoles", () => {

@@ -8,10 +8,10 @@ import type {
   DistributionSlice,
 } from "@structured-id/proto/sid/v1/admin/analytics";
 import { AnalyticsPeriod } from "@structured-id/proto/sid/v1/admin/analytics";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 function client() {
-  return new AnalyticsServiceClient(getTransport());
+  return new AnalyticsServiceClient(getAccountTransport());
 }
 
 export const useAnalyticsStore = defineStore("analytics", () => {

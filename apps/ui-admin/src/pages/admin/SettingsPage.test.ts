@@ -117,7 +117,7 @@ const securityMocks = await vi.hoisted(async () => {
 });
 
 vi.mock("@structured-id/ui-core", () => ({
-  getTransport: () => ({}),
+  getAccountTransport: () => ({}),
 }));
 
 vi.mock("@structured-id/proto/google/protobuf/empty", () => ({

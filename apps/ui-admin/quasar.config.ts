@@ -2,7 +2,8 @@ import { defineConfig } from "#q-app";
 
 export default defineConfig(() => {
   return {
-    boot: ["auth", "grpc"],
+    // The transports first: the session read in `auth` goes through them.
+    boot: ["grpc", "auth"],
 
     css: ["app.scss"],
 

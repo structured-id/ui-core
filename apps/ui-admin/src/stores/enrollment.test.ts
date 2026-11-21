@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   getRegistrationStats: vi.fn(),
 }));
 
-vi.mock("@structured-id/ui-core", () => ({ getTransport: () => ({}) }));
+vi.mock("@structured-id/ui-core", () => ({ getAccountTransport: () => ({}) }));
 
 vi.mock("@structured-id/proto/sid/v1/admin/enrollment.client", () => ({
   EnrollmentServiceClient: class {

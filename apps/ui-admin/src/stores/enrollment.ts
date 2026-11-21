@@ -12,7 +12,7 @@ import {
 } from "@structured-id/proto/sid/v1/admin/enrollment";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { InviteId } from "@structured-id/ids";
 import { names } from "src/ids";
 
@@ -20,7 +20,7 @@ export { EnrollmentMode, InviteStatus, RegistrationSourceType };
 export type { Invite, InviteConfig, RegistrationStats };
 
 function getClient() {
-  return new EnrollmentServiceClient(getTransport());
+  return new EnrollmentServiceClient(getAccountTransport());
 }
 
 /** The policy an administrator edits: the stored policy's own fields. */

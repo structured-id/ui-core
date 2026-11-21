@@ -30,23 +30,23 @@ import type {
   BruteForceConfig,
   SecurityHeaders,
 } from "@structured-id/proto/sid/v1/admin/security";
-import { getTransport, refusalMessage } from "@structured-id/ui-core";
+import { getAccountTransport, refusalMessage } from "@structured-id/ui-core";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
 
 function getRealmClient() {
-  return new RealmServiceClient(getTransport());
+  return new RealmServiceClient(getAccountTransport());
 }
 
 function getFeatureClient() {
-  return new FeatureServiceClient(getTransport());
+  return new FeatureServiceClient(getAccountTransport());
 }
 
 function getKeyClient() {
-  return new KeyServiceClient(getTransport());
+  return new KeyServiceClient(getAccountTransport());
 }
 
 function getSecurityClient() {
-  return new SecurityServiceClient(getTransport());
+  return new SecurityServiceClient(getAccountTransport());
 }
 
 export const useSettingsStore = defineStore("settings", () => {

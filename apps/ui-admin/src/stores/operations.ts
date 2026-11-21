@@ -17,16 +17,16 @@ import type {
   DefaultNotificationPreferences,
 } from "@structured-id/proto/sid/v1/admin/operations";
 import { ChannelType } from "@structured-id/proto/sid/v1/admin/operations";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 function flagClient() {
-  return new FeatureFlagServiceClient(getTransport());
+  return new FeatureFlagServiceClient(getAccountTransport());
 }
 function healthClient() {
-  return new SystemHealthServiceClient(getTransport());
+  return new SystemHealthServiceClient(getAccountTransport());
 }
 function channelClient() {
-  return new NotificationChannelServiceClient(getTransport());
+  return new NotificationChannelServiceClient(getAccountTransport());
 }
 
 export const useOperationsStore = defineStore("operations", () => {

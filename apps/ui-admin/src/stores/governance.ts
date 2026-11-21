@@ -8,16 +8,16 @@ import type {
 } from "@structured-id/proto/sid/v1/authz/governance";
 import { AccessRequestStatus } from "@structured-id/proto/sid/v1/authz/governance";
 import type { RoleAssignment } from "@structured-id/proto/sid/v1/authz/authz";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { AccessRequestId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getGovernanceClient() {
-  return new GovernanceServiceClient(getTransport());
+  return new GovernanceServiceClient(getAccountTransport());
 }
 
 function getAuthzClient() {
-  return new AuthzServiceClient(getTransport());
+  return new AuthzServiceClient(getAccountTransport());
 }
 
 export const useGovernanceStore = defineStore("governance", () => {

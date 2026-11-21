@@ -10,12 +10,12 @@ import type {
   DarkModeConfig,
   BrandingText,
 } from "@structured-id/proto/sid/v1/admin/branding";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { BrandingConfigId, ProjectId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getClient() {
-  return new BrandingServiceClient(getTransport());
+  return new BrandingServiceClient(getAccountTransport());
 }
 
 export const useBrandingStore = defineStore("branding", () => {

@@ -10,13 +10,13 @@ import {
   MachineCredentialType,
   ImpersonationTargetType,
 } from "@structured-id/proto/sid/v1/machine/machine_user";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { ProjectId, type MachineUserId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getClient() {
-  return new MachineUserServiceClient(getTransport());
+  return new MachineUserServiceClient(getAccountTransport());
 }
 
 export const useMachineUsersStore = defineStore("machineUsers", () => {

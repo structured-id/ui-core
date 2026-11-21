@@ -2,12 +2,12 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { UpstreamServiceClient } from "@structured-id/proto/sid/v1/federation/upstream.client";
 import type { UpstreamProvider } from "@structured-id/proto/sid/v1/federation/upstream";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { UpstreamProviderId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getClient() {
-  return new UpstreamServiceClient(getTransport());
+  return new UpstreamServiceClient(getAccountTransport());
 }
 
 export const useUpstreamProvidersStore = defineStore(

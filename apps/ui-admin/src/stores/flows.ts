@@ -17,19 +17,19 @@ import {
   FlowPurpose,
   StepRequirement,
 } from "@structured-id/proto/sid/v1/authn/flows";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
 
 function getFlowClient() {
-  return new FlowServiceClient(getTransport());
+  return new FlowServiceClient(getAccountTransport());
 }
 
 function getStepClient() {
-  return new StepServiceClient(getTransport());
+  return new StepServiceClient(getAccountTransport());
 }
 
 function getActionClient() {
-  return new ActionServiceClient(getTransport());
+  return new ActionServiceClient(getAccountTransport());
 }
 
 export const useFlowsStore = defineStore("flows", () => {

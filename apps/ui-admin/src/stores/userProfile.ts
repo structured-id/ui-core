@@ -2,10 +2,10 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { UserProfileServiceClient } from "@structured-id/proto/sid/v1/admin/user_profile.client";
 import type { ProfileSchema } from "@structured-id/proto/sid/v1/admin/user_profile";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 function client() {
-  return new UserProfileServiceClient(getTransport());
+  return new UserProfileServiceClient(getAccountTransport());
 }
 
 export const useUserProfileStore = defineStore("userProfile", () => {

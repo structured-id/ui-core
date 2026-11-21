@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@structured-id/ui-core", () => ({
-  getTransport: () => ({}),
+  getAccountTransport: () => ({}),
   Timestamp: {
     toDate: (ts: { seconds: bigint }) => new Date(Number(ts.seconds) * 1000),
   },

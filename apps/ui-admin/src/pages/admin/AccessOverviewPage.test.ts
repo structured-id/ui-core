@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@structured-id/ui-core", () => ({
-  getTransport: () => ({}),
+  getAccountTransport: () => ({}),
 }));
 
 vi.mock("@structured-id/proto/sid/v1/authz/governance.client", () => ({

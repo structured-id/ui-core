@@ -7,11 +7,11 @@ import type {
   RealmScopeDefaults,
 } from "@structured-id/proto/sid/v1/admin/scopes";
 import { ClaimSource } from "@structured-id/proto/sid/v1/admin/scopes";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
 
 function getClient() {
-  return new ScopeServiceClient(getTransport());
+  return new ScopeServiceClient(getAccountTransport());
 }
 
 export const useScopesStore = defineStore("scopes", () => {

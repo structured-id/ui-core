@@ -8,10 +8,10 @@ import type {
   ScimResourceType,
   ScimSchema,
 } from "@structured-id/proto/sid/v1/scim/scim";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 function getClient() {
-  return new ScimServiceClient(getTransport());
+  return new ScimServiceClient(getAccountTransport());
 }
 
 export const useScimStore = defineStore("scim", () => {

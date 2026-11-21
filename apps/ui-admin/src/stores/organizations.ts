@@ -2,10 +2,10 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { SiteServiceClient } from "@structured-id/proto/sid/v1/admin/organizations.client";
 import type { SiteInfo } from "@structured-id/proto/sid/v1/admin/organizations";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 function client() {
-  return new SiteServiceClient(getTransport());
+  return new SiteServiceClient(getAccountTransport());
 }
 
 export const useOrganizationsStore = defineStore("organizations", () => {

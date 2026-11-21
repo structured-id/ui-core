@@ -6,7 +6,7 @@ import type {
   RoleAssignment,
 } from "@structured-id/proto/sid/v1/authz/authz";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
-import { getTransport, refusalMessage } from "@structured-id/ui-core";
+import { getAccountTransport, refusalMessage } from "@structured-id/ui-core";
 import {
   ProjectId,
   type GroupId,
@@ -18,7 +18,7 @@ import {
 import { names } from "src/ids";
 
 function getClient() {
-  return new AuthzServiceClient(getTransport());
+  return new AuthzServiceClient(getAccountTransport());
 }
 
 /** Whom a role is assigned to, by its typed identifier. */

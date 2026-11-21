@@ -6,12 +6,12 @@ import {
   DeviceType,
   DeviceAssurance,
 } from "@structured-id/proto/sid/v1/identity/identity";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { DeviceId, ProfileId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getClient() {
-  return new IdentityServiceClient(getTransport());
+  return new IdentityServiceClient(getAccountTransport());
 }
 
 export const useDevicesStore = defineStore("devices", () => {

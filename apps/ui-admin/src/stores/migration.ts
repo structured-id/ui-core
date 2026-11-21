@@ -17,10 +17,10 @@ import {
   ConflictResolution,
 } from "@structured-id/proto/sid/v1/admin/migration";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 function getClient() {
-  return new MigrationServiceClient(getTransport());
+  return new MigrationServiceClient(getAccountTransport());
 }
 
 export const useMigrationStore = defineStore("migration", () => {

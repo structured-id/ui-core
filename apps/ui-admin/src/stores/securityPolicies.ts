@@ -14,11 +14,11 @@ import type {
   NetworkPolicy,
 } from "@structured-id/proto/sid/v1/admin/security";
 import { CaptchaProvider } from "@structured-id/proto/sid/v1/admin/security";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
 
 function getClient() {
-  return new SecurityServiceClient(getTransport());
+  return new SecurityServiceClient(getAccountTransport());
 }
 
 export const useSecurityPoliciesStore = defineStore("securityPolicies", () => {

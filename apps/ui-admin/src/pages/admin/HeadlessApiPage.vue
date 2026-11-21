@@ -225,12 +225,12 @@
 import { ref, defineComponent, h } from "vue";
 import { LoginExperienceServiceClient } from "@structured-id/proto/sid/v1/admin/login_experience.client";
 import type { TestFlowResponse } from "@structured-id/proto/sid/v1/admin/login_experience";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 
 const error = ref<string | null>(null);
 
 function getClient() {
-  return new LoginExperienceServiceClient(getTransport());
+  return new LoginExperienceServiceClient(getAccountTransport());
 }
 
 // ── Quick Start ──

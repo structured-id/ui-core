@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@structured-id/ui-core", async (importActual) => ({
   ...(await importActual<typeof import("@structured-id/ui-core")>()),
-  getTransport: () => ({}),
+  getAccountTransport: () => ({}),
 }));
 
 vi.mock("@structured-id/proto/sid/v1/admin/notifications.client", () => ({

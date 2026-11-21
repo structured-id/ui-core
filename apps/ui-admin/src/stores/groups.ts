@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { AuthzServiceClient } from "@structured-id/proto/sid/v1/authz/authz.client";
 import type { Group } from "@structured-id/proto/sid/v1/authz/authz";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import {
   ProjectId,
   type GroupId,
@@ -12,7 +12,7 @@ import {
 import { names } from "src/ids";
 
 function getClient() {
-  return new AuthzServiceClient(getTransport());
+  return new AuthzServiceClient(getAccountTransport());
 }
 
 export const useGroupsStore = defineStore("groups", () => {

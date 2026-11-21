@@ -2,12 +2,12 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { PatServiceClient } from "@structured-id/proto/sid/v1/machine/pat.client";
 import { PatStatus, type Pat } from "@structured-id/proto/sid/v1/machine/pat";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { PatId } from "@structured-id/ids";
 import { names } from "src/ids";
 
 function getClient() {
-  return new PatServiceClient(getTransport());
+  return new PatServiceClient(getAccountTransport());
 }
 
 export const usePatsStore = defineStore("pats", () => {

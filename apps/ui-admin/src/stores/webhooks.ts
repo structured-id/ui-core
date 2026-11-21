@@ -18,15 +18,15 @@ import {
   EndpointStatus,
   DeliveryStatus,
 } from "@structured-id/proto/sid/v1/admin/webhooks";
-import { getTransport } from "@structured-id/ui-core";
+import { getAccountTransport } from "@structured-id/ui-core";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 
 function getWebhookClient() {
-  return new WebhookServiceClient(getTransport());
+  return new WebhookServiceClient(getAccountTransport());
 }
 
 function getCatalogClient() {
-  return new EventCatalogServiceClient(getTransport());
+  return new EventCatalogServiceClient(getAccountTransport());
 }
 
 export const useWebhooksStore = defineStore("webhooks", () => {

@@ -8,10 +8,10 @@ import type {
   TemplateContent,
 } from "@structured-id/proto/sid/v1/admin/notifications";
 import { NotificationChannel } from "@structured-id/proto/sid/v1/admin/notifications";
-import { getTransport, refusalMessage } from "@structured-id/ui-core";
+import { getAccountTransport, refusalMessage } from "@structured-id/ui-core";
 
 function getClient() {
-  return new NotificationTemplateServiceClient(getTransport());
+  return new NotificationTemplateServiceClient(getAccountTransport());
 }
 
 export const useNotificationsStore = defineStore("notifications", () => {
