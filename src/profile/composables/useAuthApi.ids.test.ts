@@ -166,15 +166,13 @@ describe("passkey sign-in", () => {
 describe("magic link", () => {
   it("reads the link it requested and refuses an answer without one", async () => {
     answers("requestMagicLink", { magicLinkId: LINK.toWire(), expiresIn: 600 });
-    expect(
-      (
-        await requestMagicLink("a@b.c", "app", "https://app/")
-      ).magicLinkId.equals(LINK),
-    ).toBe(true);
+    expect((await requestMagicLink("a@b.c")).magicLinkId.equals(LINK)).toBe(
+      true,
+    );
     answers("requestMagicLink", { expiresIn: 600 });
-    await expect(
-      requestMagicLink("a@b.c", "app", "https://app/"),
-    ).rejects.toBeInstanceOf(MissingIdError);
+    await expect(requestMagicLink("a@b.c")).rejects.toBeInstanceOf(
+      MissingIdError,
+    );
   });
 
   it("verifies the link it names and reads the session it opened", async () => {

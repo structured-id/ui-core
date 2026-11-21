@@ -28,6 +28,8 @@ export {
   type PasskeyRequest,
 } from "./passkey";
 
+export { base32, totpKeyUri } from "./totp";
+
 export {
   formatDate,
   formatRelativeTime,

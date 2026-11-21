@@ -539,13 +539,15 @@ export type MagicLinkRequest = WithId<
   MagicLinkId
 >;
 
+/**
+ * Mail a sign-in link to `principal`. The installation's own pages open the
+ * link; the server reads nothing else from the request.
+ */
 export async function requestMagicLink(
   principal: string,
-  clientId: string,
-  redirectUri: string,
 ): Promise<MagicLinkRequest> {
   const { response } = await client().requestMagicLink(
-    { principal, clientId, redirectUri },
+    { principal, clientId: "", redirectUri: "" },
     { meta: authMeta() },
   );
   return {
@@ -779,17 +781,18 @@ export async function confirmAccountDeletion(
 
 // ── Password Reset ──
 
+/**
+ * Mail a password reset link to `principal`. The installation's own pages
+ * open the link; the server reads nothing else from the request.
+ */
 export async function requestPasswordReset(
   principal: string,
-  clientId: string,
-  redirectUri: string,
-  captchaToken?: string,
 ): Promise<RequestPasswordResetResponse> {
   const { response } = await client().requestPasswordReset({
     principal,
-    clientId,
-    redirectUri,
-    captchaToken: captchaToken ?? "",
+    clientId: "",
+    redirectUri: "",
+    captchaToken: "",
   });
   return response;
 }
