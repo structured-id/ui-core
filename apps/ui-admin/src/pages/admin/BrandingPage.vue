@@ -7,7 +7,23 @@
           Customize login page appearance with design tokens, assets, and text.
         </p>
       </div>
-      <div class="col-auto q-gutter-sm">
+      <div class="col-auto q-gutter-sm row items-center">
+        <q-badge
+          v-if="config"
+          :color="isDraft ? 'orange' : 'positive'"
+          :label="isDraft ? 'Draft' : 'Published'"
+        />
+        <q-btn
+          v-if="isDraft"
+          label="Publish"
+          color="positive"
+          icon="sym_o_publish"
+          :loading="store.saving"
+          :disable="isDirty"
+          @click="handlePublish"
+        >
+          <q-tooltip v-if="isDirty">Save the changes first</q-tooltip>
+        </q-btn>
         <q-btn
           v-if="config && isDirty"
           label="Reset"
@@ -449,7 +465,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useBrandingStore } from "#admin/stores/branding";
-import { ButtonStyle } from "@structured-id/proto/sid/v1/admin/branding";
+import {
+  BrandingStatus,
+  ButtonStyle,
+} from "@structured-id/proto/sid/v1/admin/branding";
 import type {
   BrandingConfig,
   DesignTokens,
@@ -562,6 +581,7 @@ const DEFAULTS = {
 
 const form = reactive({ ...DEFAULTS });
 const config = computed(() => store.config);
+const isDraft = computed(() => config.value?.status === BrandingStatus.DRAFT);
 
 const colorFields = [
   { key: "colorPrimary" as const, label: "Primary" },
@@ -834,6 +854,15 @@ async function handleSave() {
   }
 }
 
+/** The saved draft becomes the sign-in pages' look; the previous one is archived. */
+async function handlePublish() {
+  if (!config.value?.id) return;
+  await store.publishConfig(
+    projectId,
+    required(BrandingConfigId, config.value.id),
+  );
+}
+
 async function runContrastCheck() {
   const pairs: ColorPair[] = [
     { foreground: form.colorText, background: form.colorBackground },
@@ -853,7 +882,7 @@ watch(config, (cfg) => {
 });
 
 onMounted(() => {
-  store.fetchPublishedBranding(projectId);
+  store.loadEditable(projectId);
 });
 </script>
 

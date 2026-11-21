@@ -32,14 +32,20 @@ export const useUpstreamProvidersStore = defineStore(
       }
     }
 
+    /** The provider the page asked for last; only its answer is shown. */
+    let requested: UpstreamProviderId | null = null;
+
     async function getProvider(id: UpstreamProviderId) {
+      requested = id;
+      // Another provider is never shown, and so never mutated, as this one.
+      if (!names(currentProvider.value?.id, id)) currentProvider.value = null;
       loading.value = true;
       error.value = null;
       try {
         const { response } = await getClient().getUpstreamProvider({
           providerId: id.toWire(),
         });
-        currentProvider.value = response.provider ?? null;
+        if (requested === id) currentProvider.value = response.provider ?? null;
         return response.provider;
       } catch (err) {
         error.value =
@@ -135,7 +141,9 @@ export const useUpstreamProvidersStore = defineStore(
           displayOrder: update.displayOrder,
           logoUrl: update.logoUrl,
         });
-        currentProvider.value = response.provider ?? null;
+        if (names(currentProvider.value?.id, id)) {
+          currentProvider.value = response.provider ?? null;
+        }
         const idx = providers.value.findIndex((p) => names(p.id, id));
         if (idx !== -1 && response.provider) {
           providers.value[idx] = response.provider;

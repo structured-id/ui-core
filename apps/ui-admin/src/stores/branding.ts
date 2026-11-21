@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { BrandingServiceClient } from "@structured-id/proto/sid/v1/admin/branding.client";
+import { BrandingStatus } from "@structured-id/proto/sid/v1/admin/branding";
 import type {
   BrandingConfig,
   ContrastCheck,
@@ -26,42 +27,6 @@ export const useBrandingStore = defineStore("branding", () => {
   const saving = ref(false);
   const error = ref<string | null>(null);
 
-  async function fetchPublishedBranding(projectId: ProjectId) {
-    loading.value = true;
-    error.value = null;
-    try {
-      const { response } = await getClient().getPublishedBranding({
-        projectId: projectId.toWire(),
-      });
-      config.value = response;
-    } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to load branding";
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function fetchBrandingConfig(
-    projectId: ProjectId,
-    configId: BrandingConfigId,
-  ) {
-    loading.value = true;
-    error.value = null;
-    try {
-      const { response } = await getClient().getBrandingConfig({
-        projectId: projectId.toWire(),
-        configId: configId.toWire(),
-      });
-      config.value = response;
-    } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to load branding config";
-    } finally {
-      loading.value = false;
-    }
-  }
-
   async function fetchConfigs(projectId: ProjectId) {
     loading.value = true;
     error.value = null;
@@ -76,6 +41,25 @@ export const useBrandingStore = defineStore("branding", () => {
     } finally {
       loading.value = false;
     }
+  }
+
+  /**
+   * The configuration the editor works on: the most recently changed draft,
+   * else the published one, else none (saving then creates the first draft).
+   */
+  async function loadEditable(projectId: ProjectId) {
+    await fetchConfigs(projectId);
+    if (error.value) return;
+    const changed = (c: BrandingConfig) => c.updatedAt?.seconds ?? 0n;
+    const drafts = configs.value
+      .filter((c) => c.status === BrandingStatus.DRAFT)
+      .sort((a, b) =>
+        changed(b) > changed(a) ? 1 : changed(b) < changed(a) ? -1 : 0,
+      );
+    config.value =
+      drafts[0] ??
+      configs.value.find((c) => c.status === BrandingStatus.PUBLISHED) ??
+      null;
   }
 
   async function createConfig(
@@ -202,9 +186,8 @@ export const useBrandingStore = defineStore("branding", () => {
     loading,
     saving,
     error,
-    fetchPublishedBranding,
-    fetchBrandingConfig,
     fetchConfigs,
+    loadEditable,
     createConfig,
     updateConfig,
     publishConfig,
