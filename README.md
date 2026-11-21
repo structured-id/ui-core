@@ -74,6 +74,29 @@ yarn typecheck   # vue-tsc --noEmit
 node ci/check-package.mjs # Pack and build an external Vue/Vite consumer
 ```
 
+## Applications
+
+The same workspace holds the two CE web applications an installation serves.
+Each is a Quasar SPA that consumes this package from the workspace:
+
+| Application | Mount | What it is |
+|---|---|---|
+| `apps/ui-profile` | `/account` | The installation's account: sign-in, second factor, registration (including claiming a new installation with its claim token), consent, mailed sign-in and password reset links, and self-service (profile, sign-in methods, sessions, connected apps) |
+| `apps/ui-admin` | `/admin` | The installation's administration console |
+
+Both run on the installation's own origin. Sign-in ceremonies use the
+installation's sign-in surface at `/api`; each application's own calls go
+through its browser adapter under its mount (`/account/api`, `/admin/api`),
+which holds the session and sends the page nothing but its cookie and CSRF
+token.
+
+```bash
+cd apps/ui-profile   # or apps/ui-admin
+yarn dev             # Quasar dev server
+yarn build           # dist/spa, served under the application's mount
+yarn test && yarn typecheck && yarn lint
+```
+
 ## Architecture
 
 ```
@@ -83,7 +106,10 @@ src/
   profile/         # Profile components and composables
     components/    # SidLoginForm, SidRegistrationForm, SidMfaChallenge
     composables/   # createAuth, useAuthApi, useAccountApi, useIdentityApi
-  utils/           # normalizePrincipal, rpcRefusal, validators, formatters
+  utils/           # normalizePrincipal, rpcRefusal, validators, formatters, totp
+apps/
+  ui-profile/      # /account application
+  ui-admin/        # /admin application
 ```
 
 ## License
