@@ -163,7 +163,7 @@
           <q-td :props="props">
             <router-link
               v-if="props.row.profileId"
-              :to="`/admin/users/${props.row.profileId}`"
+              :to="`/admin/users/${shown(props.row.profileId)}`"
               class="text-primary"
               style="text-decoration: none"
             >
@@ -270,7 +270,7 @@ import { useQuasar } from "quasar";
 
 const $q = useQuasar();
 import { SessionId, required } from "@structured-id/ids";
-import type { WireId } from "src/ids";
+import { shown, type WireId } from "src/ids";
 
 const store = useSessionsStore();
 

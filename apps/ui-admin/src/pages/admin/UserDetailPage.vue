@@ -364,6 +364,7 @@ import {
   required,
 } from "@structured-id/ids";
 import { shown } from "src/ids";
+import { nameUpdate } from "src/profileUpdate";
 
 const store = useUsersStore();
 const route = useRoute();
@@ -459,11 +460,14 @@ function activateUser() {
 async function saveProfile() {
   if (!store.currentProfile) return;
   try {
-    await store.updateProfile(required(ProfileId, store.currentProfile.id), {
-      givenName: profileForm.givenName || undefined,
-      familyName: profileForm.familyName || undefined,
-      middleName: profileForm.middleName || undefined,
-    });
+    await store.updateProfile(
+      required(ProfileId, store.currentProfile.id),
+      nameUpdate(store.currentProfile, {
+        givenName: profileForm.givenName,
+        familyName: profileForm.familyName,
+        middleName: profileForm.middleName,
+      }),
+    );
     $q.notify({ type: "positive", message: "Profile updated" });
   } catch {
     $q.notify({ type: "negative", message: store.error || "Update failed" });

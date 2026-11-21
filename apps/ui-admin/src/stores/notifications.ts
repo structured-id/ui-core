@@ -42,11 +42,20 @@ export const useNotificationsStore = defineStore("notifications", () => {
     }
   }
 
+  /** The latest template request; an answer to an earlier one is dropped. */
+  let templateRequest = 0;
+
+  /**
+   * Load the template for the selection. Only the latest request's answer
+   * is applied: selecting A then B while A is in flight must not leave A
+   * loaded under B's selection. True when this request's answer was applied.
+   */
   async function fetchTemplate(
     templateId: string,
     channel: NotificationChannel,
     locale: string,
-  ) {
+  ): Promise<boolean> {
+    const request = ++templateRequest;
     loading.value = true;
     error.value = null;
     try {
@@ -55,12 +64,16 @@ export const useNotificationsStore = defineStore("notifications", () => {
         channel,
         locale,
       });
+      if (request !== templateRequest) return false;
       currentTemplate.value = response;
+      return true;
     } catch (err) {
+      if (request !== templateRequest) return false;
       error.value =
         err instanceof Error ? err.message : "Failed to load template";
+      return false;
     } finally {
-      loading.value = false;
+      if (request === templateRequest) loading.value = false;
     }
   }
 

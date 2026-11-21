@@ -18,7 +18,6 @@ function getClient() {
 export const useSessionsStore = defineStore("sessions", () => {
   const sessions = ref<AdminSession[]>([]);
   const totalCount = ref(0);
-  const nextPageToken = ref("");
   const stats = ref<SessionStats | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
@@ -31,25 +30,34 @@ export const useSessionsStore = defineStore("sessions", () => {
     startedAfter?: Timestamp;
     startedBefore?: Timestamp;
     search?: string;
-    pageToken?: string;
   }) {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().listSessions({
-        pageSize: 25,
-        pageToken: filters?.pageToken ?? "",
-        clientId: filters?.clientId ?? "",
-        profileId: filters?.profileId?.toWire(),
-        ipAddress: filters?.ipAddress ?? "",
-        authMethod: filters?.authMethod ?? SessionAuthMethod.UNSPECIFIED,
-        startedAfter: filters?.startedAfter,
-        startedBefore: filters?.startedBefore,
-        search: filters?.search ?? "",
-      });
-      sessions.value = response.sessions;
-      totalCount.value = response.totalCount;
-      nextPageToken.value = response.nextPageToken;
+      // Every matching session, page by page under the same filters: the
+      // console's table pages the list locally.
+      const client = getClient();
+      const all: AdminSession[] = [];
+      let pageToken = "";
+      let total = 0;
+      do {
+        const { response } = await client.listSessions({
+          pageSize: 100,
+          pageToken,
+          clientId: filters?.clientId ?? "",
+          profileId: filters?.profileId?.toWire(),
+          ipAddress: filters?.ipAddress ?? "",
+          authMethod: filters?.authMethod ?? SessionAuthMethod.UNSPECIFIED,
+          startedAfter: filters?.startedAfter,
+          startedBefore: filters?.startedBefore,
+          search: filters?.search ?? "",
+        });
+        all.push(...response.sessions);
+        total = response.totalCount;
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      sessions.value = all;
+      totalCount.value = total;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load sessions";
@@ -127,7 +135,6 @@ export const useSessionsStore = defineStore("sessions", () => {
   return {
     sessions,
     totalCount,
-    nextPageToken,
     stats,
     loading,
     error,

@@ -135,7 +135,7 @@
                 icon="sym_o_save"
                 label="Save"
                 :loading="store.saving"
-                :disable="!isDirty"
+                :disable="!isDirty || !loadedIsSelected()"
                 @click="handleSave"
               />
             </div>
@@ -515,27 +515,41 @@ async function selectTemplate(templateId: string) {
   selectedTemplateId.value = templateId;
   testResult.value = null;
   store.preview = null;
-  await store.fetchTemplate(
+  const applied = await store.fetchTemplate(
     templateId,
     selectedChannel.value,
     selectedLocale.value,
   );
-  populateForm();
+  if (applied) populateForm();
 }
 
 async function reloadTemplate() {
   if (!selectedTemplateId.value) return;
   store.preview = null;
-  await store.fetchTemplate(
+  const applied = await store.fetchTemplate(
     selectedTemplateId.value,
     selectedChannel.value,
     selectedLocale.value,
   );
-  populateForm();
+  if (applied) populateForm();
+}
+
+/**
+ * Whether the loaded content is the selection's: while another template,
+ * channel or locale is still loading, the form holds the previous one's.
+ */
+function loadedIsSelected(): boolean {
+  const tpl = store.currentTemplate;
+  return (
+    !store.loading &&
+    tpl?.templateId === selectedTemplateId.value &&
+    tpl.content?.channel === selectedChannel.value &&
+    tpl.content?.locale === selectedLocale.value
+  );
 }
 
 async function handleSave() {
-  if (!selectedTemplateId.value) return;
+  if (!selectedTemplateId.value || !loadedIsSelected()) return;
   try {
     await store.updateTemplate(selectedTemplateId.value, {
       channel: selectedChannel.value,
@@ -609,6 +623,8 @@ watch(
   (tpl) => {
     if (tpl && !tpl.channels.includes(selectedChannel.value)) {
       selectedChannel.value = tpl.channels[0] ?? NotificationChannel.EMAIL;
+      // The loaded content is for the channel just left: load the new one's.
+      void reloadTemplate();
     }
   },
 );

@@ -243,7 +243,7 @@
           <template #body-cell-profileId="props">
             <q-td :props="props">
               <code class="text-caption"
-                >{{ props.row.profileId.substring(0, 12) }}...</code
+                >{{ shown(props.row.profileId).substring(0, 12) }}...</code
               >
             </q-td>
           </template>
