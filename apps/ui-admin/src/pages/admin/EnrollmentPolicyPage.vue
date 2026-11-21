@@ -751,7 +751,8 @@ async function doCreateInvite() {
 }
 
 function copyInviteLink(code: string) {
-  const link = `${window.location.origin}/register?invite=${code}`;
+  // The installation's own registration page, which pre-fills the code.
+  const link = `${window.location.origin}/account/register?invite=${encodeURIComponent(code)}`;
   copyToClipboard(link).then(() => {
     $q.notify({ type: "positive", message: "Invite link copied" });
   });

@@ -415,10 +415,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/curves@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@noble/curves@npm:2.4.0"
+  dependencies:
+    "@noble/hashes": "npm:2.4.0"
+  checksum: 10c0/b60b737f65cc4e128dd94fea467df1ed73c5c0c089ef1bdb61614a0897db1fa7151d7f95bb7205854a9030d3f80a879e00f3bb74990befde061184ae43dfaec6
+  languageName: node
+  linkType: hard
+
 "@noble/hashes@npm:1.8.0":
   version: 1.8.0
   resolution: "@noble/hashes@npm:1.8.0"
   checksum: 10c0/06a0b52c81a6fa7f04d67762e08b2c476a00285858150caeaaff4037356dd5e119f45b2a530f638b77a5eeca013168ec1b655db41bae3236cb2e9d511484fc77
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:2.4.0, @noble/hashes@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@noble/hashes@npm:2.4.0"
+  checksum: 10c0/f5820a38c52886073a69722a030688ad188bbacb822d01554545371259961c2b916266c57c013c2ce5a0d78aec977142fc68fd2a79be4c97b0644fcee9bb35f6
   languageName: node
   linkType: hard
 
@@ -1132,6 +1148,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@structured-id/opaque@npm:^2.2.1":
+  version: 2.2.1
+  resolution: "@structured-id/opaque@npm:2.2.1"
+  dependencies:
+    "@noble/curves": "npm:^2.4.0"
+    "@noble/hashes": "npm:^2.4.0"
+  checksum: 10c0/fe0b2152dac9e0de9f59c9bf3919b3ff54ba091b4918cbf0f363534a2fe7f4159cff964d83d980117436af386501039cb7ef29c3a40e9e691da25aff4a7b79c7
+  languageName: node
+  linkType: hard
+
 "@structured-id/proto@npm:^0.20.0":
   version: 0.20.0
   resolution: "@structured-id/proto@npm:0.20.0"
@@ -1216,6 +1242,41 @@ __metadata:
       optional: true
     vue-router:
       optional: true
+  languageName: unknown
+  linkType: soft
+
+"@structured-id/ui-profile@workspace:apps/ui-profile":
+  version: 0.0.0-use.local
+  resolution: "@structured-id/ui-profile@workspace:apps/ui-profile"
+  dependencies:
+    "@protobuf-ts/grpcweb-transport": "npm:^2.11.1"
+    "@protobuf-ts/runtime": "npm:^2.11.1"
+    "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
+    "@quasar/app-vite": "npm:^3.10.4"
+    "@quasar/extras": "npm:^2.1.0"
+    "@structured-id/ids": "npm:^0.11.0"
+    "@structured-id/opaque": "npm:^2.2.1"
+    "@structured-id/proto": "npm:^0.20.0"
+    "@structured-id/ui-core": "workspace:^"
+    "@types/node": "npm:^26.6.6"
+    "@typescript/native": "npm:typescript@^7.0.2"
+    "@vitejs/plugin-vue": "npm:^6.0.11"
+    "@vue/compiler-dom": "npm:^3.5.46"
+    "@vue/devtools-api": "npm:^8.2.1"
+    "@vue/test-utils": "npm:^2.5.1"
+    eslint: "npm:^10.15.0"
+    eslint-plugin-vue: "npm:^10.12.1"
+    jsdom: "npm:^31.0.1"
+    pinia: "npm:^4.1.0"
+    quasar: "npm:^2.35.4"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+    typescript-eslint: "npm:^8.72.2"
+    vite: "npm:^8.3.8"
+    vitest: "npm:^5.1.0"
+    vue: "npm:^3.5.46"
+    vue-eslint-parser: "npm:^10.4.2"
+    vue-router: "npm:^5.5.1"
+    vue-tsc: "npm:^3.3.14"
   languageName: unknown
   linkType: soft
 
