@@ -468,11 +468,12 @@ import {
   wcagLevelColor,
 } from "src/composables/useEnumLabels";
 import { defineComponent, h } from "vue";
+import { BrandingConfigId, ProjectId, required } from "@structured-id/ids";
 
 const store = useBrandingStore();
 
-// Default project ID (admin context uses "default" or first project).
-const projectId = ref("default");
+// The console administers the installation's own project.
+const projectId = ref(ProjectId.system());
 
 const previewMode = ref<"desktop" | "tablet" | "mobile">("desktop");
 const previewTheme = ref<"light" | "dark">("light");
@@ -826,7 +827,7 @@ async function handleSave() {
   if (config.value?.id) {
     await store.updateConfig(
       projectId.value,
-      config.value.id,
+      required(BrandingConfigId, config.value.id),
       tokens,
       assets,
       darkMode,

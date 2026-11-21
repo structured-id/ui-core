@@ -238,7 +238,9 @@ import {
   applicationTypeLabel,
   applicationTypeColor,
 } from "src/composables/useEnumLabels";
-import { Timestamp } from "@structured-id/ui-core";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import { ApplicationId, ProjectId, required } from "@structured-id/ids";
+import { shown } from "src/ids";
 
 const store = useApplicationsStore();
 const router = useRouter();
@@ -251,8 +253,8 @@ const deleteDialog = ref(false);
 const appToDelete = ref<Application | null>(null);
 const deleteConfirmName = ref("");
 
-// TODO: get projectId from route or default project
-const projectId = "default";
+// The console administers the installation's own project.
+const projectId = ProjectId.system();
 
 const typeOptions = [
   { label: "Web App", value: ApplicationType.WEB },
@@ -332,7 +334,7 @@ const filteredApps = computed(() => {
 function onRowClick(_evt: Event, row: Application) {
   router.push({
     name: "admin-application-detail",
-    params: { id: row.id },
+    params: { id: shown(row.id) },
   });
 }
 
@@ -345,7 +347,9 @@ function confirmDelete(app: Application) {
 async function executeDelete() {
   if (!appToDelete.value) return;
   try {
-    await store.deleteApplication(appToDelete.value.id);
+    await store.deleteApplication(
+      required(ApplicationId, appToDelete.value.id),
+    );
     deleteDialog.value = false;
     $q.notify({ type: "positive", message: "Application deleted" });
   } catch {

@@ -40,6 +40,14 @@ import { createRouter, createMemoryHistory } from "vue-router";
 import ApplicationsPage from "./ApplicationsPage.vue";
 import { useApplicationsStore } from "src/stores/applications";
 import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { ApplicationId } from "@structured-id/ids";
+
+/** The n-th application identifier: a UUIDv7, as the server issues them. */
+function appId(n: number): ApplicationId {
+  return ApplicationId.parse(
+    `0192f3a4-7c1e-7b2a-9d4e-${String(n).padStart(12, "0")}`,
+  );
+}
 
 function createTestRouter() {
   return createRouter({
@@ -66,7 +74,7 @@ function makeApp(
   client: Partial<Record<string, unknown>> = {},
 ) {
   return {
-    id: "app-1",
+    id: appId(1).toWire(),
     name: "Test App",
     client: {
       clientId: "client-1",
@@ -84,13 +92,12 @@ function makeApp(
 }
 
 /** An application with only a protected-resource role. */
-function makeResourceApp(id: string, state: number) {
+function makeResourceApp(n: number, state: number) {
   return {
-    id,
-    name: `Resource ${id}`,
+    id: appId(100 + n).toWire(),
+    name: `Resource r${n}`,
     resource: {
-      id: `res-${id}`,
-      indicator: `https://api.example.com/${id}`,
+      indicator: `https://api.example.com/r${n}`,
       issuer: "https://sid.example.com/i/main",
       scopes: [],
       state,
@@ -183,8 +190,14 @@ describe("ApplicationsPage", () => {
     mocks.listApplications.mockResolvedValue({
       response: {
         applications: [
-          makeApp({ id: "a1", name: "Alpha" }, { clientId: "alpha-1" }),
-          makeApp({ id: "a2", name: "Beta" }, { clientId: "beta-2" }),
+          makeApp(
+            { id: appId(1).toWire(), name: "Alpha" },
+            { clientId: "alpha-1" },
+          ),
+          makeApp(
+            { id: appId(2).toWire(), name: "Beta" },
+            { clientId: "beta-2" },
+          ),
         ],
       },
     });
@@ -211,8 +224,8 @@ describe("ApplicationsPage", () => {
     mocks.listApplications.mockResolvedValue({
       response: {
         applications: [
-          makeApp({ id: "app-1", name: "Alpha" }),
-          makeApp({ id: "app-2", name: "Beta" }),
+          makeApp({ id: appId(1).toWire(), name: "Alpha" }),
+          makeApp({ id: appId(2).toWire(), name: "Beta" }),
         ],
       },
     });
@@ -224,9 +237,11 @@ describe("ApplicationsPage", () => {
     expect(store.applications).toHaveLength(2);
 
     // Deletion addresses the application by its id, not by a client_id.
-    await store.deleteApplication("app-1");
-    expect(mocks.deleteApplication).toHaveBeenCalledWith({ id: "app-1" });
-    expect(store.applications.map((a) => a.id)).toEqual(["app-2"]);
+    await store.deleteApplication(appId(1));
+    expect(mocks.deleteApplication).toHaveBeenCalledWith({
+      id: appId(1).toWire(),
+    });
+    expect(store.applications.map((a) => a.name)).toEqual(["Beta"]);
   });
 
   it("store.deleteApplication sets error on failure", async () => {
@@ -236,7 +251,7 @@ describe("ApplicationsPage", () => {
     const store = useApplicationsStore();
 
     try {
-      await store.deleteApplication("app-1");
+      await store.deleteApplication(appId(1));
     } catch {
       // store re-throws after setting error
     }
@@ -249,11 +264,17 @@ describe("ApplicationsPage", () => {
     mocks.listApplications.mockResolvedValue({
       response: {
         applications: [
-          makeApp({ id: "a1", name: "Web App" }, { type: 1, active: true }),
-          makeApp({ id: "a2", name: "API App" }, { type: 3, active: false }),
-          makeResourceApp("r1", 1),
-          makeResourceApp("r2", 2),
-          makeResourceApp("r3", 3),
+          makeApp(
+            { id: appId(1).toWire(), name: "Web App" },
+            { type: 1, active: true },
+          ),
+          makeApp(
+            { id: appId(2).toWire(), name: "API App" },
+            { type: 3, active: false },
+          ),
+          makeResourceApp(1, 1),
+          makeResourceApp(2, 2),
+          makeResourceApp(3, 3),
         ],
       },
     });
@@ -266,7 +287,7 @@ describe("ApplicationsPage", () => {
 
   it("renders a resource-only application without a client id", async () => {
     mocks.listApplications.mockResolvedValue({
-      response: { applications: [makeResourceApp("r1", 1)] },
+      response: { applications: [makeResourceApp(1, 1)] },
     });
     const wrapper = await mountPage();
     await flushPromises();

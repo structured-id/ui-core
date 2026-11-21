@@ -721,7 +721,7 @@ import {
   captchaProviderLabel,
   captchaTriggerLabel,
 } from "src/composables/useEnumLabels";
-import { Timestamp } from "@structured-id/ui-core";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 
 const store = useSecurityPoliciesStore();
 const $q = useQuasar();

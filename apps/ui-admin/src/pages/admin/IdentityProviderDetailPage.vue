@@ -256,6 +256,7 @@ import {
   upstreamProtocolLabel,
   trustCategoryLabel,
 } from "src/composables/useEnumLabels";
+import { UpstreamProviderId, required } from "@structured-id/ids";
 
 const store = useUpstreamProvidersStore();
 const route = useRoute();
@@ -313,10 +314,15 @@ function populateForm() {
 
 watch(() => store.currentProvider, populateForm, { immediate: true });
 
+/** The shown provider's identifier as its answer carried it; malformed throws. */
+function currentId(): UpstreamProviderId {
+  return required(UpstreamProviderId, store.currentProvider?.id);
+}
+
 async function saveGeneral() {
   if (!store.currentProvider) return;
   try {
-    await store.updateProvider(store.currentProvider.id, {
+    await store.updateProvider(currentId(), {
       name: form.name,
       protocol: form.protocol,
       trustCategory: form.trustCategory,
@@ -333,7 +339,7 @@ async function saveGeneral() {
 async function saveEndpoints() {
   if (!store.currentProvider) return;
   try {
-    await store.updateProvider(store.currentProvider.id, {
+    await store.updateProvider(currentId(), {
       discoveryUrl: form.discoveryUrl,
       authorizationEndpoint: form.authorizationEndpoint,
       tokenEndpoint: form.tokenEndpoint,
@@ -349,7 +355,7 @@ async function saveEndpoints() {
 async function saveDisplay() {
   if (!store.currentProvider) return;
   try {
-    await store.updateProvider(store.currentProvider.id, {
+    await store.updateProvider(currentId(), {
       showOnLogin: form.showOnLogin,
       displayOrder: form.displayOrder,
       logoUrl: form.logoUrl,
@@ -364,7 +370,7 @@ async function saveDisplay() {
 async function toggleEnabled(enabled: boolean) {
   if (!store.currentProvider) return;
   try {
-    await store.updateProvider(store.currentProvider.id, {
+    await store.updateProvider(currentId(), {
       enabled,
       scopes: store.currentProvider.scopes,
     });
@@ -384,7 +390,7 @@ function confirmDelete() {
 async function executeDelete() {
   if (!store.currentProvider) return;
   try {
-    await store.deleteProvider(store.currentProvider.id);
+    await store.deleteProvider(currentId());
     deleteDialog.value = false;
     $q.notify({ type: "positive", message: "Provider deleted" });
     router.push({ name: "admin-identity-providers" });
@@ -394,9 +400,10 @@ async function executeDelete() {
 }
 
 onMounted(async () => {
+  // The route names the provider by its UUID text; a malformed one throws.
   const providerId = route.params.providerId as string;
   if (providerId) {
-    await store.getProvider(providerId);
+    await store.getProvider(UpstreamProviderId.parse(providerId));
   }
 });
 </script>

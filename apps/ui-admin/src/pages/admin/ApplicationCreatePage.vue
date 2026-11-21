@@ -247,7 +247,7 @@
               createdApp
                 ? {
                     name: 'admin-application-detail',
-                    params: { id: createdApp.id },
+                    params: { id: shown(createdApp.id) },
                   }
                 : undefined
             "
@@ -264,6 +264,8 @@ import { copyToClipboard } from "quasar";
 import { useApplicationsStore } from "src/stores/applications";
 import { ApplicationType } from "@structured-id/proto/sid/v1/projects/projects";
 import type { Application } from "@structured-id/proto/sid/v1/projects/projects";
+import { ProjectId } from "@structured-id/ids";
+import { shown } from "src/ids";
 
 const store = useApplicationsStore();
 
@@ -367,8 +369,8 @@ function goStep2() {
   }
 }
 
-// TODO: get from route or default
-const projectId = "default";
+// The console administers the installation's own project.
+const projectId = ProjectId.system().toWire();
 
 async function submit() {
   try {
@@ -383,6 +385,8 @@ async function submit() {
             allowedScopes: [],
             grantTypes: form.grantTypes,
             postLogoutRedirectUris: [],
+            // No claims beyond those of its scopes until an administrator adds them.
+            claimRequests: [],
           }
         : undefined,
       resource: form.withResource

@@ -660,7 +660,8 @@ import {
   TokenEndpointAuthMethod,
   type UpdateClientRoleRequest,
 } from "@structured-id/proto/sid/v1/projects/projects";
-import { Timestamp } from "@structured-id/ui-core";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import { ApplicationId, required } from "@structured-id/ids";
 import {
   applicationTypeLabel,
   applicationTypeColor,
@@ -857,7 +858,7 @@ function confirmDelete() {
 async function executeDelete() {
   if (!store.currentApp) return;
   try {
-    await store.deleteApplication(store.currentApp.id);
+    await store.deleteApplication(required(ApplicationId, store.currentApp.id));
     deleteDialog.value = false;
     $q.notify({ type: "positive", message: "Application deleted" });
     router.push({ name: "admin-applications" });
@@ -889,9 +890,10 @@ async function executeRegenerate() {
 }
 
 onMounted(async () => {
+  // The route names the application by its UUID text; a malformed one throws.
   const id = route.params.id as string;
   if (id) {
-    await store.getApplication(id);
+    await store.getApplication(ApplicationId.parse(id));
   }
 });
 </script>

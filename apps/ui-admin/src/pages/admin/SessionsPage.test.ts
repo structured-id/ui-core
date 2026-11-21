@@ -46,6 +46,10 @@ vi.mock("quasar", () => ({
 import SessionsPage from "./SessionsPage.vue";
 import { useSessionsStore } from "src/stores/sessions";
 import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { SessionId } from "@structured-id/ids";
+
+/** A session identifier as the server issues them (UUIDv7). */
+const SESSION = "0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d9e";
 
 function mountPage() {
   return mount(SessionsPage, {
@@ -178,8 +182,11 @@ describe("SessionsPage", () => {
     await flushPromises();
     const store = useSessionsStore();
 
-    await store.revokeSession("sess-123");
-    expect(mocks.revokeSession).toHaveBeenCalledOnce();
+    const id = SessionId.parse(SESSION);
+    await store.revokeSession(id);
+    expect(mocks.revokeSession).toHaveBeenCalledWith({
+      sessionId: id.toWire(),
+    });
   });
 
   it("store.revokeApplicationSessions calls gRPC with clientId", async () => {
@@ -211,7 +218,7 @@ describe("SessionsPage", () => {
     const store = useSessionsStore();
 
     try {
-      await store.revokeSession("sess-bad");
+      await store.revokeSession(SessionId.parse(SESSION));
     } catch {
       // store re-throws after setting error
     }

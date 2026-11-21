@@ -350,6 +350,9 @@ import {
   trustCategoryColor,
 } from "src/composables/useEnumLabels";
 
+import { UpstreamProviderId, required } from "@structured-id/ids";
+import { shown } from "src/ids";
+
 const store = useUpstreamProvidersStore();
 const router = useRouter();
 const $q = useQuasar();
@@ -442,7 +445,7 @@ const filteredProviders = computed(() => {
 function onRowClick(_evt: Event, row: UpstreamProvider) {
   router.push({
     name: "admin-identity-provider-detail",
-    params: { providerId: row.id },
+    params: { providerId: shown(row.id) },
   });
 }
 
@@ -454,7 +457,9 @@ function confirmDelete(provider: UpstreamProvider) {
 async function executeDelete() {
   if (!providerToDelete.value) return;
   try {
-    await store.deleteProvider(providerToDelete.value.id);
+    await store.deleteProvider(
+      required(UpstreamProviderId, providerToDelete.value.id),
+    );
     deleteDialog.value = false;
     $q.notify({ type: "positive", message: "Provider deleted" });
   } catch {

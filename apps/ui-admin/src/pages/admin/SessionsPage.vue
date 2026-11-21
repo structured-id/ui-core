@@ -269,6 +269,9 @@ import {
 import { useQuasar } from "quasar";
 
 const $q = useQuasar();
+import { SessionId, required } from "@structured-id/ids";
+import type { WireId } from "src/ids";
+
 const store = useSessionsStore();
 
 const showRevokeAllDialog = ref(false);
@@ -395,9 +398,9 @@ function loadSessions() {
   });
 }
 
-async function handleRevokeSession(sessionId: string) {
+async function handleRevokeSession(sessionId: WireId | undefined) {
   try {
-    await store.revokeSession(sessionId);
+    await store.revokeSession(required(SessionId, sessionId));
     $q.notify({ type: "positive", message: "Session revoked" });
   } catch {
     $q.notify({ type: "negative", message: store.error ?? "Failed" });

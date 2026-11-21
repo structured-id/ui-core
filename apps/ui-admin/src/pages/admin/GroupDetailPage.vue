@@ -170,8 +170,7 @@
         <q-card-section>
           <p>
             Are you sure you want to delete group
-            <strong>{{ store.currentGroup?.name }}</strong
-            >?
+            <strong>{{ store.currentGroup?.name }}</strong>?
           </p>
           <p class="text-negative text-caption">
             All members will lose roles assigned through this group.
@@ -220,7 +219,7 @@ import { ref, reactive, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { copyToClipboard, useQuasar } from "quasar";
 import { useGroupsStore } from "src/stores/groups";
-import { Timestamp } from "@structured-id/ui-core";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { GroupId, ProfileId, required, type wire } from "@structured-id/ids";
 import { shown } from "src/ids";
 
