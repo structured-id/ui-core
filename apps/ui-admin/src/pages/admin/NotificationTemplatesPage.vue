@@ -404,12 +404,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
-import { useNotificationsStore } from "src/stores/notifications";
+import { useNotificationsStore } from "#admin/stores/notifications";
 import { NotificationChannel } from "@structured-id/proto/sid/v1/admin/notifications";
 import {
   notificationChannelLabel,
   notificationChannelIcon,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { useQuasar } from "quasar";
 
 const $q = useQuasar();

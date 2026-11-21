@@ -26,8 +26,8 @@ vi.mock("quasar", () => ({
 
 import { createRouter, createMemoryHistory } from "vue-router";
 import UserDetailPage from "./UserDetailPage.vue";
-import { useUsersStore } from "src/stores/users";
-import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { useUsersStore } from "#admin/stores/users";
+import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 import { ProfileId } from "@structured-id/ids";
 
 const PROFILE = ProfileId.parse("0192f3a4-7c1e-7b2a-9d4e-3f5a6b7c8d60");

@@ -207,10 +207,10 @@ import {
   DeviceType,
   DeviceAssurance,
   type Device,
-} from "src/stores/devices";
+} from "#admin/stores/devices";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { DeviceId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const $q = useQuasar();
 const store = useDevicesStore();

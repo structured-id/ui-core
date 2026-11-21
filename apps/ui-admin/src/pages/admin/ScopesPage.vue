@@ -295,10 +295,13 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useScopesStore } from "src/stores/scopes";
+import { useScopesStore } from "#admin/stores/scopes";
 import type { Scope } from "@structured-id/proto/sid/v1/admin/scopes";
 import { ScopeType } from "@structured-id/proto/sid/v1/admin/scopes";
-import { scopeTypeLabel, scopeTypeColor } from "src/composables/useEnumLabels";
+import {
+  scopeTypeLabel,
+  scopeTypeColor,
+} from "#admin/composables/useEnumLabels";
 
 const store = useScopesStore();
 const router = useRouter();

@@ -329,7 +329,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useScopesStore } from "src/stores/scopes";
+import { useScopesStore } from "#admin/stores/scopes";
 import type { ClaimMapping } from "@structured-id/proto/sid/v1/admin/scopes";
 import { ClaimSource } from "@structured-id/proto/sid/v1/admin/scopes";
 import {
@@ -337,7 +337,7 @@ import {
   scopeTypeColor,
   claimSourceLabel,
   claimSourceIcon,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 const store = useScopesStore();
 const route = useRoute();

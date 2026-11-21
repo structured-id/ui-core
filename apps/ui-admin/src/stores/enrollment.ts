@@ -14,7 +14,7 @@ import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { Empty } from "@structured-id/proto/google/protobuf/empty";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { InviteId } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 export { EnrollmentMode, InviteStatus, RegistrationSourceType };
 export type { Invite, InviteConfig, RegistrationStats };

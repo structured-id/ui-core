@@ -9,7 +9,7 @@ import {
   type ProfileId,
   type wire,
 } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getClient() {
   return new AuthzServiceClient(getAccountTransport());

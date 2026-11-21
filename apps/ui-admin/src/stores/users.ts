@@ -8,7 +8,7 @@ import type {
 } from "@structured-id/proto/sid/v1/identity/identity";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { CredentialId, ProfileId, SessionId } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getClient() {
   return new IdentityServiceClient(getAccountTransport());

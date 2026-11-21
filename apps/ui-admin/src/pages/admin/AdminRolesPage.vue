@@ -619,7 +619,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
-import { useAdminRolesStore } from "src/stores/adminRoles";
+import { useAdminRolesStore } from "#admin/stores/adminRoles";
 import {
   AdminRoleScope,
   AdminPrincipalType,
@@ -638,7 +638,7 @@ import {
   assuranceLevelLabel,
   assuranceLevelColor,
   requiredMfaMethodLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { useQuasar } from "quasar";
 
 const $q = useQuasar();

@@ -360,7 +360,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
-import { useUserProfileStore } from "src/stores/userProfile";
+import { useUserProfileStore } from "#admin/stores/userProfile";
 import type {
   ProfileSchema,
   ProfileAttribute,
@@ -374,7 +374,7 @@ import {
   attributeDataTypeIcon,
   attributePermissionLabel,
   attributePermissionColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 const store = useUserProfileStore();
 

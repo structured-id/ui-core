@@ -822,7 +822,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useOperationsStore } from "src/stores/operations";
+import { useOperationsStore } from "#admin/stores/operations";
 import type {
   FeatureFlag,
   TestChannelResponse,
@@ -844,7 +844,7 @@ import {
   channelHealthLabel,
   channelHealthColor,
   smtpEncryptionLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { QTableColumn } from "quasar";
 
 const store = useOperationsStore();

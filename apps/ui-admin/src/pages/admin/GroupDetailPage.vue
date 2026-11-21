@@ -218,10 +218,10 @@
 import { ref, reactive, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { copyToClipboard, useQuasar } from "quasar";
-import { useGroupsStore } from "src/stores/groups";
+import { useGroupsStore } from "#admin/stores/groups";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { GroupId, ProfileId, required, type wire } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useGroupsStore();
 const route = useRoute();

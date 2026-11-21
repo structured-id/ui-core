@@ -453,7 +453,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { copyToClipboard, useQuasar } from "quasar";
-import { useScimStore } from "src/stores/scim";
+import { useScimStore } from "#admin/stores/scim";
 import type {
   ScimUser,
   ScimGroup,

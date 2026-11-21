@@ -15,7 +15,7 @@ import {
   type RoleAssignmentId,
   type RoleId,
 } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getClient() {
   return new AuthzServiceClient(getAccountTransport());

@@ -173,11 +173,11 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useGroupsStore } from "src/stores/groups";
+import { useGroupsStore } from "#admin/stores/groups";
 import type { Group } from "@structured-id/proto/sid/v1/authz/authz";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { GroupId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useGroupsStore();
 const router = useRouter();

@@ -240,7 +240,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useUsersStore } from "src/stores/users";
+import { useUsersStore } from "#admin/stores/users";
 import {
   ProfileStatus,
   ProfileType,
@@ -249,10 +249,10 @@ import type { Profile } from "@structured-id/proto/sid/v1/identity/identity";
 import {
   profileStatusLabel,
   profileStatusColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { ProfileId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useUsersStore();
 const router = useRouter();

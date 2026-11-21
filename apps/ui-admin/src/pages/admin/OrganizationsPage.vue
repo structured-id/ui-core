@@ -175,7 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useOrganizationsStore } from "src/stores/organizations";
+import { useOrganizationsStore } from "#admin/stores/organizations";
 
 const store = useOrganizationsStore();
 

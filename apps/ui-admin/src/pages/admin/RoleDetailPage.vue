@@ -290,7 +290,7 @@
 import { ref, reactive, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useRolesStore, type RolePrincipal } from "src/stores/roles";
+import { useRolesStore, type RolePrincipal } from "#admin/stores/roles";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import type { RoleAssignment } from "@structured-id/proto/sid/v1/authz/authz";
 import {
@@ -301,7 +301,7 @@ import {
   RoleId,
   required,
 } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useRolesStore();
 const route = useRoute();

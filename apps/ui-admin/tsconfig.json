@@ -3,11 +3,6 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "src/*": ["./src/*"],
-      "layouts/*": ["./src/layouts/*"],
-      "pages/*": ["./src/pages/*"],
-      "boot/*": ["./src/boot/*"],
-      "stores/*": ["./src/stores/*"],
       "#q-app": ["./node_modules/@quasar/app-vite/types/index.d.ts"]
     }
   },

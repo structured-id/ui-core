@@ -253,9 +253,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useQuasar } from "quasar";
-import { useGovernanceStore } from "src/stores/governance";
-import { useRolesStore } from "src/stores/roles";
-import { useUsersStore } from "src/stores/users";
+import { useGovernanceStore } from "#admin/stores/governance";
+import { useRolesStore } from "#admin/stores/roles";
+import { useUsersStore } from "#admin/stores/users";
 import type { RoleAssignment } from "@structured-id/proto/sid/v1/authz/authz";
 import type { AccessRequestDetail } from "@structured-id/proto/sid/v1/authz/governance";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
@@ -266,7 +266,7 @@ import {
   required,
   type wire,
 } from "@structured-id/ids";
-import { names, shown } from "src/ids";
+import { names, shown } from "#admin/ids";
 
 const $q = useQuasar();
 const store = useGovernanceStore();

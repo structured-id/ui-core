@@ -721,7 +721,7 @@ import {
   h,
 } from "vue";
 import { useQuasar, QBadge } from "quasar";
-import { useSecurityPoliciesStore } from "src/stores/securityPolicies";
+import { useSecurityPoliciesStore } from "#admin/stores/securityPolicies";
 import {
   CaptchaProvider,
   CaptchaTrigger,
@@ -731,7 +731,7 @@ import {
   anomalyRuleTypeIcon,
   captchaProviderLabel,
   captchaTriggerLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 
 const store = useSecurityPoliciesStore();

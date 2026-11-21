@@ -261,11 +261,11 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { copyToClipboard } from "quasar";
-import { useApplicationsStore } from "src/stores/applications";
+import { useApplicationsStore } from "#admin/stores/applications";
 import { ApplicationType } from "@structured-id/proto/sid/v1/projects/projects";
 import type { Application } from "@structured-id/proto/sid/v1/projects/projects";
 import { ProjectId } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useApplicationsStore();
 

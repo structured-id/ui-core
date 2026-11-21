@@ -259,18 +259,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { useSessionsStore } from "src/stores/sessions";
+import { useSessionsStore } from "#admin/stores/sessions";
 import { SessionAuthMethod } from "@structured-id/proto/sid/v1/admin/sessions";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import {
   sessionAuthMethodLabel,
   sessionAuthMethodIcon,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { useQuasar } from "quasar";
 
 const $q = useQuasar();
 import { SessionId, required } from "@structured-id/ids";
-import { shown, type WireId } from "src/ids";
+import { shown, type WireId } from "#admin/ids";
 
 const store = useSessionsStore();
 

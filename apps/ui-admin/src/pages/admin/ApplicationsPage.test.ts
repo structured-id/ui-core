@@ -38,8 +38,8 @@ vi.mock("quasar", () => ({
 
 import { createRouter, createMemoryHistory } from "vue-router";
 import ApplicationsPage from "./ApplicationsPage.vue";
-import { useApplicationsStore } from "src/stores/applications";
-import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { useApplicationsStore } from "#admin/stores/applications";
+import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 import { ApplicationId } from "@structured-id/ids";
 
 /** The n-th application identifier: a UUIDv7, as the server issues them. */

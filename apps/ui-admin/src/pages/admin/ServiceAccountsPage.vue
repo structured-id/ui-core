@@ -458,8 +458,8 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useMachineUsersStore } from "src/stores/machineUsers";
-import { usePatsStore } from "src/stores/pats";
+import { useMachineUsersStore } from "#admin/stores/machineUsers";
+import { usePatsStore } from "#admin/stores/pats";
 import type { MachineUserInfo } from "@structured-id/proto/sid/v1/machine/machine_user";
 import {
   MachineUserType,
@@ -473,10 +473,10 @@ import {
   machineUserStatusColor,
   patStatusLabel,
   patStatusColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 import { MachineUserId, PatId, required } from "@structured-id/ids";
-import { shown, type WireId } from "src/ids";
+import { shown, type WireId } from "#admin/ids";
 
 const store = useMachineUsersStore();
 const patStore = usePatsStore();

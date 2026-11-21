@@ -247,7 +247,7 @@
 import { ref, reactive, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useUpstreamProvidersStore } from "src/stores/upstreamProviders";
+import { useUpstreamProvidersStore } from "#admin/stores/upstreamProviders";
 import {
   UpstreamProtocol,
   TrustCategory,
@@ -255,7 +255,7 @@ import {
 import {
   upstreamProtocolLabel,
   trustCategoryLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { UpstreamProviderId, required } from "@structured-id/ids";
 
 const store = useUpstreamProvidersStore();

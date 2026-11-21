@@ -338,14 +338,14 @@
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useUsersStore } from "src/stores/users";
+import { useUsersStore } from "#admin/stores/users";
 import {
   profileStatusLabel,
   profileStatusColor,
   credentialTypeLabel,
   credentialTypeIcon,
   principalTypeLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import {
   ProfileStatus,
   ProfileType,
@@ -363,8 +363,8 @@ import {
   SessionId,
   required,
 } from "@structured-id/ids";
-import { shown } from "src/ids";
-import { nameUpdate } from "src/profileUpdate";
+import { shown } from "#admin/ids";
+import { nameUpdate } from "#admin/profileUpdate";
 
 const store = useUsersStore();
 const route = useRoute();

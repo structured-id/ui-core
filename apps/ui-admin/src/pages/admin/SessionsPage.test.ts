@@ -44,8 +44,8 @@ vi.mock("quasar", () => ({
 }));
 
 import SessionsPage from "./SessionsPage.vue";
-import { useSessionsStore } from "src/stores/sessions";
-import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { useSessionsStore } from "#admin/stores/sessions";
+import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 import { SessionId } from "@structured-id/ids";
 
 /** A session identifier as the server issues them (UUIDv7). */

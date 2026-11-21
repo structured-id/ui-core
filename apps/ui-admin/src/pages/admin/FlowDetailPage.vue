@@ -509,7 +509,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
-import { useFlowsStore } from "src/stores/flows";
+import { useFlowsStore } from "#admin/stores/flows";
 import {
   StepRequirement,
   ActionType,
@@ -524,7 +524,7 @@ import {
   actionTypeLabel,
   actionTypeIcon,
   actionHookPointLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { QTableColumn } from "quasar";
 
 const route = useRoute();

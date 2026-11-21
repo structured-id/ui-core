@@ -44,8 +44,8 @@ vi.mock("quasar", () => ({
 import { createRouter, createMemoryHistory } from "vue-router";
 import { RoleId } from "@structured-id/ids";
 import RolesPage from "./RolesPage.vue";
-import { useRolesStore } from "src/stores/roles";
-import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { useRolesStore } from "#admin/stores/roles";
+import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 
 function createTestRouter() {
   return createRouter({

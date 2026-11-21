@@ -338,7 +338,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useUpstreamProvidersStore } from "src/stores/upstreamProviders";
+import { useUpstreamProvidersStore } from "#admin/stores/upstreamProviders";
 import type { UpstreamProvider } from "@structured-id/proto/sid/v1/federation/upstream";
 import {
   UpstreamProtocol,
@@ -348,10 +348,10 @@ import {
   upstreamProtocolLabel,
   trustCategoryLabel,
   trustCategoryColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 import { UpstreamProviderId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useUpstreamProvidersStore();
 const router = useRouter();

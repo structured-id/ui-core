@@ -521,7 +521,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useMigrationStore } from "src/stores/migration";
+import { useMigrationStore } from "#admin/stores/migration";
 import {
   BlueprintCategory,
   BlueprintScope,
@@ -538,7 +538,7 @@ import {
   importActionColor,
   legacyHashAlgorithmLabel,
   conflictResolutionLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { QTableColumn } from "quasar";
 
 const store = useMigrationStore();

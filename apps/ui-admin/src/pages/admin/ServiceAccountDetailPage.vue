@@ -627,8 +627,8 @@
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useMachineUsersStore } from "src/stores/machineUsers";
-import { useRolesStore } from "src/stores/roles";
+import { useMachineUsersStore } from "#admin/stores/machineUsers";
+import { useRolesStore } from "#admin/stores/roles";
 import {
   MachineUserStatus,
   MachineCredentialType,
@@ -642,7 +642,7 @@ import {
   machineCredentialTypeIcon,
   machineCredentialStatusLabel,
   machineCredentialStatusColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import type { RoleAssignment } from "@structured-id/proto/sid/v1/authz/authz";
 import {
@@ -652,7 +652,7 @@ import {
   required,
   type wire,
 } from "@structured-id/ids";
-import { names, shown } from "src/ids";
+import { names, shown } from "#admin/ids";
 
 const store = useMachineUsersStore();
 const rolesStore = useRolesStore();

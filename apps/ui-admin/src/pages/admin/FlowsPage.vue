@@ -282,13 +282,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useFlowsStore } from "src/stores/flows";
+import { useFlowsStore } from "#admin/stores/flows";
 import { FlowPurpose } from "@structured-id/proto/sid/v1/authn/flows";
 import type { Flow } from "@structured-id/proto/sid/v1/authn/flows";
 import {
   flowPurposeLabel,
   flowPurposeColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { QTableColumn } from "quasar";
 
 const store = useFlowsStore();

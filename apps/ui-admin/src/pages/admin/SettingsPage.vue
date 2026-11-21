@@ -1176,7 +1176,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { useQuasar } from "quasar";
-import { useSettingsStore } from "src/stores/settings";
+import { useSettingsStore } from "#admin/stores/settings";
 import { KeyProviderType } from "@structured-id/proto/sid/v1/admin/keys";
 import { BruteForceLockoutMode } from "@structured-id/proto/sid/v1/admin/security";
 import {
@@ -1203,7 +1203,7 @@ import {
   smtpEncryptionTypeLabel,
   smtpAuthTypeLabel,
   importConflictStrategyLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 const store = useSettingsStore();
 const $q = useQuasar();

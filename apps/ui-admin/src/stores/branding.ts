@@ -12,7 +12,7 @@ import type {
 } from "@structured-id/proto/sid/v1/admin/branding";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { BrandingConfigId, ProjectId } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getClient() {
   return new BrandingServiceClient(getAccountTransport());

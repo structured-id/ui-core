@@ -4,7 +4,7 @@ import { PatServiceClient } from "@structured-id/proto/sid/v1/machine/pat.client
 import { PatStatus, type Pat } from "@structured-id/proto/sid/v1/machine/pat";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { PatId } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getClient() {
   return new PatServiceClient(getAccountTransport());

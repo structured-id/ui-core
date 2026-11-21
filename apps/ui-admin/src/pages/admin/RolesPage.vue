@@ -184,10 +184,10 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
-import { useRolesStore } from "src/stores/roles";
+import { useRolesStore } from "#admin/stores/roles";
 import type { Role } from "@structured-id/proto/sid/v1/authz/authz";
 import { RoleId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useRolesStore();
 const router = useRouter();

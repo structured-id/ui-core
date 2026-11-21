@@ -10,7 +10,7 @@ import { AccessRequestStatus } from "@structured-id/proto/sid/v1/authz/governanc
 import type { RoleAssignment } from "@structured-id/proto/sid/v1/authz/authz";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { AccessRequestId } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getGovernanceClient() {
   return new GovernanceServiceClient(getAccountTransport());

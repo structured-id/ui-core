@@ -974,7 +974,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { useWebhooksStore } from "src/stores/webhooks";
+import { useWebhooksStore } from "#admin/stores/webhooks";
 import {
   EndpointStatus,
   DeliveryStatus,
@@ -992,7 +992,7 @@ import {
   deliveryStatusLabel,
   deliveryStatusColor,
   subscriptionModeLabel,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { useQuasar, copyToClipboard } from "quasar";
 
 const $q = useQuasar();

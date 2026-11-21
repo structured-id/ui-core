@@ -50,7 +50,7 @@ vi.mock("@structured-id/proto/sid/v1/identity/identity.client", () => ({
 
 // Import AFTER mocks
 import AccessOverviewPage from "./AccessOverviewPage.vue";
-import { useGovernanceStore } from "src/stores/governance";
+import { useGovernanceStore } from "#admin/stores/governance";
 import { defineComponent, h } from "vue";
 import {
   AccessRequestId,
@@ -60,7 +60,7 @@ import {
   RoleAssignmentId,
   RoleId,
 } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 /** The `n`th UUIDv7 text (n < 256). */
 function uuid(n: number): string {

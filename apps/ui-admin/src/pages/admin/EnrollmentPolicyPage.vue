@@ -623,11 +623,11 @@ import {
   inviteStatusColor,
   sourceTypeLabel,
   sourceTypeColor,
-} from "stores/enrollment";
-import type { Invite, InviteConfig } from "stores/enrollment";
+} from "#admin/stores/enrollment";
+import type { Invite, InviteConfig } from "#admin/stores/enrollment";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { InviteId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const $q = useQuasar();
 const store = useEnrollmentStore();

@@ -448,7 +448,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
-import { useBrandingStore } from "src/stores/branding";
+import { useBrandingStore } from "#admin/stores/branding";
 import { ButtonStyle } from "@structured-id/proto/sid/v1/admin/branding";
 import type {
   BrandingConfig,
@@ -463,7 +463,7 @@ import {
   buttonStyleLabel,
   wcagLevelLabel,
   wcagLevelColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { defineComponent, h } from "vue";
 import { BrandingConfigId, ProjectId, required } from "@structured-id/ids";
 

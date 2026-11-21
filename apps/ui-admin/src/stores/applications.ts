@@ -10,7 +10,7 @@ import {
 } from "@structured-id/proto/sid/v1/projects/projects";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { ApplicationId, ProjectId } from "@structured-id/ids";
-import { names, sameWire } from "src/ids";
+import { names, sameWire } from "#admin/ids";
 
 function getClient() {
   return new ProjectServiceClient(getAccountTransport());

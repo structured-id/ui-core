@@ -603,7 +603,7 @@ import { copyToClipboard, useQuasar } from "quasar";
 import {
   useApplicationsStore,
   isApplicationActive,
-} from "src/stores/applications";
+} from "#admin/stores/applications";
 import {
   ApplicationType,
   SystemIntegration,
@@ -619,7 +619,7 @@ import {
   subjectTypeLabel,
   resourceStateLabel,
   resourceStateColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 const store = useApplicationsStore();
 const route = useRoute();

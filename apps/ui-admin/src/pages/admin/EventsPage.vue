@@ -702,7 +702,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { useEventsStore } from "src/stores/events";
+import { useEventsStore } from "#admin/stores/events";
 import {
   EventType,
   AdminEventType,
@@ -711,14 +711,14 @@ import {
   AuditEntry,
 } from "@structured-id/proto/sid/v1/admin/events";
 import type { EventConfig } from "@structured-id/proto/sid/v1/admin/events";
-import { prettyJson } from "src/composables/protoJson";
+import { prettyJson } from "#admin/composables/protoJson";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import {
   eventTypeLabel,
   eventTypeColor,
   adminEventTypeLabel,
   adminEventTypeColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import type { QTableColumn } from "quasar";
 
 const store = useEventsStore();

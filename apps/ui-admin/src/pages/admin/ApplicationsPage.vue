@@ -231,16 +231,16 @@ import { copyToClipboard, useQuasar } from "quasar";
 import {
   useApplicationsStore,
   isApplicationActive,
-} from "src/stores/applications";
+} from "#admin/stores/applications";
 import { ApplicationType } from "@structured-id/proto/sid/v1/projects/projects";
 import type { Application } from "@structured-id/proto/sid/v1/projects/projects";
 import {
   applicationTypeLabel,
   applicationTypeColor,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
 import { ApplicationId, ProjectId, required } from "@structured-id/ids";
-import { shown } from "src/ids";
+import { shown } from "#admin/ids";
 
 const store = useApplicationsStore();
 const router = useRouter();

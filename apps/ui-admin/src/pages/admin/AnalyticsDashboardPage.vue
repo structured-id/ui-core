@@ -270,13 +270,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { useAnalyticsStore } from "src/stores/analytics";
+import { useAnalyticsStore } from "#admin/stores/analytics";
 import { AnalyticsPeriod } from "@structured-id/proto/sid/v1/admin/analytics";
 import type { ApplicationMetric } from "@structured-id/proto/sid/v1/admin/analytics";
 import {
   metricTrendColor,
   metricTrendIcon,
-} from "src/composables/useEnumLabels";
+} from "#admin/composables/useEnumLabels";
 
 const store = useAnalyticsStore();
 

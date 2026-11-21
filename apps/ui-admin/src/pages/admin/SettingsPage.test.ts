@@ -177,8 +177,8 @@ vi.mock("quasar", () => ({
 }));
 
 import SettingsPage from "./SettingsPage.vue";
-import { useSettingsStore } from "src/stores/settings";
-import { quasarStubs } from "src/test-utils/quasar-stubs";
+import { useSettingsStore } from "#admin/stores/settings";
+import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 
 function mountPage() {
   return mount(SettingsPage, {

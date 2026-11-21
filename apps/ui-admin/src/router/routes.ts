@@ -1,240 +1,268 @@
 import type { RouteRecordRaw } from "vue-router";
+import { consoleNav, type AdminNavLink } from "#admin/navigation";
 
-const routes: RouteRecordRaw[] = [
-  {
-    path: "/admin",
-    component: () => import("layouts/AdminLayout.vue"),
-    children: [
-      {
-        path: "",
-        name: "admin-dashboard",
-        component: () => import("pages/admin/DashboardPage.vue"),
-      },
-      {
-        path: "applications",
-        name: "admin-applications",
-        component: () => import("pages/admin/ApplicationsPage.vue"),
-        meta: { title: "Applications" },
-      },
-      {
-        path: "applications/create",
-        name: "admin-application-create",
-        component: () => import("pages/admin/ApplicationCreatePage.vue"),
-        meta: { title: "Create Application" },
-      },
-      {
-        path: "applications/:id",
-        name: "admin-application-detail",
-        component: () => import("pages/admin/ApplicationDetailPage.vue"),
-        meta: { title: "Application Detail" },
-      },
-      {
-        path: "users",
-        name: "admin-users",
-        component: () => import("pages/admin/UsersPage.vue"),
-        meta: { title: "Users" },
-      },
-      {
-        path: "users/:userId",
-        name: "admin-user-detail",
-        component: () => import("pages/admin/UserDetailPage.vue"),
-        meta: { title: "User Detail" },
-      },
-      {
-        path: "access-overview",
-        name: "admin-access-overview",
-        component: () => import("pages/admin/AccessOverviewPage.vue"),
-        meta: { title: "Access Overview" },
-      },
-      {
-        path: "roles",
-        name: "admin-roles",
-        component: () => import("pages/admin/RolesPage.vue"),
-        meta: { title: "Roles & Permissions" },
-      },
-      {
-        path: "roles/:roleId",
-        name: "admin-role-detail",
-        component: () => import("pages/admin/RoleDetailPage.vue"),
-        meta: { title: "Role Detail" },
-      },
-      {
-        path: "groups",
-        name: "admin-groups",
-        component: () => import("pages/admin/GroupsPage.vue"),
-        meta: { title: "Groups" },
-      },
-      {
-        path: "groups/:groupId",
-        name: "admin-group-detail",
-        component: () => import("pages/admin/GroupDetailPage.vue"),
-        meta: { title: "Group Detail" },
-      },
-      {
-        path: "sessions",
-        name: "admin-sessions",
-        component: () => import("pages/admin/SessionsPage.vue"),
-        meta: { title: "Sessions" },
-      },
-      {
-        path: "devices",
-        name: "admin-devices",
-        component: () => import("pages/admin/DevicesPage.vue"),
-        meta: { title: "Devices" },
-      },
-      {
-        path: "identity-providers",
-        name: "admin-identity-providers",
-        component: () => import("pages/admin/IdentityProvidersPage.vue"),
-        meta: { title: "Identity Providers" },
-      },
-      {
-        path: "identity-providers/:providerId",
-        name: "admin-identity-provider-detail",
-        component: () => import("pages/admin/IdentityProviderDetailPage.vue"),
-        meta: { title: "Provider Detail" },
-      },
-      {
-        path: "service-accounts",
-        name: "admin-service-accounts",
-        component: () => import("pages/admin/ServiceAccountsPage.vue"),
-        meta: { title: "Service Accounts" },
-      },
-      {
-        path: "service-accounts/:machineUserId",
-        name: "admin-service-account-detail",
-        component: () => import("pages/admin/ServiceAccountDetailPage.vue"),
-        meta: { title: "Service Account Detail" },
-      },
-      {
-        path: "settings",
-        name: "admin-settings",
-        component: () => import("pages/admin/SettingsPage.vue"),
-        meta: { title: "Settings" },
-      },
-      {
-        path: "flows",
-        name: "admin-flows",
-        component: () => import("pages/admin/FlowsPage.vue"),
-        meta: { title: "Authentication Flows" },
-      },
-      {
-        path: "flows/:flowId",
-        name: "admin-flow-detail",
-        component: () => import("pages/admin/FlowDetailPage.vue"),
-        meta: { title: "Flow Detail" },
-      },
-      {
-        path: "scopes",
-        name: "admin-scopes",
-        component: () => import("pages/admin/ScopesPage.vue"),
-        meta: { title: "Scopes & Claims" },
-      },
-      {
-        path: "scopes/:scopeId",
-        name: "admin-scope-detail",
-        component: () => import("pages/admin/ScopeDetailPage.vue"),
-        meta: { title: "Scope Detail" },
-      },
-      {
-        path: "scim",
-        name: "admin-scim",
-        component: () => import("pages/admin/ScimPage.vue"),
-        meta: { title: "SCIM Provisioning" },
-      },
-      {
-        path: "branding",
-        name: "admin-branding",
-        component: () => import("pages/admin/BrandingPage.vue"),
-        meta: { title: "Branding Editor" },
-      },
-      {
-        path: "notification-templates",
-        name: "admin-notification-templates",
-        component: () => import("pages/admin/NotificationTemplatesPage.vue"),
-        meta: { title: "Notification Templates" },
-      },
-      {
-        path: "webhooks",
-        name: "admin-webhooks",
-        component: () => import("pages/admin/WebhooksPage.vue"),
-        meta: { title: "Webhooks & Events" },
-      },
-      {
-        path: "admin-roles",
-        name: "admin-admin-roles",
-        component: () => import("pages/admin/AdminRolesPage.vue"),
-        meta: { title: "Admin Roles & Delegation" },
-      },
-      {
-        path: "security",
-        name: "admin-security-policies",
-        component: () => import("pages/admin/SecurityPoliciesPage.vue"),
-        meta: { title: "Security Policies" },
-      },
-      {
-        path: "enrollment",
-        name: "admin-enrollment",
-        component: () => import("pages/admin/EnrollmentPolicyPage.vue"),
-        meta: { title: "Enrollment Policy" },
-      },
-      {
-        path: "migration",
-        name: "admin-migration",
-        component: () => import("pages/admin/MigrationPage.vue"),
-        meta: { title: "Blueprints & Migration" },
-      },
-      {
-        path: "operations",
-        name: "admin-operations",
-        component: () => import("pages/admin/InstanceOperationsPage.vue"),
-        meta: { title: "Instance Operations" },
-      },
-      {
-        path: "profile-schema",
-        name: "admin-profile-schema",
-        component: () => import("pages/admin/ProfileSchemaPage.vue"),
-        meta: { title: "User Profile Schema" },
-      },
-      {
-        path: "organization",
-        name: "admin-organization",
-        component: () => import("pages/admin/OrganizationsPage.vue"),
-        meta: { title: "Organization" },
-      },
-      {
-        path: "analytics",
-        name: "admin-analytics",
-        component: () => import("pages/admin/AnalyticsDashboardPage.vue"),
-        meta: { title: "Analytics" },
-      },
-      {
-        path: "events",
-        name: "admin-events",
-        component: () => import("pages/admin/EventsPage.vue"),
-        meta: { title: "Events & Audit" },
-      },
-      {
-        path: "headless-api",
-        name: "admin-headless-api",
-        component: () => import("pages/admin/HeadlessApiPage.vue"),
-        meta: { title: "Headless API Reference" },
-      },
-    ],
-  },
+type Page = () => Promise<unknown>;
 
-  // Redirect root to /admin
-  {
-    path: "/",
-    redirect: "/admin",
-  },
+/** A console page under `/admin`, by its path relative to the console. */
+function page(path: string, name: string, component: Page, title?: string) {
+  return {
+    path,
+    name,
+    component,
+    meta: title ? { title } : {},
+  } as RouteRecordRaw;
+}
 
-  // 404
-  {
-    path: "/:catchAll(.*)*",
-    name: "not-found",
-    component: () => import("pages/ErrorNotFound.vue"),
-  },
+/** The CE console's pages, relative to `/admin`. */
+export const consolePages: RouteRecordRaw[] = [
+  page(
+    "",
+    "admin-dashboard",
+    () => import("#admin/pages/admin/DashboardPage.vue"),
+  ),
+  page(
+    "applications",
+    "admin-applications",
+    () => import("#admin/pages/admin/ApplicationsPage.vue"),
+    "Applications",
+  ),
+  page(
+    "applications/create",
+    "admin-application-create",
+    () => import("#admin/pages/admin/ApplicationCreatePage.vue"),
+    "Create Application",
+  ),
+  page(
+    "applications/:id",
+    "admin-application-detail",
+    () => import("#admin/pages/admin/ApplicationDetailPage.vue"),
+    "Application Detail",
+  ),
+  page(
+    "users",
+    "admin-users",
+    () => import("#admin/pages/admin/UsersPage.vue"),
+    "Users",
+  ),
+  page(
+    "users/:userId",
+    "admin-user-detail",
+    () => import("#admin/pages/admin/UserDetailPage.vue"),
+    "User Detail",
+  ),
+  page(
+    "access-overview",
+    "admin-access-overview",
+    () => import("#admin/pages/admin/AccessOverviewPage.vue"),
+    "Access Overview",
+  ),
+  page(
+    "roles",
+    "admin-roles",
+    () => import("#admin/pages/admin/RolesPage.vue"),
+    "Roles & Permissions",
+  ),
+  page(
+    "roles/:roleId",
+    "admin-role-detail",
+    () => import("#admin/pages/admin/RoleDetailPage.vue"),
+    "Role Detail",
+  ),
+  page(
+    "groups",
+    "admin-groups",
+    () => import("#admin/pages/admin/GroupsPage.vue"),
+    "Groups",
+  ),
+  page(
+    "groups/:groupId",
+    "admin-group-detail",
+    () => import("#admin/pages/admin/GroupDetailPage.vue"),
+    "Group Detail",
+  ),
+  page(
+    "sessions",
+    "admin-sessions",
+    () => import("#admin/pages/admin/SessionsPage.vue"),
+    "Sessions",
+  ),
+  page(
+    "devices",
+    "admin-devices",
+    () => import("#admin/pages/admin/DevicesPage.vue"),
+    "Devices",
+  ),
+  page(
+    "identity-providers",
+    "admin-identity-providers",
+    () => import("#admin/pages/admin/IdentityProvidersPage.vue"),
+    "Identity Providers",
+  ),
+  page(
+    "identity-providers/:providerId",
+    "admin-identity-provider-detail",
+    () => import("#admin/pages/admin/IdentityProviderDetailPage.vue"),
+    "Provider Detail",
+  ),
+  page(
+    "service-accounts",
+    "admin-service-accounts",
+    () => import("#admin/pages/admin/ServiceAccountsPage.vue"),
+    "Service Accounts",
+  ),
+  page(
+    "service-accounts/:machineUserId",
+    "admin-service-account-detail",
+    () => import("#admin/pages/admin/ServiceAccountDetailPage.vue"),
+    "Service Account Detail",
+  ),
+  page(
+    "settings",
+    "admin-settings",
+    () => import("#admin/pages/admin/SettingsPage.vue"),
+    "Settings",
+  ),
+  page(
+    "flows",
+    "admin-flows",
+    () => import("#admin/pages/admin/FlowsPage.vue"),
+    "Authentication Flows",
+  ),
+  page(
+    "flows/:flowId",
+    "admin-flow-detail",
+    () => import("#admin/pages/admin/FlowDetailPage.vue"),
+    "Flow Detail",
+  ),
+  page(
+    "scopes",
+    "admin-scopes",
+    () => import("#admin/pages/admin/ScopesPage.vue"),
+    "Scopes & Claims",
+  ),
+  page(
+    "scopes/:scopeId",
+    "admin-scope-detail",
+    () => import("#admin/pages/admin/ScopeDetailPage.vue"),
+    "Scope Detail",
+  ),
+  page(
+    "scim",
+    "admin-scim",
+    () => import("#admin/pages/admin/ScimPage.vue"),
+    "SCIM Provisioning",
+  ),
+  page(
+    "branding",
+    "admin-branding",
+    () => import("#admin/pages/admin/BrandingPage.vue"),
+    "Branding Editor",
+  ),
+  page(
+    "notification-templates",
+    "admin-notification-templates",
+    () => import("#admin/pages/admin/NotificationTemplatesPage.vue"),
+    "Notification Templates",
+  ),
+  page(
+    "webhooks",
+    "admin-webhooks",
+    () => import("#admin/pages/admin/WebhooksPage.vue"),
+    "Webhooks & Events",
+  ),
+  page(
+    "admin-roles",
+    "admin-admin-roles",
+    () => import("#admin/pages/admin/AdminRolesPage.vue"),
+    "Admin Roles & Delegation",
+  ),
+  page(
+    "security",
+    "admin-security-policies",
+    () => import("#admin/pages/admin/SecurityPoliciesPage.vue"),
+    "Security Policies",
+  ),
+  page(
+    "enrollment",
+    "admin-enrollment",
+    () => import("#admin/pages/admin/EnrollmentPolicyPage.vue"),
+    "Enrollment Policy",
+  ),
+  page(
+    "migration",
+    "admin-migration",
+    () => import("#admin/pages/admin/MigrationPage.vue"),
+    "Blueprints & Migration",
+  ),
+  page(
+    "operations",
+    "admin-operations",
+    () => import("#admin/pages/admin/InstanceOperationsPage.vue"),
+    "Instance Operations",
+  ),
+  page(
+    "profile-schema",
+    "admin-profile-schema",
+    () => import("#admin/pages/admin/ProfileSchemaPage.vue"),
+    "User Profile Schema",
+  ),
+  page(
+    "organization",
+    "admin-organization",
+    () => import("#admin/pages/admin/OrganizationsPage.vue"),
+    "Organization",
+  ),
+  page(
+    "analytics",
+    "admin-analytics",
+    () => import("#admin/pages/admin/AnalyticsDashboardPage.vue"),
+    "Analytics",
+  ),
+  page(
+    "events",
+    "admin-events",
+    () => import("#admin/pages/admin/EventsPage.vue"),
+    "Events & Audit",
+  ),
+  page(
+    "headless-api",
+    "admin-headless-api",
+    () => import("#admin/pages/admin/HeadlessApiPage.vue"),
+    "Headless API Reference",
+  ),
 ];
 
-export default routes;
+/** What a composing application adds to the console. */
+export interface ConsoleExtension {
+  /** Pages relative to `/admin`, beside the CE pages. */
+  pages?: RouteRecordRaw[];
+  /** Menu entries after the CE entries. */
+  nav?: AdminNavLink[];
+}
+
+/**
+ * The console's routes: the CE pages and any `extension` pages under the
+ * console layout at `/admin`, whose menu lists both, plus the root redirect
+ * and the not-found page. An extended console (EE) builds its router from
+ * this rather than copying the CE route table.
+ */
+export function adminRoutes(
+  extension: ConsoleExtension = {},
+): RouteRecordRaw[] {
+  return [
+    {
+      path: "/admin",
+      component: () => import("#admin/layouts/AdminLayout.vue"),
+      meta: { nav: [...consoleNav, ...(extension.nav ?? [])] },
+      children: [...consolePages, ...(extension.pages ?? [])],
+    },
+    { path: "/", redirect: "/admin" },
+    {
+      path: "/:catchAll(.*)*",
+      name: "not-found",
+      component: () => import("#admin/pages/ErrorNotFound.vue"),
+    },
+  ];
+}
+
+export default adminRoutes();

@@ -4,7 +4,7 @@ import { UpstreamServiceClient } from "@structured-id/proto/sid/v1/federation/up
 import type { UpstreamProvider } from "@structured-id/proto/sid/v1/federation/upstream";
 import { getAccountTransport } from "@structured-id/ui-core";
 import type { UpstreamProviderId } from "@structured-id/ids";
-import { names } from "src/ids";
+import { names } from "#admin/ids";
 
 function getClient() {
   return new UpstreamServiceClient(getAccountTransport());

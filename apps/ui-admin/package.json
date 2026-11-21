@@ -4,6 +4,18 @@
   "description": "StructuredID administration console (CE): the installation's /admin web application.",
   "productName": "StructuredID Admin",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/test-utils"
+  ],
+  "imports": {
+    "#admin/*.vue": "./src/*.vue",
+    "#admin/*": "./src/*.ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/structured-id/ui-core.git",
