@@ -475,6 +475,9 @@ import {
   patStatusColor,
 } from "src/composables/useEnumLabels";
 
+import { MachineUserId, PatId, required } from "@structured-id/ids";
+import { shown, type WireId } from "src/ids";
+
 const store = useMachineUsersStore();
 const patStore = usePatsStore();
 const router = useRouter();
@@ -652,7 +655,7 @@ const filteredMachineUsers = computed(() => {
     result = result.filter(
       (m) =>
         m.displayName.toLowerCase().includes(q) ||
-        m.id.toLowerCase().includes(q) ||
+        shown(m.id).includes(q) ||
         m.clientId.toLowerCase().includes(q),
     );
   }
@@ -669,7 +672,7 @@ const filteredPats = computed(() => {
     result = result.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p.profileId.toLowerCase().includes(q) ||
+        shown(p.profileId).includes(q) ||
         p.tokenPrefix.toLowerCase().includes(q),
     );
   }
@@ -679,7 +682,7 @@ const filteredPats = computed(() => {
 function onMuRowClick(_evt: Event, row: MachineUserInfo) {
   router.push({
     name: "admin-service-account-detail",
-    params: { machineUserId: row.id },
+    params: { machineUserId: shown(row.id) },
   });
 }
 
@@ -691,7 +694,7 @@ function confirmDelete(mu: MachineUserInfo) {
 async function executeDelete() {
   if (!muToDelete.value) return;
   try {
-    await store.deleteMachineUser(muToDelete.value.id);
+    await store.deleteMachineUser(required(MachineUserId, muToDelete.value.id));
     deleteDialog.value = false;
     $q.notify({ type: "positive", message: "Machine user deleted" });
   } catch {
@@ -727,9 +730,9 @@ async function executeCreate() {
   }
 }
 
-async function revokePatAction(patId: string) {
+async function revokePatAction(patId: WireId | undefined) {
   try {
-    await patStore.revokePat(patId);
+    await patStore.revokePat(required(PatId, patId));
     $q.notify({ type: "positive", message: "PAT revoked" });
   } catch {
     $q.notify({

@@ -14,12 +14,11 @@ export default defineConfig({
     // client build is named so its SFCs render under jsdom.
     alias: {
       quasar: "quasar/dist/quasar.client.js",
-      src: resolve(__dirname, "src"),
-      pages: resolve(__dirname, "src/pages"),
-      layouts: resolve(__dirname, "src/layouts"),
-      components: resolve(__dirname, "src/components"),
-      boot: resolve(__dirname, "src/boot"),
-      stores: resolve(__dirname, "src/stores"),
+      src: resolve(import.meta.dirname, "src"),
+      pages: resolve(import.meta.dirname, "src/pages"),
+      layouts: resolve(import.meta.dirname, "src/layouts"),
+      boot: resolve(import.meta.dirname, "src/boot"),
+      stores: resolve(import.meta.dirname, "src/stores"),
     },
   },
 });

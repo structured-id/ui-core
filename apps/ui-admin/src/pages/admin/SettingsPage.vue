@@ -122,34 +122,45 @@
                 <div class="text-subtitle2 q-mb-sm">
                   Registration & Recovery
                 </div>
-                <q-toggle
-                  v-model="loginForm.selfRegistration"
-                  label="Self Registration"
-                />
-                <br />
-                <q-toggle
-                  v-model="loginForm.forgotPassword"
-                  label="Forgot Password"
-                />
-                <br />
-                <q-toggle
-                  v-model="loginForm.verifyEmail"
-                  label="Verify Email"
-                />
+                <div v-if="loginForm.selfRegistration !== undefined">
+                  <q-toggle
+                    v-model="loginForm.selfRegistration"
+                    label="Self Registration"
+                  />
+                </div>
+                <div v-if="loginForm.forgotPassword !== undefined">
+                  <q-toggle
+                    v-model="loginForm.forgotPassword"
+                    label="Forgot Password"
+                  />
+                </div>
+                <div v-if="loginForm.verifyEmail !== undefined">
+                  <q-toggle
+                    v-model="loginForm.verifyEmail"
+                    label="Verify Email"
+                  />
+                </div>
               </div>
               <div class="col-12 col-md-6">
                 <div class="text-subtitle2 q-mb-sm">Login Behavior</div>
-                <q-toggle v-model="loginForm.rememberMe" label="Remember Me" />
-                <br />
-                <q-toggle
-                  v-model="loginForm.loginWithEmail"
-                  label="Login with Email"
-                />
-                <br />
-                <q-toggle
-                  v-model="loginForm.identityFirstLogin"
-                  label="Identity-First Login"
-                />
+                <div v-if="loginForm.rememberMe !== undefined">
+                  <q-toggle
+                    v-model="loginForm.rememberMe"
+                    label="Remember Me"
+                  />
+                </div>
+                <div v-if="loginForm.loginWithEmail !== undefined">
+                  <q-toggle
+                    v-model="loginForm.loginWithEmail"
+                    label="Login with Email"
+                  />
+                </div>
+                <div v-if="loginForm.identityFirstLogin !== undefined">
+                  <q-toggle
+                    v-model="loginForm.identityFirstLogin"
+                    label="Identity-First Login"
+                  />
+                </div>
               </div>
               <div class="col-12 col-md-6">
                 <div class="text-subtitle2 q-mb-sm">Default Roles</div>
@@ -1247,13 +1258,15 @@ async function toggleFeature(key: string, enabled: boolean) {
 }
 
 // ── Login form ──
+// A setting the installation does not serve stays absent: its toggle is not
+// shown, and saving does not send it (it would be refused).
 const loginForm = ref<{
-  selfRegistration: boolean;
-  forgotPassword: boolean;
-  rememberMe: boolean;
-  verifyEmail: boolean;
-  loginWithEmail: boolean;
-  identityFirstLogin: boolean;
+  selfRegistration?: boolean;
+  forgotPassword?: boolean;
+  rememberMe?: boolean;
+  verifyEmail?: boolean;
+  loginWithEmail?: boolean;
+  identityFirstLogin?: boolean;
   requiredActions: RequiredAction[];
 } | null>(null);
 

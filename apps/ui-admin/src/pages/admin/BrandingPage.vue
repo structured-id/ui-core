@@ -473,7 +473,7 @@ import { BrandingConfigId, ProjectId, required } from "@structured-id/ids";
 const store = useBrandingStore();
 
 // The console administers the installation's own project.
-const projectId = ref(ProjectId.system());
+const projectId = ProjectId.system();
 
 const previewMode = ref<"desktop" | "tablet" | "mobile">("desktop");
 const previewTheme = ref<"light" | "dark">("light");
@@ -826,7 +826,7 @@ async function handleSave() {
   const { tokens, assets, darkMode, text } = formToProto();
   if (config.value?.id) {
     await store.updateConfig(
-      projectId.value,
+      projectId,
       required(BrandingConfigId, config.value.id),
       tokens,
       assets,
@@ -834,7 +834,7 @@ async function handleSave() {
       text,
     );
   } else {
-    await store.createConfig(projectId.value, tokens, assets, darkMode, text);
+    await store.createConfig(projectId, tokens, assets, darkMode, text);
   }
 }
 
@@ -857,7 +857,7 @@ watch(config, (cfg) => {
 });
 
 onMounted(() => {
-  store.fetchPublishedBranding(projectId.value);
+  store.fetchPublishedBranding(projectId);
 });
 </script>
 

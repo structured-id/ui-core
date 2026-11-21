@@ -107,7 +107,7 @@
             autogrow
           />
           <q-input
-            :model-value="store.currentMachineUser.id"
+            :model-value="shown(store.currentMachineUser.id)"
             outlined
             label="ID"
             dense
@@ -786,10 +786,15 @@ function populateForm() {
 
 watch(() => store.currentMachineUser, populateForm, { immediate: true });
 
+/** The shown machine user's identifier as its answer carried it; malformed throws. */
+function currentId(): MachineUserId {
+  return required(MachineUserId, store.currentMachineUser?.id);
+}
+
 async function saveOverview() {
   if (!store.currentMachineUser) return;
   try {
-    await store.updateMachineUser(store.currentMachineUser.id, {
+    await store.updateMachineUser(currentId(), {
       displayName: overviewForm.displayName,
       description: overviewForm.description,
       scopes: store.currentMachineUser.scopes,
@@ -809,7 +814,7 @@ async function saveOverview() {
 async function suspendAction() {
   if (!store.currentMachineUser) return;
   try {
-    await store.suspendMachineUser(store.currentMachineUser.id);
+    await store.suspendMachineUser(currentId());
     $q.notify({ type: "positive", message: "Machine user suspended" });
   } catch {
     $q.notify({ type: "negative", message: store.error || "Suspend failed" });
@@ -819,7 +824,7 @@ async function suspendAction() {
 async function reactivateAction() {
   if (!store.currentMachineUser) return;
   try {
-    await store.reactivateMachineUser(store.currentMachineUser.id);
+    await store.reactivateMachineUser(currentId());
     $q.notify({ type: "positive", message: "Machine user reactivated" });
   } catch {
     $q.notify({
@@ -836,7 +841,7 @@ function confirmDelete() {
 async function executeDelete() {
   if (!store.currentMachineUser) return;
   try {
-    await store.deleteMachineUser(store.currentMachineUser.id);
+    await store.deleteMachineUser(currentId());
     deleteDialog.value = false;
     $q.notify({ type: "positive", message: "Machine user deleted" });
     router.push({ name: "admin-service-accounts" });
@@ -849,7 +854,7 @@ async function executeAddCredential() {
   if (!store.currentMachineUser) return;
   try {
     const response = await store.addCredential({
-      machineUserId: store.currentMachineUser.id,
+      machineUserId: currentId(),
       credentialType: credForm.value.credentialType,
       algorithm: credForm.value.algorithm,
       publicKeyPem: credForm.value.publicKeyPem,
@@ -881,7 +886,7 @@ async function executeAddCredential() {
 async function revokeCredAction(kid: string) {
   if (!store.currentMachineUser) return;
   try {
-    await store.revokeCredential(store.currentMachineUser.id, kid);
+    await store.revokeCredential(currentId(), kid);
     $q.notify({ type: "positive", message: "Credential revoked" });
   } catch {
     $q.notify({
@@ -895,7 +900,7 @@ async function rotateCredAction(kid: string) {
   if (!store.currentMachineUser) return;
   try {
     const response = await store.rotateCredential({
-      machineUserId: store.currentMachineUser.id,
+      machineUserId: currentId(),
       kid,
       algorithm: "",
       publicKeyPem: "",
@@ -933,7 +938,7 @@ async function executeAssignRole() {
       roleId: RoleId.parse(roleForm.roleId),
       principal: {
         kind: "machineUser",
-        id: MachineUserId.parse(store.currentMachineUser.id),
+        id: currentId(),
       },
       scope: roleForm.scope || undefined,
       expiresAt,
@@ -966,7 +971,7 @@ async function executeGrantImpersonation() {
   if (!store.currentMachineUser) return;
   try {
     await store.grantImpersonation({
-      machineUserId: store.currentMachineUser.id,
+      machineUserId: currentId(),
       targetType: impForm.value.targetType,
       target: impForm.value.target,
       allowedScopes: impForm.value.scopes
@@ -992,11 +997,7 @@ async function executeGrantImpersonation() {
 async function revokeImpersonationAction(targetType: string, target: string) {
   if (!store.currentMachineUser) return;
   try {
-    await store.revokeImpersonation(
-      store.currentMachineUser.id,
-      targetType,
-      target,
-    );
+    await store.revokeImpersonation(currentId(), targetType, target);
     $q.notify({ type: "positive", message: "Impersonation revoked" });
   } catch {
     $q.notify({
@@ -1014,17 +1015,17 @@ function copySecret() {
 onMounted(async () => {
   const machineUserId = route.params.machineUserId as string;
   if (machineUserId) {
-    await store.getMachineUser(machineUserId);
-    store.fetchCredentials(machineUserId);
-    store.fetchImpersonationGrants(machineUserId);
-    rolesStore.fetchRoles();
     let principal: MachineUserId;
     try {
       principal = MachineUserId.parse(machineUserId);
     } catch {
-      rolesStore.error = "This address names no service account";
+      store.error = "This address names no service account";
       return;
     }
+    await store.getMachineUser(principal);
+    store.fetchCredentials(principal);
+    store.fetchImpersonationGrants(principal);
+    rolesStore.fetchRoles();
     rolesStore.fetchMachineUserAssignments(principal);
   }
 });
