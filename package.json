@@ -29,7 +29,12 @@
     }
   },
   "files": [
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.testing.ts"
+  ],
+  "workspaces": [
+    "apps/*"
   ],
   "scripts": {
     "typecheck": "vue-tsc --noEmit",
@@ -52,20 +57,20 @@
     "@types/node": "^26",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-vue": "^6.0.9",
-    "@vue/compiler-dom": "^3.5.43",
+    "@vue/compiler-dom": "^3.5.46",
     "@vue/devtools-api": "^8.2.1",
     "@vue/test-utils": "^2.5.1",
     "eslint": "^10.12.0",
     "jsdom": "^31.0.0",
-    "pinia": "^4.0.3",
+    "pinia": "^4.1.0",
     "prettier": "^3.9.9",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.71.1",
     "vite": "^8.3.4",
     "vitest": "^5.0.3",
-    "vue": "^3.5.43",
-    "vue-router": "^5.4.0",
-    "vue-tsc": "^3.3.12"
+    "vue": "^3.5.46",
+    "vue-router": "^5.5.1",
+    "vue-tsc": "^3.3.14"
   },
   "peerDependencies": {
     "pinia": "^4.0.3",
@@ -82,5 +87,8 @@
     }
   },
   "packageManager": "yarn@4.18.1",
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "resolutions": {
+    "@vue/language-core@npm:3.3.14": "patch:@vue/language-core@npm%3A3.3.14#~/.yarn/patches/@vue-language-core-npm-3.3.14-0c361b9bd6.patch"
+  }
 }

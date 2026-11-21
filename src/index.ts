@@ -68,6 +68,8 @@ export {
   passkeyAutofillAvailable,
   type PasskeyFailure,
   type PasskeyRequest,
+  base32,
+  totpKeyUri,
 } from "./utils";
 
 export {

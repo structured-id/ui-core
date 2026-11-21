@@ -32,6 +32,7 @@ import {
   type PasswordHistoryEvaluation,
   type PasswordRegistrationProof,
   type PasswordResetResult,
+  type RegistrationAdmission,
 } from "./useAuthApi";
 
 // ── Types ──
@@ -377,13 +378,13 @@ export function createAuth(loadClient: ZkppClientLoader) {
 
   /**
    * Register `identifier` with `password`: the start carries the OPAQUE
-   * request and returns the operation, the finish carries the record with
-   * the proof. `claimToken` claims an installation that has no administrator.
+   * request with the `admission` (claim token or invite code) and returns
+   * the operation, the finish carries the record with the proof.
    */
   async function register(
     identifier: string,
     password: string,
-    claimToken?: string,
+    admission: RegistrationAdmission = {},
     onProgress?: (p: PasswordOperationProgress) => void,
   ): Promise<RegisterResult> {
     const plan = new OperationPlan(onProgress);
@@ -393,7 +394,7 @@ export function createAuth(loadClient: ZkppClientLoader) {
         const started = await opaqueZkppRegistrationStart(
           identifier,
           request,
-          claimToken,
+          admission,
         );
         return {
           context: started.history,

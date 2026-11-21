@@ -1,9 +1,7 @@
 /**
- * profile-core — shared Profile-level UI library.
- *
- * Composables for identity, account, auth, and security APIs.
- * Slot-based form components for registration, login, MFA.
- * Shared between profile-ui-ce, profile-ui-ee, and frontend.
+ * Shared Profile presentation: composables for the identity, account, auth
+ * and security APIs, and slot-based registration, sign-in and MFA forms. The
+ * consuming application owns its routes and selects the API it calls.
  *
  * Import: `@structured-id/ui-core/profile`
  */

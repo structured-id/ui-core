@@ -1,0 +1,12 @@
+{
+  "extends": "./.quasar/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "#q-app": ["./node_modules/@quasar/app-vite/types/index.d.ts"]
+    }
+  },
+  "vueCompilerOptions": {
+    "target": 3.5
+  }
+}

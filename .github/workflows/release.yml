@@ -2,9 +2,13 @@
 # CHANGELOG from conventional commits; merging it tags vX.Y.Z, creates the
 # GitHub release, and the publish job then publishes that version to npm.
 #
+# Each package releases on its own: @structured-id/ui-core (repository root,
+# tags vX.Y.Z) and @structured-id/ui-admin (apps/ui-admin, tags
+# ui-admin-vX.Y.Z). A package's publish job runs only for its own release.
+#
 # npm trusted publishing (OIDC) is configured for this workflow file and the
-# `release` environment:
-#   npmjs.com → @structured-id/ui-core → Settings → Trusted Publishers
+# `release` environment, per package:
+#   npmjs.com → <package> → Settings → Trusted Publishers
 #     Org: structured-id, Repo: ui-core, Workflow: release.yml,
 #     Environment: release
 
@@ -24,6 +28,8 @@ jobs:
     outputs:
       released: ${{ steps.release.outputs.release_created }}
       tag: ${{ steps.release.outputs.tag_name }}
+      admin-released: ${{ steps.release.outputs['apps/ui-admin--release_created'] }}
+      admin-tag: ${{ steps.release.outputs['apps/ui-admin--tag_name'] }}
     steps:
       - name: Generate release token
         id: app-token
@@ -57,7 +63,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           # NO registry-url: it writes an .npmrc whose NODE_AUTH_TOKEN
           # placeholder overrides OIDC trusted publishing.
 
@@ -87,3 +93,52 @@ jobs:
             exit 0
           fi
           npm publish --provenance --access public
+
+  publish-ui-admin:
+    needs: release-please
+    if: needs.release-please.outputs.admin-released == 'true'
+    runs-on: ubuntu-latest
+    environment: release # required for npm OIDC trusted publishing
+    permissions:
+      contents: read
+      id-token: write # npm provenance + OIDC
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.admin-tag }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Yarn (the version in package.json packageManager)
+        run: corepack install
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # yarn pack resolves the workspace dependency on ui-core to its
+      # released version range; npm publishes that archive.
+      - name: Publish to npm
+        working-directory: apps/ui-admin
+        env:
+          TAG: ${{ needs.release-please.outputs.admin-tag }}
+        run: |
+          NAME="$(node -p "require('./package.json').name")"
+          PV="$(node -p "require('./package.json').version")"
+          if [ "${PV}" != "${TAG#ui-admin-v}" ]; then
+            echo "Release tag ${TAG} does not match package.json version ${PV}."
+            exit 1
+          fi
+          if npm view "${NAME}@${PV}" version >/dev/null 2>&1; then
+            echo "${NAME}@${PV} is already published; nothing to do."
+            exit 0
+          fi
+          yarn pack --out package.tgz
+          npm publish package.tgz --provenance --access public

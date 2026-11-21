@@ -1,0 +1,64 @@
+diff --git a/lib/codegen/template/element.js b/lib/codegen/template/element.js
+index 770dfd7d42086a7495d503f363356ef7b48220b7..c94adea6ead19a4ae24c774ad5444fbede91d206 100644
+--- a/lib/codegen/template/element.js
++++ b/lib/codegen/template/element.js
+@@ -180,10 +180,7 @@ function* generateComponent(options, ctx, node) {
+     //   `$props` instead would report every props error a second time. The copy is not mapped to the template.
+     yield `// @ts-ignore${utils_1.newLine}`;
+     yield `const ${functionalVar} = ${options.vueCompilerOptions.checkUnknownProps ? names_1.names.asFunctionalComponent0 : names_1.names.asFunctionalComponent1}(${componentVar}, new ${componentVar}({${utils_1.newLine}`;
+-    yield `// @ts-ignore${utils_1.newLine}`;
+-    yield propsStr
+-        .replace(/\/\/(.*)$/gm, (_, body) => `/*${body.replaceAll('*/', '*\\/')} */`)
+-        .replace(/\n/g, ' ');
++    yield ignoreEachLine(options, propsStr);
+     yield `}))${utils_1.endOfLine}`;
+     yield `const `;
+     const boundary = yield* boundary_1.Boundary.start('template', node.loc.start.offset, node.loc.end.offset, codeFeatures_1.codeFeatures.doNotReportTs6133);
+@@ -344,4 +341,46 @@ function hasVBindAttrs(options, ctx, node) {
+             && prop.name === 'bind'
+             && prop.exp?.loc.source === '$attrs'));
+ }
++// Backport of vuejs/language-tools b77bba35e (#6371, fixes #6322) until a vue-tsc release carries it.
++function ignoreEachLine(options, code) {
++    return prepareForDirectives(options, code).replace(/(?<=^|\n)(?=[^\r\n])/g, `// @ts-ignore${utils_1.newLine}`);
++}
++const commentRE = /\/\/.*|\/\*[^]*?\*\//g;
++function prepareForDirectives(options, text) {
++    if (!/`|\\\r?\n|\/\*|@ts-expect-error/.test(text)) {
++        return text;
++    }
++    const { typescript: ts } = options;
++    const prefix = `({`;
++    const suffix = `})`;
++    const ast = (0, utils_1.getTypeScriptAST)(ts, options.template, `${prefix}${text}${suffix}`);
++    const tokens = [];
++    const visit = (node) => {
++        if (node.kind === ts.SyntaxKind.StringLiteral
++            || node.kind === ts.SyntaxKind.RegularExpressionLiteral
++            || node.kind >= ts.SyntaxKind.FirstTemplateToken && node.kind <= ts.SyntaxKind.LastTemplateToken) {
++            tokens.push((0, shared_2.getStartEnd)(ts, node, ast));
++        }
++        else {
++            ts.forEachChild(node, visit);
++        }
++    };
++    visit(ast);
++    const rewriteComments = (code) => code.replace(commentRE, comment => (comment.includes(utils_1.newLine) ? comment.replace(/\r?\n/g, ' ') + utils_1.newLine : comment)
++        .replace(/@ts-expect-error/g, '@ts-ignore'));
++    let result = '';
++    let offset = 0;
++    for (const { node, start, end } of tokens.sort((a, b) => a.start - b.start)) {
++        let token = ast.text.slice(start, end);
++        if (token.includes(utils_1.newLine) && !node.isUnterminated) {
++            const value = JSON.stringify(node.text);
++            token = node.kind === ts.SyntaxKind.StringLiteral
++                ? value
++                : token[0] + value.slice(1, -1).replace(/[`$]/g, '\\$&') + (token.endsWith('`') ? '`' : '${');
++        }
++        result += rewriteComments(ast.text.slice(offset, start)) + token;
++        offset = end;
++    }
++    return (result + rewriteComments(ast.text.slice(offset))).slice(prefix.length, -suffix.length);
++}
+ //# sourceMappingURL=element.js.map
+\ No newline at end of file
