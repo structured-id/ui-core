@@ -223,12 +223,10 @@
 
 <script setup lang="ts">
 import { ref, defineComponent, h } from "vue";
-import { useQuasar } from "quasar";
 import { LoginExperienceServiceClient } from "@structured-id/proto/sid/v1/admin/login_experience.client";
 import type { TestFlowResponse } from "@structured-id/proto/sid/v1/admin/login_experience";
 import { getTransport } from "@structured-id/ui-core";
 
-const $q = useQuasar();
 const error = ref<string | null>(null);
 
 function getClient() {

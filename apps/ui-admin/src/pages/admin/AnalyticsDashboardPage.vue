@@ -274,7 +274,6 @@ import { useAnalyticsStore } from "src/stores/analytics";
 import { AnalyticsPeriod } from "@structured-id/proto/sid/v1/admin/analytics";
 import type { ApplicationMetric } from "@structured-id/proto/sid/v1/admin/analytics";
 import {
-  analyticsPeriodLabel,
   metricTrendColor,
   metricTrendIcon,
 } from "src/composables/useEnumLabels";

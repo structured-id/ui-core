@@ -1,80 +1,57 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { EnrollmentServiceClient } from "@structured-id/proto/sid/v1/admin/enrollment.client";
+import {
+  EnrollmentMode,
+  EnrollmentPolicy,
+  InviteStatus,
+  RegistrationSourceType,
+  type Invite,
+  type InviteConfig,
+  type RegistrationStats,
+} from "@structured-id/proto/sid/v1/admin/enrollment";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import { Empty } from "@structured-id/proto/google/protobuf/empty";
+import { getTransport } from "@structured-id/ui-core";
+import type { InviteId } from "@structured-id/ids";
+import { names } from "src/ids";
 
-// ── Enums (mirrors proto sid.v1.admin enrollment.proto) ──
+export { EnrollmentMode, InviteStatus, RegistrationSourceType };
+export type { Invite, InviteConfig, RegistrationStats };
 
-export enum EnrollmentMode {
-  UNSPECIFIED = 0,
-  OPEN = 1,
-  INVITE_ONLY = 2,
-  ADMIN_ONLY = 3,
-  DOMAIN_RESTRICTED = 4,
+function getClient() {
+  return new EnrollmentServiceClient(getTransport());
 }
 
-export enum RegistrationSourceType {
-  UNSPECIFIED = 0,
-  SELF_SIGNUP = 1,
-  INVITE = 2,
-  ADMIN_CREATED = 3,
-  SCIM_PROVISIONED = 4,
-  FEDERATION = 5,
-  IDENTITY_BROKERED = 6,
-}
-
-export enum InviteStatus {
-  UNSPECIFIED = 0,
-  ACTIVE = 1,
-  CONSUMED = 2,
-  REVOKED = 3,
-  EXPIRED = 4,
-}
-
-// ── Interfaces ──
-
-export interface InviteConfig {
-  defaultMaxUses: number;
-  defaultExpiryHours: number;
-}
-
-export interface EnrollmentPolicy {
+/** The policy an administrator edits: the stored policy's own fields. */
+export interface PolicyEdit {
   mode: EnrollmentMode;
-  invite: InviteConfig | null;
+  invite?: InviteConfig;
   allowedDomains: string[];
   trackSource: boolean;
 }
 
-export interface Invite {
-  id: string;
-  code: string;
-  createdBy: string;
-  createdByName: string;
-  metadata: Record<string, string>;
+/** How a new invite is limited, as the administrator set it in the form. */
+export interface InviteLimits {
+  /** Uses allowed; 0 is no limit. */
   maxUses: number;
-  useCount: number;
-  expiresAt: string | null;
-  active: boolean;
-  status: InviteStatus;
-  createdAt: string;
+  /** When it expires; none follows the policy's default expiry. */
+  expiresAt: Date | null;
 }
 
-export interface SourceBreakdown {
-  sourceType: RegistrationSourceType;
-  count: number;
-  percentage: number;
-}
-
-export interface ReferrerEntry {
-  profileId: string;
-  displayName: string;
-  referralCount: number;
-}
-
-export interface RegistrationStats {
-  total: number;
-  bySource: SourceBreakdown[];
-  topReferrers: ReferrerEntry[];
-  totalReferrals: number;
-  uniqueReferrers: number;
+/**
+ * The request fields for `limits`: no use limit is `unlimited_uses`, since a
+ * zero `max_uses` means the policy's default count.
+ */
+function limitFields(limits: InviteLimits) {
+  return {
+    maxUses: limits.maxUses,
+    unlimitedUses: limits.maxUses === 0,
+    expiresAt: limits.expiresAt
+      ? Timestamp.fromDate(limits.expiresAt)
+      : undefined,
+    neverExpires: false,
+  };
 }
 
 // ── Label / Color / Icon helpers ──
@@ -183,6 +160,11 @@ export function sourceTypeColor(type: RegistrationSourceType): string {
   return SOURCE_TYPE_COLORS[type] ?? "grey";
 }
 
+/** The message of a failed call, or `fallback`. */
+function message(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
 // ── Store ──
 
 export const useEnrollmentStore = defineStore("enrollment", () => {
@@ -199,32 +181,27 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.GetEnrollmentPolicy
-      policy.value = {
-        mode: EnrollmentMode.OPEN,
-        invite: { defaultMaxUses: 1, defaultExpiryHours: 0 },
-        allowedDomains: [],
-        trackSource: true,
-      };
+      const { response } = await getClient().getEnrollmentPolicy(
+        Empty.create(),
+      );
+      policy.value = response;
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to load enrollment policy";
+      error.value = message(err, "Failed to load enrollment policy");
     } finally {
       loading.value = false;
     }
   }
 
-  async function updatePolicy(updated: EnrollmentPolicy) {
+  async function updatePolicy(edit: PolicyEdit) {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.UpdateEnrollmentPolicy
-      policy.value = { ...updated };
+      const { response } = await getClient().updateEnrollmentPolicy({
+        policy: EnrollmentPolicy.create(edit),
+      });
+      policy.value = response;
     } catch (err) {
-      error.value =
-        err instanceof Error
-          ? err.message
-          : "Failed to update enrollment policy";
+      error.value = message(err, "Failed to update enrollment policy");
       throw err;
     } finally {
       loading.value = false;
@@ -233,67 +210,62 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
 
   // ── Invites ──
 
-  async function fetchInvites(statusFilter?: InviteStatus, search?: string) {
+  async function fetchInvites(status?: InviteStatus, search?: string) {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.ListInvites
-      invites.value = [];
-      invitesTotalCount.value = 0;
+      const { response } = await getClient().listInvites({
+        pageSize: 100,
+        pageToken: "",
+        status: status ?? InviteStatus.UNSPECIFIED,
+        search: search ?? "",
+      });
+      invites.value = response.invites;
+      invitesTotalCount.value = response.totalCount;
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to load invites";
+      error.value = message(err, "Failed to load invites");
     } finally {
       loading.value = false;
     }
   }
 
   async function createInvite(
-    maxUses: number,
-    expiresAt: string | null,
+    limits: InviteLimits,
     metadata: Record<string, string>,
   ): Promise<Invite | null> {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.CreateInvite
-      const invite: Invite = {
-        id: crypto.randomUUID(),
-        code: Math.random().toString(36).substring(2, 10).toUpperCase(),
-        createdBy: "",
-        createdByName: "Admin",
+      const { response } = await getClient().createInvite({
+        ...limitFields(limits),
         metadata,
-        maxUses,
-        useCount: 0,
-        expiresAt,
-        active: true,
-        status: InviteStatus.ACTIVE,
-        createdAt: new Date().toISOString(),
-      };
-      invites.value.unshift(invite);
-      return invite;
+      });
+      invites.value.unshift(response);
+      invitesTotalCount.value += 1;
+      return response;
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to create invite";
+      error.value = message(err, "Failed to create invite");
       return null;
     } finally {
       loading.value = false;
     }
   }
 
-  async function revokeInvite(inviteId: string) {
+  async function revokeInvite(inviteId: InviteId) {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.RevokeInvite
-      const idx = invites.value.findIndex((i) => i.id === inviteId);
+      await getClient().revokeInvite({ inviteId: inviteId.toWire() });
+      const idx = invites.value.findIndex((i) => names(i.id, inviteId));
       if (idx !== -1) {
-        invites.value[idx].active = false;
-        invites.value[idx].status = InviteStatus.REVOKED;
+        invites.value[idx] = {
+          ...invites.value[idx],
+          active: false,
+          status: InviteStatus.REVOKED,
+        };
       }
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to revoke invite";
+      error.value = message(err, "Failed to revoke invite");
       throw err;
     } finally {
       loading.value = false;
@@ -302,36 +274,22 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
 
   async function bulkCreateInvites(
     count: number,
-    maxUses: number,
-    expiresAt: string | null,
+    limits: InviteLimits,
     metadata: Record<string, string>,
   ): Promise<Invite[]> {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.BulkCreateInvites
-      const created: Invite[] = [];
-      for (let i = 0; i < count; i++) {
-        const invite: Invite = {
-          id: crypto.randomUUID(),
-          code: Math.random().toString(36).substring(2, 10).toUpperCase(),
-          createdBy: "",
-          createdByName: "Admin",
-          metadata,
-          maxUses,
-          useCount: 0,
-          expiresAt,
-          active: true,
-          status: InviteStatus.ACTIVE,
-          createdAt: new Date().toISOString(),
-        };
-        created.push(invite);
-      }
-      invites.value.unshift(...created);
-      return created;
+      const { response } = await getClient().bulkCreateInvites({
+        count,
+        ...limitFields(limits),
+        metadata,
+      });
+      invites.value.unshift(...response.invites);
+      invitesTotalCount.value += response.invites.length;
+      return response.invites;
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to bulk create invites";
+      error.value = message(err, "Failed to bulk create invites");
       return [];
     } finally {
       loading.value = false;
@@ -340,21 +298,16 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
 
   // ── Registration Stats ──
 
-  async function fetchRegistrationStats(periodDays: number = 30) {
+  async function fetchRegistrationStats(periodDays = 30) {
     loading.value = true;
     error.value = null;
     try {
-      // TODO: connect to gRPC EnrollmentService.GetRegistrationStats
-      stats.value = {
-        total: 0,
-        bySource: [],
-        topReferrers: [],
-        totalReferrals: 0,
-        uniqueReferrers: 0,
-      };
+      const { response } = await getClient().getRegistrationStats({
+        periodDays,
+      });
+      stats.value = response;
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Failed to load registration stats";
+      error.value = message(err, "Failed to load registration stats");
     } finally {
       loading.value = false;
     }

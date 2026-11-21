@@ -699,10 +699,10 @@ const policyForm = reactive({
 });
 
 const mfaMethodOptions = [
-  { label: "Any MFA", value: RequiredMfaMethod.ANY_MFA },
-  { label: "WebAuthn", value: RequiredMfaMethod.WEBAUTHN },
-  { label: "Hardware Key Only", value: RequiredMfaMethod.HARDWARE_KEY_ONLY },
-];
+  RequiredMfaMethod.ANY_MFA,
+  RequiredMfaMethod.WEBAUTHN,
+  RequiredMfaMethod.HARDWARE_KEY_ONLY,
+].map((value) => ({ label: requiredMfaMethodLabel(value), value }));
 
 const assuranceLevels = [
   {

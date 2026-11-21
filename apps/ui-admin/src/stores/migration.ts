@@ -2,9 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { MigrationServiceClient } from "@structured-id/proto/sid/v1/admin/migration.client";
 import type {
-  ExportBlueprintResponse,
   ImportBlueprintResponse,
-  ExportEntityResponse,
   ParseMigrationFileResponse,
   ExecuteMigrationResponse,
   MigrationStatus,

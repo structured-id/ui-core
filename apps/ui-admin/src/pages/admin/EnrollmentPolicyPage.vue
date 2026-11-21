@@ -25,7 +25,11 @@
     <q-tabs v-model="tab" dense align="left" class="q-mb-lg" no-caps>
       <q-tab name="policy" label="Policy" icon="sym_o_policy" />
       <q-tab name="invites" label="Invite Codes" icon="sym_o_mail" />
-      <q-tab name="analytics" label="Registration Analytics" icon="sym_o_bar_chart" />
+      <q-tab
+        name="analytics"
+        label="Registration Analytics"
+        icon="sym_o_bar_chart"
+      />
     </q-tabs>
 
     <q-tab-panels v-model="tab" animated>
@@ -46,10 +50,18 @@
                 >
                   <template #label="opt">
                     <div class="row items-center no-wrap q-ml-sm">
-                      <q-icon :name="enrollmentModeIcon(opt.value)" size="sm" class="q-mr-sm" />
+                      <q-icon
+                        :name="enrollmentModeIcon(opt.value)"
+                        size="sm"
+                        class="q-mr-sm"
+                      />
                       <div>
-                        <div class="text-weight-medium">{{ enrollmentModeLabel(opt.value) }}</div>
-                        <div class="text-caption text-grey">{{ enrollmentModeDescription(opt.value) }}</div>
+                        <div class="text-weight-medium">
+                          {{ enrollmentModeLabel(opt.value) }}
+                        </div>
+                        <div class="text-caption text-grey">
+                          {{ enrollmentModeDescription(opt.value) }}
+                        </div>
                       </div>
                     </div>
                   </template>
@@ -225,7 +237,9 @@
             label="Status"
             style="min-width: 150px"
             clearable
-            @update:model-value="store.fetchInvites(inviteStatusFilter ?? undefined)"
+            @update:model-value="
+              store.fetchInvites(inviteStatusFilter ?? undefined)
+            "
           />
           <q-input
             v-model="inviteSearch"
@@ -234,7 +248,9 @@
             placeholder="Search codes..."
             class="q-ml-sm"
             style="min-width: 200px"
-            @keyup.enter="store.fetchInvites(inviteStatusFilter ?? undefined, inviteSearch)"
+            @keyup.enter="
+              store.fetchInvites(inviteStatusFilter ?? undefined, inviteSearch)
+            "
           >
             <template #append>
               <q-icon name="sym_o_search" />
@@ -246,7 +262,7 @@
         <q-table
           :rows="store.invites"
           :columns="inviteColumns"
-          row-key="id"
+          :row-key="(i: Invite) => shown(i.id)"
           flat
           bordered
           :loading="store.loading"
@@ -282,13 +298,18 @@
 
           <template #body-cell-uses="props">
             <q-td :props="props">
-              {{ props.row.useCount }} / {{ props.row.maxUses === 0 ? '∞' : props.row.maxUses }}
+              {{ props.row.useCount }} /
+              {{ props.row.maxUses === 0 ? "∞" : props.row.maxUses }}
             </q-td>
           </template>
 
           <template #body-cell-expiresAt="props">
             <q-td :props="props">
-              {{ props.row.expiresAt ? new Date(props.row.expiresAt).toLocaleDateString() : '—' }}
+              {{
+                props.row.expiresAt
+                  ? Timestamp.toDate(props.row.expiresAt).toLocaleDateString()
+                  : "—"
+              }}
             </q-td>
           </template>
 
@@ -398,18 +419,23 @@
                 <q-list dense separator>
                   <q-item
                     v-for="referrer in store.stats?.topReferrers ?? []"
-                    :key="referrer.profileId"
+                    :key="shown(referrer.profileId)"
                   >
                     <q-item-section avatar>
                       <q-avatar color="primary" text-color="white" size="sm">
-                        {{ referrer.displayName?.charAt(0)?.toUpperCase() ?? '?' }}
+                        {{
+                          referrer.displayName?.charAt(0)?.toUpperCase() ?? "?"
+                        }}
                       </q-avatar>
                     </q-item-section>
                     <q-item-section>
                       <q-item-label>{{ referrer.displayName }}</q-item-label>
                     </q-item-section>
                     <q-item-section side>
-                      <q-badge color="primary" :label="String(referrer.referralCount)" />
+                      <q-badge
+                        color="primary"
+                        :label="String(referrer.referralCount)"
+                      />
                     </q-item-section>
                   </q-item>
 
@@ -491,8 +517,20 @@
               />
             </div>
             <div class="row items-center q-gutter-sm q-ml-md q-mt-sm">
-              <q-input v-model="metaKey" dense outlined placeholder="key" class="col" />
-              <q-input v-model="metaValue" dense outlined placeholder="value" class="col" />
+              <q-input
+                v-model="metaKey"
+                dense
+                outlined
+                placeholder="key"
+                class="col"
+              />
+              <q-input
+                v-model="metaValue"
+                dense
+                outlined
+                placeholder="value"
+                class="col"
+              />
               <q-btn
                 flat
                 dense
@@ -587,6 +625,9 @@ import {
   sourceTypeColor,
 } from "stores/enrollment";
 import type { Invite, InviteConfig } from "stores/enrollment";
+import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import { InviteId, required } from "@structured-id/ids";
+import { shown } from "src/ids";
 
 const $q = useQuasar();
 const store = useEnrollmentStore();
@@ -602,9 +643,7 @@ const editInviteConfig = ref<InviteConfig>({
 });
 const newDomain = ref("");
 
-const currentMode = computed(
-  () => store.policy?.mode ?? EnrollmentMode.OPEN,
-);
+const currentMode = computed(() => store.policy?.mode ?? EnrollmentMode.OPEN);
 
 const modeOptions = [
   { value: EnrollmentMode.OPEN },
@@ -627,7 +666,7 @@ async function savePolicy() {
     invite:
       editMode.value === EnrollmentMode.INVITE_ONLY
         ? { ...editInviteConfig.value }
-        : null,
+        : undefined,
     allowedDomains:
       editMode.value === EnrollmentMode.DOMAIN_RESTRICTED
         ? [...editDomains.value]
@@ -649,16 +688,32 @@ const inviteStatusOptions = [
 ];
 
 const inviteColumns = [
-  { name: "code", label: "Code", field: "code", align: "left" as const, sortable: true },
+  {
+    name: "code",
+    label: "Code",
+    field: "code",
+    align: "left" as const,
+    sortable: true,
+  },
   { name: "uses", label: "Uses", field: "useCount", align: "center" as const },
-  { name: "expiresAt", label: "Expires", field: "expiresAt", align: "left" as const },
+  {
+    name: "expiresAt",
+    label: "Expires",
+    field: "expiresAt",
+    align: "left" as const,
+  },
   {
     name: "createdByName",
     label: "Created by",
     field: "createdByName",
     align: "left" as const,
   },
-  { name: "status", label: "Status", field: "status", align: "center" as const },
+  {
+    name: "status",
+    label: "Status",
+    field: "status",
+    align: "center" as const,
+  },
   { name: "actions", label: "", field: "id", align: "right" as const },
 ];
 
@@ -680,8 +735,10 @@ function addMetadata() {
 
 async function doCreateInvite() {
   const invite = await store.createInvite(
-    newInviteMaxUses.value,
-    newInviteExpiry.value ? new Date(newInviteExpiry.value).toISOString() : null,
+    {
+      maxUses: newInviteMaxUses.value,
+      expiresAt: newInviteExpiry.value ? new Date(newInviteExpiry.value) : null,
+    },
     { ...newInviteMetadata.value },
   );
   if (invite) {
@@ -707,7 +764,7 @@ function confirmRevokeInvite(invite: Invite) {
     cancel: true,
     persistent: true,
   }).onOk(async () => {
-    await store.revokeInvite(invite.id);
+    await store.revokeInvite(required(InviteId, invite.id));
     $q.notify({ type: "positive", message: "Invite revoked" });
   });
 }
@@ -721,8 +778,10 @@ const bulkExpiry = ref<string | null>(null);
 async function doBulkCreate() {
   const created = await store.bulkCreateInvites(
     bulkCount.value,
-    bulkMaxUses.value,
-    bulkExpiry.value ? new Date(bulkExpiry.value).toISOString() : null,
+    {
+      maxUses: bulkMaxUses.value,
+      expiresAt: bulkExpiry.value ? new Date(bulkExpiry.value) : null,
+    },
     {},
   );
   if (created.length) {

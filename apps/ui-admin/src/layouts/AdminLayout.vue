@@ -80,8 +80,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useQuasar } from "quasar";
+import { bffLogout } from "@structured-id/ui-core";
 import { useAuthStore } from "src/stores/auth";
 
+const $q = useQuasar();
 const auth = useAuthStore();
 const leftDrawerOpen = ref(false);
 
@@ -95,9 +98,19 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-function handleLogout() {
+// Ends the session at the browser adapter on this origin; the console's own
+// state is cleared only once the adapter confirms, then sign-in starts again.
+async function handleLogout() {
+  const result = await bffLogout(window.location.origin);
+  if (!result.ended) {
+    $q.notify({
+      type: "negative",
+      message: "Sign-out failed; the session may still be active",
+    });
+    return;
+  }
   auth.logout();
-  // TODO: redirect to sid-auth logout endpoint
+  window.location.assign("/admin/");
 }
 
 const navLinks = [

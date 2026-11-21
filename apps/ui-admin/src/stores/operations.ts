@@ -13,7 +13,6 @@ import type {
   InstanceInfo,
   ChannelSummary,
   ChannelConfig,
-  TestChannelResponse,
   DeliveryHealthResponse,
   DefaultNotificationPreferences,
 } from "@structured-id/proto/sid/v1/admin/operations";

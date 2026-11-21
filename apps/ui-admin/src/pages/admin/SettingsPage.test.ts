@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import {
-  BruteForceLockoutMode,
-  PasswordPolicyRuleType,
-} from "@structured-id/proto/sid/v1/admin/security";
+import { PasswordPolicyRuleType } from "@structured-id/proto/sid/v1/admin/security";
 
 // Hoisted mocks — settings uses 4 different gRPC clients
 const realmMocks = vi.hoisted(() => ({

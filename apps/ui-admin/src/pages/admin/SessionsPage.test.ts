@@ -147,7 +147,7 @@ describe("SessionsPage", () => {
   });
 
   it("shows empty state when no sessions", async () => {
-    const wrapper = mountPage();
+    mountPage();
     await flushPromises();
     const store = useSessionsStore();
     expect(store.sessions).toHaveLength(0);

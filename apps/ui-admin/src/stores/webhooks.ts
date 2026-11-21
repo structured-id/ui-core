@@ -13,7 +13,6 @@ import type {
   EventTypeDetail,
   CreateEndpointRequest,
   UpdateEndpointRequest,
-  SendTestEventResponse,
 } from "@structured-id/proto/sid/v1/admin/webhooks";
 import {
   EndpointStatus,

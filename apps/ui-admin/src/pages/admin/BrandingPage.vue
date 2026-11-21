@@ -449,10 +449,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useBrandingStore } from "src/stores/branding";
-import {
-  ButtonStyle,
-  BrandingStatus,
-} from "@structured-id/proto/sid/v1/admin/branding";
+import { ButtonStyle } from "@structured-id/proto/sid/v1/admin/branding";
 import type {
   BrandingConfig,
   DesignTokens,
@@ -518,8 +515,7 @@ const ColorField = defineComponent({
   },
 });
 
-// Register inline for template
-// eslint-disable-next-line vue/no-unused-components
+// The template names it <color-field>.
 const colorField = ColorField;
 
 // ── Form state ──
@@ -592,10 +588,10 @@ const darkColorFields = [
 ];
 
 const buttonStyleOptions = [
-  { label: "Rounded", value: ButtonStyle.ROUNDED },
-  { label: "Square", value: ButtonStyle.SQUARE },
-  { label: "Pill", value: ButtonStyle.PILL },
-];
+  ButtonStyle.ROUNDED,
+  ButtonStyle.SQUARE,
+  ButtonStyle.PILL,
+].map((value) => ({ label: buttonStyleLabel(value), value }));
 
 const isDirty = computed(() => {
   if (!config.value) return true;
