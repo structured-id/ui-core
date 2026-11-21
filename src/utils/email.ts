@@ -20,8 +20,11 @@ export interface EmailPolicy {
   readonly publicSuffix: boolean;
 }
 
-/** The global SaaS/federated Personal namespace: ASCII, no IDN, a public mail domain. */
-export const GLOBAL_PERSONAL: EmailPolicy = Object.freeze({
+/**
+ * An ASCII mailbox at a public mail domain: no internationalized domain, in
+ * Unicode or A-label spelling, and a Public Suffix List suffix.
+ */
+export const ASCII_PUBLIC_EMAIL: EmailPolicy = Object.freeze({
   unicodeLocal: false,
   idnDomain: false,
   singleLabelDomain: false,

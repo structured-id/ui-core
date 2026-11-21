@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, nextTick } from "vue";
 import SidPrincipalInput from "./SidPrincipalInput.vue";
 import { principalRecognizable } from "./principalInputTexts";
-import { GLOBAL_PERSONAL, LOCAL, initEmail } from "../utils/email";
+import { ASCII_PUBLIC_EMAIL, LOCAL, initEmail } from "../utils/email";
 import { TEST_PSL } from "../utils/email.testing";
 
 // As an application does at start: the email parser loaded, LOCAL namespace.
@@ -244,7 +244,7 @@ describe("SidPrincipalInput", () => {
   // Regression: the application's namespace was not reactive, so a field
   // mounted under one kept the verdict of it after initEmail named another.
   it("re-judges an email when the application's namespace changes", async () => {
-    await initEmail({ policy: GLOBAL_PERSONAL, psl: TEST_PSL });
+    await initEmail({ policy: ASCII_PUBLIC_EMAIL, psl: TEST_PSL });
     const w = mount(SidPrincipalInput, {
       props: { modelValue: "admin@printer", types: ["email"] },
       global: { stubs },
