@@ -728,7 +728,10 @@ async function updateClient(
 ) {
   if (!client.value) return;
   // The API reads an empty redirect URI, scope or grant list as "unchanged",
-  // so clearing one cannot be saved; saying it was would be false.
+  // so clearing a list that has entries cannot be saved; saying it was would
+  // be false. A list that was empty and stays empty (an API client's redirect
+  // URIs) is simply not sent.
+  const current = client.value;
   const emptied = (
     [
       ["redirectUris", "redirect URI"],
@@ -736,7 +739,10 @@ async function updateClient(
       ["grantTypes", "grant type"],
     ] as const
   ).find(
-    ([field]) => change[field] !== undefined && change[field]!.length === 0,
+    ([field]) =>
+      change[field] !== undefined &&
+      change[field]!.length === 0 &&
+      current[field].length > 0,
   );
   if (emptied) {
     $q.notify({
