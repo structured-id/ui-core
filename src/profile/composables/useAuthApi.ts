@@ -867,19 +867,28 @@ export async function getPasswordPolicy(): Promise<GetZkppPolicyResponse> {
 // client proves, and the finish carries the record with the proof.
 
 /**
+ * What admits a registration: the claim token of an installation that has no
+ * administrator yet, or an invite code while enrollment is invite-only.
+ */
+export interface RegistrationAdmission {
+  claimToken?: string;
+  inviteCode?: string;
+}
+
+/**
  * Start a registration: the operation is prepared for the new account and its
- * OPAQUE request answered. `claimToken` claims an installation that has no
- * administrator yet.
+ * OPAQUE request answered, with the `admission` the page holds.
  */
 export async function opaqueZkppRegistrationStart(
   principal: string,
   registrationRequest: Uint8Array,
-  claimToken?: string,
+  admission: RegistrationAdmission = {},
 ): Promise<OpaqueZkppRegistrationStartResponse> {
   const { response } = await client().opaqueZkppRegistrationStart({
     principal,
     registrationRequest,
-    claimToken,
+    claimToken: admission.claimToken,
+    inviteCode: admission.inviteCode,
   });
   return response;
 }

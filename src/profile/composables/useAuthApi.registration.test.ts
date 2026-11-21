@@ -3,6 +3,7 @@ import { RpcError } from "@protobuf-ts/runtime-rpc";
 import { CredentialId, OtpSessionId } from "@structured-id/ids";
 import {
   endEmailRegistration,
+  opaqueZkppRegistrationStart,
   passkeyRegistrationFinish,
   passkeyRegistrationStart,
   resendEmailRegistration,
@@ -57,6 +58,35 @@ async function verified() {
 beforeEach(() => {
   endEmailRegistration();
   for (const fn of Object.values(rpc)) fn.mockReset();
+});
+
+describe("a password registration start", () => {
+  // Regression: the invite code was dropped here, so invite-only enrollment
+  // refused every password registration. Both admissions reach the wire.
+  it("sends the principal, the request and the admission evidence", async () => {
+    call("opaqueZkppRegistrationStart").mockResolvedValue({ response: {} });
+    const request = new Uint8Array([7]);
+
+    await opaqueZkppRegistrationStart("bob@example.com", request, {
+      inviteCode: "ABCD1234",
+    });
+    expect(lastCall("opaqueZkppRegistrationStart")[0]).toEqual({
+      principal: "bob@example.com",
+      registrationRequest: request,
+      claimToken: undefined,
+      inviteCode: "ABCD1234",
+    });
+
+    await opaqueZkppRegistrationStart("bob@example.com", request, {
+      claimToken: "sidclaim_x",
+    });
+    expect(lastCall("opaqueZkppRegistrationStart")[0]).toEqual({
+      principal: "bob@example.com",
+      registrationRequest: request,
+      claimToken: "sidclaim_x",
+      inviteCode: undefined,
+    });
+  });
 });
 
 describe("a passwordless registration", () => {

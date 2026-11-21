@@ -201,14 +201,14 @@ describe("createAuth register", () => {
 
   it("runs the operation: start, evaluate, prove, finish with the proof", async () => {
     const { register } = createAuth(loader);
-    const result = await register("bob@test.com", "N3wP@ssword!", "sidclaim_x");
+    const result = await register("bob@test.com", "N3wP@ssword!", {
+      claimToken: "sidclaim_x",
+    });
 
     expect(client.registrationStart).toHaveBeenCalledWith("N3wP@ssword!");
-    expect(api.regStart).toHaveBeenCalledWith(
-      "bob@test.com",
-      START.request,
-      "sidclaim_x",
-    );
+    expect(api.regStart).toHaveBeenCalledWith("bob@test.com", START.request, {
+      claimToken: "sidclaim_x",
+    });
     expect(client.historyRequest).toHaveBeenCalledWith(
       "N3wP@ssword!",
       OWNER_DOMAIN,
@@ -231,6 +231,18 @@ describe("createAuth register", () => {
     // Regression: the result passed the server's Profile identifier on to
     // the application; even a server still sending one is not forwarded.
     expect(result).toEqual({ credentialId: CRED });
+  });
+
+  // Regression: an invite-only installation could not be joined with a
+  // password, since the invite code the form collected never reached the
+  // registration start.
+  it("sends the invite code with the registration start", async () => {
+    const { register } = createAuth(loader);
+    await register("bob@test.com", "N3wP@ssword!", { inviteCode: "ABCD1234" });
+
+    expect(api.regStart).toHaveBeenCalledWith("bob@test.com", START.request, {
+      inviteCode: "ABCD1234",
+    });
   });
 
   // A password the circuit cannot hold has no history request: nothing is
@@ -264,7 +276,7 @@ describe("createAuth register", () => {
     });
     const seen: PasswordOperationProgress[] = [];
     const { register } = createAuth(loader);
-    await register("bob@test.com", "pw", undefined, (p) => seen.push(p));
+    await register("bob@test.com", "pw", {}, (p) => seen.push(p));
     const ms = DEFAULT_STEP_MS;
     const total = ms.protect + ms.compare + ms.prove + ms.verify;
     const proveStart = (ms.protect + ms.compare) / total;
