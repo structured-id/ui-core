@@ -268,13 +268,10 @@ async function saveSettings() {
   }
 }
 
+// Member actions target the group the shown members belong to.
 async function removeMember(member: wire.ProfileId) {
-  if (!store.currentGroup) return;
   try {
-    await store.removeMember(
-      required(GroupId, store.currentGroup.id),
-      required(ProfileId, member),
-    );
+    await store.removeMember(required(ProfileId, member));
     $q.notify({ type: "positive", message: "Member removed" });
   } catch {
     $q.notify({ type: "negative", message: store.error || "Remove failed" });
@@ -291,7 +288,7 @@ async function executeAddMember() {
     return;
   }
   try {
-    await store.addMember(required(GroupId, store.currentGroup.id), profileId);
+    await store.addMember(profileId);
     addMemberDialog.value = false;
     newMemberId.value = "";
     $q.notify({ type: "positive", message: "Member added" });

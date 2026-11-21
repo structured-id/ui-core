@@ -550,19 +550,16 @@ function loadedIsSelected(): boolean {
 
 async function handleSave() {
   if (!selectedTemplateId.value || !loadedIsSelected()) return;
+  // What is sent is what becomes saved: edits typed while the save runs
+  // stay unsaved, so Save remains available for them.
+  const sent = { ...editForm };
   try {
     await store.updateTemplate(selectedTemplateId.value, {
       channel: selectedChannel.value,
       locale: selectedLocale.value,
-      subject: editForm.subject,
-      htmlBody: editForm.htmlBody,
-      textBody: editForm.textBody,
-      smsBody: editForm.smsBody,
-      pushTitle: editForm.pushTitle,
-      pushBody: editForm.pushBody,
-      pushActionUrl: editForm.pushActionUrl,
+      ...sent,
     });
-    originalContent.value = { ...editForm };
+    originalContent.value = sent;
     $q.notify({ type: "positive", message: "Template saved" });
   } catch {
     $q.notify({ type: "negative", message: store.error ?? "Failed" });

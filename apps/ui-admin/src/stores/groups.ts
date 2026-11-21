@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import { AuthzServiceClient } from "@structured-id/proto/sid/v1/authz/authz.client";
 import type { Group } from "@structured-id/proto/sid/v1/authz/authz";
 import { getAccountTransport } from "@structured-id/ui-core";
@@ -18,8 +18,10 @@ function getClient() {
 export const useGroupsStore = defineStore("groups", () => {
   const groups = ref<Group[]>([]);
   const currentGroup = ref<Group | null>(null);
-  /** The members as the installation answered them. */
+  /** The members as the installation answered them, of `membersOf`. */
   const members = ref<wire.ProfileId[]>([]);
+  /** The group the shown members belong to; actions on them target it. */
+  const membersOf = shallowRef<GroupId | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -132,13 +134,20 @@ export const useGroupsStore = defineStore("groups", () => {
     }
   }
 
+  /**
+   * The members of `groupId`. Another group's rows are cleared at once, and
+   * an answer for a group no longer shown is dropped.
+   */
   async function fetchMembers(groupId: GroupId) {
     loading.value = true;
     error.value = null;
+    membersOf.value = groupId;
+    members.value = [];
     try {
       const { response } = await getClient().listGroupMembers({
         groupId: groupId.toWire(),
       });
+      if (membersOf.value !== groupId) return;
       members.value = response.profileIds;
     } catch (err) {
       error.value =
@@ -148,7 +157,10 @@ export const useGroupsStore = defineStore("groups", () => {
     }
   }
 
-  async function addMember(groupId: GroupId, profileId: ProfileId) {
+  /** Add `profileId` to the group whose members are shown. */
+  async function addMember(profileId: ProfileId) {
+    const groupId = membersOf.value;
+    if (!groupId) throw new Error("No group's members are shown");
     loading.value = true;
     error.value = null;
     try {
@@ -156,7 +168,7 @@ export const useGroupsStore = defineStore("groups", () => {
         groupId: groupId.toWire(),
         profileId: profileId.toWire(),
       });
-      members.value.push(profileId.toWire());
+      if (membersOf.value === groupId) members.value.push(profileId.toWire());
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to add member";
       throw err;
@@ -165,7 +177,10 @@ export const useGroupsStore = defineStore("groups", () => {
     }
   }
 
-  async function removeMember(groupId: GroupId, profileId: ProfileId) {
+  /** Remove `profileId` from the group whose members are shown. */
+  async function removeMember(profileId: ProfileId) {
+    const groupId = membersOf.value;
+    if (!groupId) throw new Error("No group's members are shown");
     loading.value = true;
     error.value = null;
     try {
@@ -173,7 +188,9 @@ export const useGroupsStore = defineStore("groups", () => {
         groupId: groupId.toWire(),
         profileId: profileId.toWire(),
       });
-      members.value = members.value.filter((m) => !names(m, profileId));
+      if (membersOf.value === groupId) {
+        members.value = members.value.filter((m) => !names(m, profileId));
+      }
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to remove member";
@@ -187,6 +204,7 @@ export const useGroupsStore = defineStore("groups", () => {
     groups,
     currentGroup,
     members,
+    membersOf,
     loading,
     error,
     fetchGroups,

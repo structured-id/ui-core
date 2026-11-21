@@ -259,18 +259,6 @@
               clearable
             />
           </div>
-          <div class="col-12 col-sm-2">
-            <q-select
-              v-model="eventFilters.outcome"
-              outlined
-              dense
-              :options="outcomeOptions"
-              emit-value
-              map-options
-              label="Outcome"
-              clearable
-            />
-          </div>
         </div>
         <div class="row q-col-gutter-sm q-mb-md">
           <div class="col-12 col-sm-3">
@@ -983,7 +971,6 @@ const eventFilters = ref({
   profileId: "",
   clientId: "",
   ipAddress: "",
-  outcome: undefined as "success" | "error" | undefined,
   dateFrom: "",
   dateTo: "",
 });
@@ -995,11 +982,6 @@ const adminFilters = ref({
   dateFrom: "",
   dateTo: "",
 });
-
-const outcomeOptions = [
-  { label: "Success", value: "success" },
-  { label: "Error", value: "error" },
-];
 
 const auditFilters = ref({
   actorId: "",
