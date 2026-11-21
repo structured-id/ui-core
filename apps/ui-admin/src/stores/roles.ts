@@ -250,7 +250,13 @@ export const useRolesStore = defineStore("roles", () => {
         scope: req.scope,
         expiresAt: req.expiresAt,
       });
-      if (response.assignment) {
+      // The assignment joins only the shown list it belongs to: its role's,
+      // or the service account's it was given to.
+      const belongs =
+        assignmentsOf === `role:${req.roleId.toString()}` ||
+        (req.principal.kind === "machineUser" &&
+          assignmentsOf === `machine:${req.principal.id.toString()}`);
+      if (response.assignment && belongs) {
         assignments.value.push(response.assignment);
       }
       return response;

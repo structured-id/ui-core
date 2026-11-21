@@ -194,7 +194,7 @@ export const useScopesStore = defineStore("scopes", () => {
     error.value = null;
     try {
       const { response } = await getClient().addClaimMapping(req);
-      claimMappings.value.push(response);
+      if (scopeShown === req.scopeId) claimMappings.value.push(response);
       return response;
     } catch (err) {
       error.value =
@@ -221,8 +221,12 @@ export const useScopesStore = defineStore("scopes", () => {
     error.value = null;
     try {
       const { response } = await getClient().updateClaimMapping(req);
-      const idx = claimMappings.value.findIndex((m) => m.id === req.mappingId);
-      if (idx !== -1) claimMappings.value[idx] = response;
+      if (scopeShown === req.scopeId) {
+        const idx = claimMappings.value.findIndex(
+          (m) => m.id === req.mappingId,
+        );
+        if (idx !== -1) claimMappings.value[idx] = response;
+      }
       return response;
     } catch (err) {
       error.value =
@@ -238,9 +242,11 @@ export const useScopesStore = defineStore("scopes", () => {
     error.value = null;
     try {
       await getClient().deleteClaimMapping({ scopeId, mappingId });
-      claimMappings.value = claimMappings.value.filter(
-        (m) => m.id !== mappingId,
-      );
+      if (scopeShown === scopeId) {
+        claimMappings.value = claimMappings.value.filter(
+          (m) => m.id !== mappingId,
+        );
+      }
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to delete claim mapping";

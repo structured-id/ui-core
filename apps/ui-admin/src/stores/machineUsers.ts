@@ -257,7 +257,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
         publicKeyPem: req.publicKeyPem,
         expiresAt: req.expiresAt,
       });
-      if (response.credential) {
+      if (response.credential && shows(req.machineUserId)) {
         credentials.value.push(response.credential);
       }
       return response;
@@ -278,7 +278,9 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
         machineUserId: machineUserId.toWire(),
         kid,
       });
-      credentials.value = credentials.value.filter((c) => c.kid !== kid);
+      if (shows(machineUserId)) {
+        credentials.value = credentials.value.filter((c) => c.kid !== kid);
+      }
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to revoke credential";
@@ -351,7 +353,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
         target: req.target,
         allowedScopes: req.allowedScopes,
       });
-      if (response.grant) {
+      if (response.grant && shows(req.machineUserId)) {
         impersonationGrants.value.push(response.grant);
       }
       return response;
@@ -377,9 +379,13 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
         targetType,
         target,
       });
-      impersonationGrants.value = impersonationGrants.value.filter(
-        (g) => !(g.target === target),
-      );
+      // A grant is named by its target, which another account's grant can
+      // share: only the revoked account's shown grants lose it.
+      if (shows(machineUserId)) {
+        impersonationGrants.value = impersonationGrants.value.filter(
+          (g) => g.target !== target,
+        );
+      }
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to revoke impersonation";

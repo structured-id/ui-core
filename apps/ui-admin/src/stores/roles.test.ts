@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { RoleId } from "@structured-id/ids";
+import { MachineUserId, ProfileId, RoleId } from "@structured-id/ids";
 
-const mocks = vi.hoisted(() => ({ getRole: vi.fn(), updateRole: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getRole: vi.fn(),
+  updateRole: vi.fn(),
+  listRoleAssignments: vi.fn(),
+  assignRole: vi.fn(),
+}));
 
 vi.mock("@structured-id/ui-core", () => ({
   getAccountTransport: () => ({}),
@@ -13,6 +18,8 @@ vi.mock("@structured-id/proto/sid/v1/authz/authz.client", () => ({
   AuthzServiceClient: class {
     getRole = mocks.getRole;
     updateRole = mocks.updateRole;
+    listRoleAssignments = mocks.listRoleAssignments;
+    assignRole = mocks.assignRole;
   },
 }));
 
@@ -48,5 +55,47 @@ describe("roles store: role update", () => {
     await saving;
 
     expect(store.currentRole?.name).toBe("b");
+  });
+
+  // Regression: an assignment of role A answered after role B's
+  // assignments were shown joined B's list, where revoking it acted on A.
+  // An assignment joins only the list of its own role, or of the service
+  // account it was given to.
+  it("adds an assignment only to the list it belongs to", async () => {
+    const PROFILE = ProfileId.parse("0192f3a4-7c1e-7b2a-9d4e-0000000000a1");
+    const MACHINE = MachineUserId.parse("0192f3a4-7c1e-7b2a-9d4e-0000000000c1");
+    // A fresh list each time: the store keeps the answered array itself.
+    mocks.listRoleAssignments.mockImplementation(async () => ({
+      response: { assignments: [] },
+    }));
+    let assignA!: (v: unknown) => void;
+    mocks.assignRole
+      .mockReturnValueOnce(new Promise((r) => (assignA = r)))
+      .mockResolvedValueOnce({ response: { assignment: { scope: "own" } } })
+      .mockResolvedValueOnce({ response: { assignment: { scope: "mu" } } });
+    const store = useRolesStore();
+
+    await store.fetchRoleAssignments(A);
+    const assigning = store.assignRole({
+      roleId: A,
+      principal: { kind: "profile", id: PROFILE },
+    });
+    await store.fetchRoleAssignments(B);
+    assignA({ response: { assignment: { scope: "late" } } });
+    await assigning;
+    expect(store.assignments).toEqual([]);
+
+    await store.assignRole({
+      roleId: B,
+      principal: { kind: "profile", id: PROFILE },
+    });
+    expect(store.assignments).toEqual([{ scope: "own" }]);
+
+    await store.fetchMachineUserAssignments(MACHINE);
+    await store.assignRole({
+      roleId: A,
+      principal: { kind: "machineUser", id: MACHINE },
+    });
+    expect(store.assignments).toEqual([{ scope: "mu" }]);
   });
 });
