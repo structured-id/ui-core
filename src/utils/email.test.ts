@@ -1,14 +1,23 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  ASCII_PUBLIC_EMAIL,
   CORPORATE_BASELINE,
   LOCAL,
   checkEmail,
   emailPolicy,
   initEmail,
   isValidEmail,
+  type EmailPolicy,
 } from "./email";
 import { TEST_PSL } from "./email.testing";
+
+// An application's own namespace: ASCII only, no internationalized domain,
+// a public mail domain. It exercises the parser options no preset sets.
+const ASCII_PUBLIC: EmailPolicy = Object.freeze({
+  unicodeLocal: false,
+  idnDomain: false,
+  singleLabelDomain: false,
+  publicSuffix: true,
+});
 
 // The admission the server applies (sid_authn::email): the same parser, the
 // same configuration per namespace, so the field refuses what the server
@@ -29,7 +38,7 @@ describe("with the parser", () => {
   });
 
   it("accepts an ordinary mailbox in every namespace", () => {
-    for (const policy of [ASCII_PUBLIC_EMAIL, CORPORATE_BASELINE, LOCAL]) {
+    for (const policy of [ASCII_PUBLIC, CORPORATE_BASELINE, LOCAL]) {
       expect(checkEmail("a.b+c@example.com", policy)).toBe("valid");
     }
   });
@@ -60,25 +69,21 @@ describe("with the parser", () => {
     expect(checkEmail("+tag@example.com", LOCAL)).toBe("invalid");
   });
 
-  describe("an ASCII mailbox at a public mail domain", () => {
+  describe("an application's own policy", () => {
     it("refuses non-ASCII in either part", () => {
-      expect(checkEmail("алиса@example.com", ASCII_PUBLIC_EMAIL)).toBe(
-        "invalid",
-      );
-      expect(checkEmail("user@münchen.de", ASCII_PUBLIC_EMAIL)).toBe("invalid");
+      expect(checkEmail("алиса@example.com", ASCII_PUBLIC)).toBe("invalid");
+      expect(checkEmail("user@münchen.de", ASCII_PUBLIC)).toBe("invalid");
     });
 
     it("refuses an A-label domain", () => {
-      expect(checkEmail("user@xn--mnchen-3ya.de", ASCII_PUBLIC_EMAIL)).toBe(
+      expect(checkEmail("user@xn--mnchen-3ya.de", ASCII_PUBLIC)).toBe(
         "invalid",
       );
     });
 
     it("requires a public suffix", () => {
-      expect(checkEmail("admin@printer", ASCII_PUBLIC_EMAIL)).toBe("invalid");
-      expect(checkEmail("user@example.notatld", ASCII_PUBLIC_EMAIL)).toBe(
-        "invalid",
-      );
+      expect(checkEmail("admin@printer", ASCII_PUBLIC)).toBe("invalid");
+      expect(checkEmail("user@example.notatld", ASCII_PUBLIC)).toBe("invalid");
     });
   });
 
@@ -100,8 +105,8 @@ describe("the application's namespace", () => {
   it("is LOCAL unless the application names its own", async () => {
     await initEmail();
     expect(emailPolicy()).toBe(LOCAL);
-    await initEmail({ policy: ASCII_PUBLIC_EMAIL });
-    expect(emailPolicy()).toBe(ASCII_PUBLIC_EMAIL);
+    await initEmail({ policy: ASCII_PUBLIC });
+    expect(emailPolicy()).toBe(ASCII_PUBLIC);
     expect(isValidEmail("admin@printer")).toBe(false);
     await initEmail({ policy: LOCAL });
     expect(isValidEmail("admin@printer")).toBe(true);

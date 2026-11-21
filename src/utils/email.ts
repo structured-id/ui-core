@@ -20,17 +20,6 @@ export interface EmailPolicy {
   readonly publicSuffix: boolean;
 }
 
-/**
- * An ASCII mailbox at a public mail domain: no internationalized domain, in
- * Unicode or A-label spelling, and a Public Suffix List suffix.
- */
-export const ASCII_PUBLIC_EMAIL: EmailPolicy = Object.freeze({
-  unicodeLocal: false,
-  idnDomain: false,
-  singleLabelDomain: false,
-  publicSuffix: true,
-});
-
 /** An organization's Corporate namespace before it sets its own rules. */
 export const CORPORATE_BASELINE: EmailPolicy = Object.freeze({
   unicodeLocal: false,
