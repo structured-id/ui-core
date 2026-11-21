@@ -727,6 +727,24 @@ async function updateClient(
   success: string,
 ) {
   if (!client.value) return;
+  // The API reads an empty redirect URI, scope or grant list as "unchanged",
+  // so clearing one cannot be saved; saying it was would be false.
+  const emptied = (
+    [
+      ["redirectUris", "redirect URI"],
+      ["allowedScopes", "allowed scope"],
+      ["grantTypes", "grant type"],
+    ] as const
+  ).find(
+    ([field]) => change[field] !== undefined && change[field]!.length === 0,
+  );
+  if (emptied) {
+    $q.notify({
+      type: "warning",
+      message: `A client keeps at least one ${emptied[1]}; this list cannot be emptied.`,
+    });
+    return;
+  }
   try {
     await store.updateClientRole({
       clientId: client.value.clientId,

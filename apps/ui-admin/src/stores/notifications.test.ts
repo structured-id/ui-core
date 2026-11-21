@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 
-const mocks = vi.hoisted(() => ({ getTemplate: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getTemplate: vi.fn(),
+  updateTemplate: vi.fn(),
+}));
 
 vi.mock("@structured-id/ui-core", () => ({
   getAccountTransport: () => ({}),
@@ -11,6 +14,7 @@ vi.mock("@structured-id/ui-core", () => ({
 vi.mock("@structured-id/proto/sid/v1/admin/notifications.client", () => ({
   NotificationTemplateServiceClient: class {
     getTemplate = mocks.getTemplate;
+    updateTemplate = mocks.updateTemplate;
   },
 }));
 
@@ -51,6 +55,30 @@ describe("notifications store", () => {
     a.release();
     expect(await first).toBe(false);
 
+    expect(store.currentTemplate?.templateId).toBe("b");
+  });
+
+  // Regression: a save of A answered after B was loaded replaced B with A.
+  // The answer of a save applies only to the template still loaded.
+  it("keeps another template loaded during a save", async () => {
+    mocks.getTemplate
+      .mockResolvedValueOnce({ response: { templateId: "a" } })
+      .mockResolvedValueOnce({ response: { templateId: "b" } });
+    let answer!: (v: unknown) => void;
+    mocks.updateTemplate.mockReturnValueOnce(
+      new Promise((resolve) => (answer = resolve)),
+    );
+    const store = useNotificationsStore();
+    await store.fetchTemplate("a", 1, "en");
+
+    const saving = store.updateTemplate("a", {
+      channel: 1,
+      locale: "en",
+    } as never);
+    await store.fetchTemplate("b", 1, "en");
+    answer({ response: { templateId: "a", customized: true } });
+
+    expect(await saving).toBe(false);
     expect(store.currentTemplate?.templateId).toBe("b");
   });
 });

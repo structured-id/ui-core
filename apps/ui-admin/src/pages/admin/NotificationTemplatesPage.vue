@@ -554,12 +554,13 @@ async function handleSave() {
   // stay unsaved, so Save remains available for them.
   const sent = { ...editForm };
   try {
-    await store.updateTemplate(selectedTemplateId.value, {
+    const stillLoaded = await store.updateTemplate(selectedTemplateId.value, {
       channel: selectedChannel.value,
       locale: selectedLocale.value,
       ...sent,
     });
-    originalContent.value = sent;
+    // Another template loaded meanwhile keeps its own baseline.
+    if (stillLoaded) originalContent.value = sent;
     $q.notify({ type: "positive", message: "Template saved" });
   } catch {
     $q.notify({ type: "negative", message: store.error ?? "Failed" });

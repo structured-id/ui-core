@@ -77,7 +77,16 @@ export const useNotificationsStore = defineStore("notifications", () => {
     }
   }
 
-  async function updateTemplate(templateId: string, content: TemplateContent) {
+  /**
+   * Save `content` for `templateId`. The answer replaces the loaded template
+   * only when no other template, channel or locale was loaded meanwhile;
+   * true when it did.
+   */
+  async function updateTemplate(
+    templateId: string,
+    content: TemplateContent,
+  ): Promise<boolean> {
+    const loadedAtSave = templateRequest;
     saving.value = true;
     error.value = null;
     try {
@@ -85,14 +94,17 @@ export const useNotificationsStore = defineStore("notifications", () => {
         templateId,
         content,
       });
-      currentTemplate.value = response;
+      const stillLoaded =
+        templateRequest === loadedAtSave &&
+        currentTemplate.value?.templateId === templateId;
+      if (stillLoaded) currentTemplate.value = response;
       // Update summary in list
       const idx = templates.value.findIndex((t) => t.templateId === templateId);
       if (idx >= 0) {
         templates.value[idx].customized = true;
         templates.value[idx].updatedAt = response.updatedAt;
       }
-      return response;
+      return stillLoaded;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to update template";

@@ -120,6 +120,26 @@ describe("MfaPage", () => {
     expect(w.text()).toContain("SECRET");
   });
 
+  // Regression: the recovery codes a first factor's enrollment returns were
+  // dropped, so they were never shown and recovery-code sign-in was useless.
+  it("shows the enrollment's recovery codes", async () => {
+    api.pending = { secondFactors: [], enrollableFactors: [1] };
+    api.startTotpEnrollment.mockResolvedValue({
+      sharedSecret: new Uint8Array(),
+    });
+    api.finishTotpEnrollment.mockResolvedValue({
+      recoveryCodes: ["AAAA-1111", "BBBB-2222"],
+    });
+    const w = mountPage();
+    await flushPromises();
+
+    await w.find("form").trigger("submit");
+    await flushPromises();
+
+    expect(w.text()).toContain("AAAA-1111");
+    expect(w.text()).toContain("BBBB-2222");
+  });
+
   // Without a pending sign-in in this tab there is nothing to complete.
   it("says there is no sign-in to complete without one", () => {
     const w = mountPage();

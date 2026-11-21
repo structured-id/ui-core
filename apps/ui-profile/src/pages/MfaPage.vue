@@ -22,6 +22,26 @@
           <q-btn flat dense no-caps :href="keyUri" label="Open in app" />
         </div>
       </q-card-section>
+      <q-card-section v-if="recoveryCodes.length">
+        <div class="text-subtitle2">Recovery codes</div>
+        <div class="text-body2 text-grey-7">
+          Save these codes now. Each signs you in once if you lose the
+          authenticator; they are not shown again.
+        </div>
+        <div class="row q-col-gutter-sm q-mt-sm">
+          <code
+            v-for="rc in recoveryCodes"
+            :key="rc"
+            class="col-6 text-body2"
+            >{{ rc }}</code
+          >
+        </div>
+        <q-checkbox
+          v-model="recoverySaved"
+          class="q-mt-sm"
+          label="I have saved these codes"
+        />
+      </q-card-section>
       <q-card-section>
         <q-form @submit="finishEnrollment">
           <q-input
@@ -42,7 +62,7 @@
             class="full-width q-mt-md"
             label="Continue"
             :loading="busy"
-            :disable="!code"
+            :disable="!code || (recoveryCodes.length > 0 && !recoverySaved)"
           />
         </q-form>
       </q-card-section>
@@ -119,6 +139,9 @@ const enrolling = ref(
     pending.enrollableFactors.includes(StepUpMethod.TOTP),
 );
 const enrolled = ref(false);
+/** The recovery codes the enrollment returned; the server keeps no plaintext. */
+const recoveryCodes = ref<string[]>([]);
+const recoverySaved = ref(false);
 const keyUri = ref("");
 const secret = ref("");
 const code = ref("");
@@ -168,7 +191,9 @@ async function finishEnrollment() {
   error.value = null;
   try {
     if (!enrolled.value) {
-      await finishTotpEnrollment(code.value, "sign-in");
+      const done = await finishTotpEnrollment(code.value, "sign-in");
+      // A first factor comes with recovery codes, shown this once.
+      recoveryCodes.value = done.recoveryCodes;
       enrolled.value = true;
       code.value = "";
       return;
