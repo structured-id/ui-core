@@ -3,6 +3,7 @@ export * from "./useAuth";
 export * from "./useLoginSuccess";
 export * from "./useAccountApi";
 export * from "./useEnrollmentApi";
+export * from "./useConsentApi";
 export * from "./useIdentityApi";
 export * from "./useSecurityLevel";
 export * from "./useCurrentPasswordRequirement";
