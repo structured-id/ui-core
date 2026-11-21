@@ -326,7 +326,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { useScopesStore } from "#admin/stores/scopes";
@@ -532,9 +532,17 @@ async function executeDeleteMapping() {
 
 // ── Init ──
 
+// A page left before its scope loaded loads nothing more: another scope's
+// page owns the shared claim mappings by then.
+let left = false;
+onUnmounted(() => {
+  left = true;
+});
+
 onMounted(async () => {
   try {
     const scope = await store.fetchScope(scopeId.value);
+    if (left) return;
     settingsForm.value = {
       displayName: scope.displayName,
       description: scope.description,
@@ -544,6 +552,7 @@ onMounted(async () => {
   } catch {
     // error shown in banner
   }
+  if (left) return;
   store.fetchClaimMappings(scopeId.value);
 });
 </script>

@@ -146,7 +146,9 @@ export const useRolesStore = defineStore("roles", () => {
         description: updates.description,
         permissions: updates.permissions,
       });
-      currentRole.value = response.role ?? null;
+      // Another role opened meanwhile keeps its detail; the list still
+      // takes the answer.
+      if (roleShown?.equals(id)) currentRole.value = response.role ?? null;
       const idx = roles.value.findIndex((r) => names(r.id, id));
       if (idx !== -1 && response.role) {
         roles.value[idx] = response.role;

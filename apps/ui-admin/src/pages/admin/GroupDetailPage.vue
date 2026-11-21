@@ -215,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from "vue";
+import { ref, reactive, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { copyToClipboard, useQuasar } from "quasar";
 import { useGroupsStore } from "#admin/stores/groups";
@@ -313,6 +313,13 @@ async function executeDelete() {
   }
 }
 
+// A page left before its group loaded loads nothing more: another group's
+// page owns the shared member list by then.
+let left = false;
+onUnmounted(() => {
+  left = true;
+});
+
 onMounted(async () => {
   let groupId: GroupId;
   try {
@@ -322,6 +329,7 @@ onMounted(async () => {
     return;
   }
   await store.getGroup(groupId);
+  if (left) return;
   store.fetchMembers(groupId);
 });
 </script>

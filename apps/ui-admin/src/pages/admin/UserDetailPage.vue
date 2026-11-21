@@ -335,7 +335,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { useUsersStore } from "#admin/stores/users";
@@ -509,6 +509,13 @@ async function executeDelete() {
   }
 }
 
+// A page left before its user loaded loads nothing more: another user's page
+// owns the shared credential and session lists by then.
+let left = false;
+onUnmounted(() => {
+  left = true;
+});
+
 onMounted(async () => {
   const userId = route.params.userId as string;
   if (userId) {
@@ -522,7 +529,7 @@ onMounted(async () => {
     }
     await store.getProfile(id);
     // Load credentials and sessions in parallel
-    if (store.currentProfile) {
+    if (!left && store.currentProfile) {
       store.fetchCredentials(id);
       store.fetchSessions(id);
     }

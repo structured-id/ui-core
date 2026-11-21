@@ -287,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from "vue";
+import { ref, reactive, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { useRolesStore, type RolePrincipal } from "#admin/stores/roles";
@@ -537,6 +537,13 @@ async function executeDelete() {
   }
 }
 
+// A page left before its role loaded loads nothing more: another role's
+// page owns the shared assignment list by then.
+let left = false;
+onUnmounted(() => {
+  left = true;
+});
+
 onMounted(async () => {
   let roleId: RoleId;
   try {
@@ -546,6 +553,7 @@ onMounted(async () => {
     return;
   }
   await store.getRole(roleId);
+  if (left) return;
   store.fetchRoleAssignments(roleId);
 });
 </script>
