@@ -11,7 +11,11 @@
       This installation does not accept registration. An administrator creates
       accounts.
       <template #action>
-        <q-btn flat label="Sign in" to="/account/login" />
+        <q-btn
+          flat
+          label="Sign in"
+          :to="withContinuation('/account/login', route.query)"
+        />
       </template>
     </q-banner>
 

@@ -34,7 +34,12 @@
         </q-form>
       </q-card-section>
       <q-card-actions align="center">
-        <q-btn flat no-caps label="Back to sign-in" to="/account/login" />
+        <q-btn
+          flat
+          no-caps
+          label="Back to sign-in"
+          :to="withContinuation('/account/login', route.query)"
+        />
       </q-card-actions>
     </q-card>
   </ceremony-frame>
@@ -42,10 +47,14 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useRoute } from "vue-router";
 import { requestPasswordReset } from "@structured-id/ui-core/profile";
+import { withContinuation } from "src/continuation";
 import { normalizePrincipal, refusalMessage } from "@structured-id/ui-core";
 import CeremonyFrame from "src/components/CeremonyFrame.vue";
 
+// The authorization request the user came from is kept on the way back.
+const route = useRoute();
 const principal = ref("");
 const busy = ref(false);
 const sent = ref(false);

@@ -1317,16 +1317,20 @@ function copySecret() {
   }
 }
 
+// A row's actions name the endpoint its list was loaded for, not the one
+// selected since.
 function viewDelivery(delivery: DeliverySummary) {
-  if (!deliveryEndpointId.value) return;
-  store.fetchDeliveryDetail(deliveryEndpointId.value, delivery.deliveryId);
+  const endpointId = store.deliveriesEndpoint;
+  if (!endpointId) return;
+  store.fetchDeliveryDetail(endpointId, delivery.deliveryId);
   showDeliveryDetail.value = true;
 }
 
 async function handleRedeliver(delivery: DeliverySummary) {
-  if (!deliveryEndpointId.value) return;
+  const endpointId = store.deliveriesEndpoint;
+  if (!endpointId) return;
   try {
-    await store.redeliverEvent(deliveryEndpointId.value, delivery.deliveryId);
+    await store.redeliverEvent(endpointId, delivery.deliveryId);
     $q.notify({ type: "positive", message: "Event redelivered" });
     loadDeliveries();
   } catch {

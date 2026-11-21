@@ -4,7 +4,7 @@
       :login-fn="login"
       local-login
       :register-url="withContinuation('/account/register', route.query)"
-      forgot-password-url="/account/reset"
+      :forgot-password-url="withContinuation('/account/reset', route.query)"
       @success="onLoginSuccess"
     />
   </ceremony-frame>

@@ -577,11 +577,27 @@ watch(
   (s) => {
     if (s) {
       localSchema.value = JSON.parse(JSON.stringify(s));
-      jsonText.value = s.jsonSchema || JSON.stringify(s, null, 2);
+      jsonText.value = JSON.stringify(s, null, 2);
     }
   },
   { immediate: true },
 );
+
+// Both editors show one draft: the JSON editor opens on the visual edits,
+// and the visual editor takes what was typed as JSON. Text that does not
+// parse keeps the JSON editor open instead of being dropped.
+watch(viewMode, (mode, previous) => {
+  if (mode === "json" && localSchema.value) {
+    jsonText.value = JSON.stringify(localSchema.value, null, 2);
+  } else if (previous === "json") {
+    try {
+      localSchema.value = JSON.parse(jsonText.value) as ProfileSchema;
+    } catch {
+      store.error = "Invalid JSON";
+      viewMode.value = "json";
+    }
+  }
+});
 
 onMounted(() => {
   store.fetchSchema();

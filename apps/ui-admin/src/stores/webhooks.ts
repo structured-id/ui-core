@@ -39,6 +39,10 @@ export const useWebhooksStore = defineStore("webhooks", () => {
   const deliveries = ref<DeliverySummary[]>([]);
   /** The continuation of the shown deliveries; empty at the last page. */
   const deliveriesNextToken = ref("");
+  /** The endpoint the shown deliveries belong to; actions use it. */
+  const deliveriesEndpoint = ref<string | null>(null);
+  /** The latest delivery search; only its answer is shown. */
+  let deliveriesRequest = 0;
   const deliveryDetail = ref<DeliveryDetail | null>(null);
   const analytics = ref<DeliveryAnalytics | null>(null);
 
@@ -208,6 +212,14 @@ export const useWebhooksStore = defineStore("webhooks", () => {
       pageToken?: string;
     },
   ) {
+    const request = ++deliveriesRequest;
+    // Another endpoint's rows are never shown, and so never acted on, as
+    // this one's.
+    if (deliveriesEndpoint.value !== endpointId) {
+      deliveries.value = [];
+      deliveriesNextToken.value = "";
+      deliveriesEndpoint.value = null;
+    }
     loading.value = true;
     error.value = null;
     try {
@@ -220,11 +232,14 @@ export const useWebhooksStore = defineStore("webhooks", () => {
         pageSize: 25,
         pageToken: filters?.pageToken ?? "",
       });
+      // A search started since owns the list; this answer is late.
+      if (request !== deliveriesRequest) return;
       // A page after the first continues the list its search began.
       deliveries.value = filters?.pageToken
         ? [...deliveries.value, ...response.deliveries]
         : response.deliveries;
       deliveriesNextToken.value = response.nextPageToken;
+      deliveriesEndpoint.value = endpointId;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load deliveries";
@@ -332,6 +347,7 @@ export const useWebhooksStore = defineStore("webhooks", () => {
     hmacSecret,
     deliveries,
     deliveriesNextToken,
+    deliveriesEndpoint,
     deliveryDetail,
     analytics,
     eventTypes,
