@@ -39,12 +39,27 @@ export const useScopesStore = defineStore("scopes", () => {
     }
   }
 
+  /**
+   * The scope whose detail (scope, claim mappings) is shown; another
+   * scope's starts empty and a late answer for one no longer shown is dropped.
+   */
+  let scopeShown = "";
+
+  function showScope(scopeId: string): void {
+    if (scopeShown !== scopeId) {
+      scopeShown = scopeId;
+      currentScope.value = null;
+      claimMappings.value = [];
+    }
+  }
+
   async function fetchScope(scopeId: string) {
+    showScope(scopeId);
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getScope({ scopeId });
-      currentScope.value = response;
+      if (scopeShown === scopeId) currentScope.value = response;
       return response;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load scope";
@@ -150,11 +165,12 @@ export const useScopesStore = defineStore("scopes", () => {
   // ── Claim Mappings ──
 
   async function fetchClaimMappings(scopeId: string) {
+    showScope(scopeId);
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listClaimMappings({ scopeId });
-      claimMappings.value = response.mappings;
+      if (scopeShown === scopeId) claimMappings.value = response.mappings;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load claim mappings";

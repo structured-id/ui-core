@@ -24,8 +24,17 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   const currentMachineUser = ref<MachineUserInfo | null>(null);
   const credentials = ref<MachineCredentialInfo[]>([]);
   const impersonationGrants = ref<ImpersonationGrantInfo[]>([]);
+  /**
+   * The service account whose detail is shown; an answer for another one
+   * is dropped, so actions on the shown rows never reach another account.
+   */
+  let detailOf: MachineUserId | null = null;
   const loading = ref(false);
   const error = ref<string | null>(null);
+
+  function shows(id: MachineUserId): boolean {
+    return detailOf !== null && detailOf.equals(id);
+  }
 
   // The console administers the installation's own project.
   const projectId = ProjectId.system().toWire();
@@ -52,14 +61,21 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
+  /** Open `id`'s detail; another account's detail starts empty. */
   async function getMachineUser(id: MachineUserId) {
+    if (!shows(id)) {
+      detailOf = id;
+      currentMachineUser.value = null;
+      credentials.value = [];
+      impersonationGrants.value = [];
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getMachineUser({
         machineUserId: id.toWire(),
       });
-      currentMachineUser.value = response.machineUser ?? null;
+      if (shows(id)) currentMachineUser.value = response.machineUser ?? null;
       return response.machineUser;
     } catch (err) {
       error.value =
@@ -208,7 +224,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
       const { response } = await getClient().listMachineCredentials({
         machineUserId: machineUserId.toWire(),
       });
-      credentials.value = response.credentials;
+      if (shows(machineUserId)) credentials.value = response.credentials;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load credentials";
@@ -302,7 +318,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
       const { response } = await getClient().listImpersonationGrants({
         machineUserId: machineUserId.toWire(),
       });
-      impersonationGrants.value = response.grants;
+      if (shows(machineUserId)) impersonationGrants.value = response.grants;
     } catch (err) {
       error.value =
         err instanceof Error

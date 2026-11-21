@@ -723,7 +723,6 @@ const streamFilter = ref({
   severity: undefined as string | undefined,
 });
 let streamInterval: ReturnType<typeof setInterval> | null = null;
-let lastStreamFetch = "";
 
 const severityOptions = [
   { label: "Info", value: "info" },
@@ -930,23 +929,18 @@ const eventCatalog = [
 async function pollStream() {
   if (streamPaused.value) return;
   try {
-    // The stream's own page: the User Events search keeps its results.
+    // The newest page every time, on the stream's own list (the User
+    // Events search keeps its results): a continuation token would walk
+    // back through history instead of showing what just happened.
     const page = await store.pollEvents({
-      pageSize: 10,
-      pageToken: lastStreamFetch,
+      pageSize: 50,
+      pageToken: "",
       type: streamFilter.value.type,
     });
-    if (page.events.length > 0) {
-      // Prepend new events (newest first)
-      const existingIds = new Set(streamEvents.value.map((e) => e.id));
-      const newEvents = page.events.filter((e) => !existingIds.has(e.id));
-      if (newEvents.length > 0) {
-        streamEvents.value = [...newEvents, ...streamEvents.value].slice(
-          0,
-          500,
-        );
-      }
-      lastStreamFetch = page.nextPageToken;
+    const existingIds = new Set(streamEvents.value.map((e) => e.id));
+    const newEvents = page.events.filter((e) => !existingIds.has(e.id));
+    if (newEvents.length > 0) {
+      streamEvents.value = [...newEvents, ...streamEvents.value].slice(0, 500);
     }
   } catch {
     // Silent — polling errors are not critical
@@ -1181,6 +1175,18 @@ function dateToTimestamp(
   return { seconds: BigInt(Math.floor(d.getTime() / 1000)), nanos: 0 };
 }
 
+/**
+ * The last instant of the selected day: a "To" date includes that whole
+ * day, so a search from and to the same day finds its events.
+ */
+function endOfDayTimestamp(
+  dateStr: string,
+): { seconds: bigint; nanos: number } | undefined {
+  const start = dateToTimestamp(dateStr);
+  if (!start) return undefined;
+  return { seconds: start.seconds + 86_399n, nanos: 999_999_999 };
+}
+
 // Each search keeps the filters it ran with: "Load more" continues that
 // search, not whatever the filter fields hold now.
 let userQuery: Omit<Parameters<typeof store.fetchEvents>[0], "pageToken"> = {
@@ -1201,7 +1207,7 @@ function loadUserEvents() {
     clientId: eventFilters.value.clientId || undefined,
     ipAddress: eventFilters.value.ipAddress || undefined,
     from: dateToTimestamp(eventFilters.value.dateFrom),
-    to: dateToTimestamp(eventFilters.value.dateTo),
+    to: endOfDayTimestamp(eventFilters.value.dateTo),
   };
   store.fetchEvents({ ...userQuery, pageToken: "" });
 }
@@ -1217,7 +1223,7 @@ function loadAdminEvents() {
     adminId: adminFilters.value.adminId || undefined,
     resourceType: adminFilters.value.resourceType || undefined,
     from: dateToTimestamp(adminFilters.value.dateFrom),
-    to: dateToTimestamp(adminFilters.value.dateTo),
+    to: endOfDayTimestamp(adminFilters.value.dateTo),
   };
   store.fetchAdminEvents({ ...adminQuery, pageToken: "" });
 }

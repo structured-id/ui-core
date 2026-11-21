@@ -59,12 +59,27 @@ export const useFlowsStore = defineStore("flows", () => {
     }
   }
 
+  /**
+   * The flow whose detail (flow, step bindings) is shown; another flow's
+   * starts empty and a late answer for a flow no longer shown is dropped.
+   */
+  let flowShown = "";
+
+  function showFlow(flowId: string): void {
+    if (flowShown !== flowId) {
+      flowShown = flowId;
+      currentFlow.value = null;
+      stepBindings.value = [];
+    }
+  }
+
   async function fetchFlow(flowId: string) {
+    showFlow(flowId);
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getFlowClient().getFlow({ flowId });
-      currentFlow.value = response;
+      if (flowShown === flowId) currentFlow.value = response;
       return response;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load flow";
@@ -201,11 +216,12 @@ export const useFlowsStore = defineStore("flows", () => {
   // ── Step Bindings ──
 
   async function fetchStepBindings(flowId: string) {
+    showFlow(flowId);
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getFlowClient().listStepBindings({ flowId });
-      stepBindings.value = response.bindings;
+      if (flowShown === flowId) stepBindings.value = response.bindings;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load step bindings";

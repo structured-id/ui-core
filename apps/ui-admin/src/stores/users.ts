@@ -19,6 +19,12 @@ export const useUsersStore = defineStore("users", () => {
   const currentProfile = ref<Profile | null>(null);
   const credentials = ref<Credential[]>([]);
   const sessions = ref<Session[]>([]);
+  /**
+   * The user whose detail (profile, credentials, sessions) is shown; an
+   * answer for another user is dropped, so actions on the shown rows never
+   * reach a user no longer shown.
+   */
+  let detailOf: ProfileId | null = null;
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -50,14 +56,26 @@ export const useUsersStore = defineStore("users", () => {
     }
   }
 
+  /** Whether `id` is the user whose detail is shown. */
+  function shows(id: ProfileId): boolean {
+    return detailOf !== null && detailOf.equals(id);
+  }
+
+  /** Open `id`'s detail; another user's detail starts empty. */
   async function getProfile(id: ProfileId) {
+    if (!shows(id)) {
+      detailOf = id;
+      currentProfile.value = null;
+      credentials.value = [];
+      sessions.value = [];
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getProfile({
         identifier: { oneofKind: "id", id: id.toWire() },
       });
-      currentProfile.value = response.profile ?? null;
+      if (shows(id)) currentProfile.value = response.profile ?? null;
       return response.profile;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load user";
@@ -157,7 +175,7 @@ export const useUsersStore = defineStore("users", () => {
       const { response } = await getClient().listCredentials({
         profileId: profileId.toWire(),
       });
-      credentials.value = response.credentials;
+      if (shows(profileId)) credentials.value = response.credentials;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load credentials";
@@ -193,7 +211,7 @@ export const useUsersStore = defineStore("users", () => {
       const { response } = await getClient().listSessions({
         profileId: profileId.toWire(),
       });
-      sessions.value = response.sessions;
+      if (shows(profileId)) sessions.value = response.sessions;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load sessions";

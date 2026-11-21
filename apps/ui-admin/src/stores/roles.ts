@@ -80,14 +80,21 @@ export const useRolesStore = defineStore("roles", () => {
     }
   }
 
+  /** The role whose detail is shown; another role's starts empty. */
+  let roleShown: RoleId | null = null;
+
   async function getRole(id: RoleId) {
+    if (!roleShown?.equals(id)) {
+      roleShown = id;
+      currentRole.value = null;
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getRole({
         identifier: { oneofKind: "id", id: id.toWire() },
       });
-      currentRole.value = response.role ?? null;
+      if (roleShown?.equals(id)) currentRole.value = response.role ?? null;
       return response.role;
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load role";
@@ -172,14 +179,31 @@ export const useRolesStore = defineStore("roles", () => {
     }
   }
 
+  /**
+   * Whose assignments are shown: a role's (role page) or a service account's
+   * (its page). Loading another subject's starts the list empty and drops a
+   * late answer for the previous one, so revoking a shown row never reaches
+   * an assignment of a subject no longer shown.
+   */
+  let assignmentsOf = "";
+
+  function showAssignmentsOf(subject: string): void {
+    if (assignmentsOf !== subject) {
+      assignmentsOf = subject;
+      assignments.value = [];
+    }
+  }
+
   async function fetchRoleAssignments(roleId: RoleId) {
+    const subject = `role:${roleId.toString()}`;
+    showAssignmentsOf(subject);
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listRoleAssignments({
         filter: { oneofKind: "roleId", roleId: roleId.toWire() },
       });
-      assignments.value = response.assignments;
+      if (assignmentsOf === subject) assignments.value = response.assignments;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load assignments";
@@ -190,6 +214,8 @@ export const useRolesStore = defineStore("roles", () => {
 
   /** The role assignments a machine user holds (its roles). */
   async function fetchMachineUserAssignments(machineUserId: MachineUserId) {
+    const subject = `machine:${machineUserId.toString()}`;
+    showAssignmentsOf(subject);
     loading.value = true;
     error.value = null;
     try {
@@ -199,7 +225,7 @@ export const useRolesStore = defineStore("roles", () => {
           machineUserId: machineUserId.toWire(),
         },
       });
-      assignments.value = response.assignments;
+      if (assignmentsOf === subject) assignments.value = response.assignments;
     } catch (err) {
       error.value = refusalMessage(err, "Failed to load assignments");
     } finally {

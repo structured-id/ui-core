@@ -445,6 +445,9 @@
               </div>
             </template>
           </q-table>
+          <div v-if="store.deliveriesNextToken" class="text-center q-pa-sm">
+            <q-btn flat no-caps label="Load more" @click="moreDeliveries" />
+          </div>
         </q-card>
 
         <!-- Delivery Detail Dialog -->
@@ -1199,11 +1202,31 @@ function loadEndpoints() {
   );
 }
 
+// A delivery search keeps the endpoint and filters it ran with: "Load
+// more" continues that search, not whatever the fields hold now.
+let deliveryQuery: {
+  endpointId: string;
+  status?: DeliveryStatus;
+  eventType?: string;
+} | null = null;
+
 function loadDeliveries() {
   if (!deliveryEndpointId.value) return;
-  store.fetchDeliveries(deliveryEndpointId.value, {
+  deliveryQuery = {
+    endpointId: deliveryEndpointId.value,
     status: deliveryStatusFilter.value ?? undefined,
     eventType: deliveryEventTypeFilter.value || undefined,
+  };
+  const { endpointId, ...filters } = deliveryQuery;
+  store.fetchDeliveries(endpointId, filters);
+}
+
+function moreDeliveries() {
+  if (!deliveryQuery) return;
+  const { endpointId, ...filters } = deliveryQuery;
+  store.fetchDeliveries(endpointId, {
+    ...filters,
+    pageToken: store.deliveriesNextToken,
   });
 }
 

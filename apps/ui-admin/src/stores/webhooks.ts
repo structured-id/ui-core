@@ -37,6 +37,8 @@ export const useWebhooksStore = defineStore("webhooks", () => {
 
   // ── Deliveries ──
   const deliveries = ref<DeliverySummary[]>([]);
+  /** The continuation of the shown deliveries; empty at the last page. */
+  const deliveriesNextToken = ref("");
   const deliveryDetail = ref<DeliveryDetail | null>(null);
   const analytics = ref<DeliveryAnalytics | null>(null);
 
@@ -218,7 +220,11 @@ export const useWebhooksStore = defineStore("webhooks", () => {
         pageSize: 25,
         pageToken: filters?.pageToken ?? "",
       });
-      deliveries.value = response.deliveries;
+      // A page after the first continues the list its search began.
+      deliveries.value = filters?.pageToken
+        ? [...deliveries.value, ...response.deliveries]
+        : response.deliveries;
+      deliveriesNextToken.value = response.nextPageToken;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load deliveries";
@@ -325,6 +331,7 @@ export const useWebhooksStore = defineStore("webhooks", () => {
     currentEndpoint,
     hmacSecret,
     deliveries,
+    deliveriesNextToken,
     deliveryDetail,
     analytics,
     eventTypes,
