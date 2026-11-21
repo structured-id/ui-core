@@ -43,9 +43,9 @@ bundler emits `psl.bin` from `@structured-world/structured-public-domains`),
 served by the application's host and cached in IndexedDB; where it is served
 from is a setting (`psl.url`), never a third-party CDN. Each namespace's admission mirrors the
 server's email policy: `LOCAL` (an installation's own accounts: internal and
-internationalized domains), `CORPORATE_BASELINE`, `ASCII_PUBLIC_EMAIL` (ASCII,
-no IDN, a public mail domain). The server still decides; the field refuses only
-what that namespace never admits.
+internationalized domains) and `CORPORATE_BASELINE`; an application with
+another namespace passes its own `EmailPolicy`. The server still decides; the
+field refuses only what that namespace never admits.
 
 Load the parser once at start and name the application's namespace (`LOCAL`
 when omitted). The parser is loaded lazily as its own chunk; until it is,
@@ -54,12 +54,12 @@ disabled. A field accepting email starts the load itself if the application
 did not.
 
 ```ts
-import { ASCII_PUBLIC_EMAIL, initEmail } from "@structured-id/ui-core";
+import { CORPORATE_BASELINE, initEmail } from "@structured-id/ui-core";
 
 // The trie from the application's own copy...
-await initEmail({ policy: ASCII_PUBLIC_EMAIL });
+await initEmail({ policy: CORPORATE_BASELINE });
 // ...or from where the deployment's configuration says it is served.
-await initEmail({ policy: ASCII_PUBLIC_EMAIL, psl: { url: config.pslUrl } });
+await initEmail({ policy: CORPORATE_BASELINE, psl: { url: config.pslUrl } });
 ```
 
 ## Development

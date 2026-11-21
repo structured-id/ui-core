@@ -43,7 +43,6 @@ export { useAuthStore } from "./stores/auth";
 
 // Utils
 export {
-  ASCII_PUBLIC_EMAIL,
   CORPORATE_BASELINE,
   LOCAL,
   checkEmail,

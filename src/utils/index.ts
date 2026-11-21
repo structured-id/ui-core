@@ -8,7 +8,6 @@ export {
 } from "./validators";
 
 export {
-  ASCII_PUBLIC_EMAIL,
   CORPORATE_BASELINE,
   LOCAL,
   checkEmail,
