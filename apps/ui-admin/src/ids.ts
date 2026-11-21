@@ -18,6 +18,14 @@ export function shown(wire: WireId | undefined): string {
   return wire ? formatUuid(wire.value) : "";
 }
 
+/** Whether two answered references carry the same identifier bytes. */
+export function sameWire(a: WireId, b: WireId): boolean {
+  return (
+    a.value.length === b.value.length &&
+    a.value.every((byte, i) => byte === b.value[i])
+  );
+}
+
 /** Whether the answered reference `wire` names `id`. */
 export function names(
   wire: WireId | undefined,

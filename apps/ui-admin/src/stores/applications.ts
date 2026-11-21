@@ -9,6 +9,8 @@ import {
   type UpdateClientRoleRequest,
 } from "@structured-id/proto/sid/v1/projects/projects";
 import { getTransport } from "@structured-id/ui-core";
+import type { ApplicationId, ProjectId } from "@structured-id/ids";
+import { names, sameWire } from "src/ids";
 
 function getClient() {
   return new ProjectServiceClient(getTransport());
@@ -34,18 +36,21 @@ export const useApplicationsStore = defineStore("applications", () => {
 
   function replace(app: Application) {
     currentApp.value = app;
-    const idx = applications.value.findIndex((a) => a.id === app.id);
+    const idx = applications.value.findIndex(
+      (a) =>
+        a.id !== undefined && app.id !== undefined && sameWire(a.id, app.id),
+    );
     if (idx !== -1) {
       applications.value[idx] = app;
     }
   }
 
-  async function fetchApplications(projectId: string) {
+  async function fetchApplications(projectId: ProjectId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listApplications({
-        projectId,
+        projectId: projectId.toWire(),
         pageSize: 100,
         pageToken: "",
       });
@@ -77,11 +82,13 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
-  async function getApplication(id: string) {
+  async function getApplication(id: ApplicationId) {
     loading.value = true;
     error.value = null;
     try {
-      const { response } = await getClient().getApplication({ id });
+      const { response } = await getClient().getApplication({
+        id: id.toWire(),
+      });
       currentApp.value = response;
       return response;
     } catch (err) {
@@ -125,13 +132,13 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
-  async function deleteApplication(id: string) {
+  async function deleteApplication(id: ApplicationId) {
     loading.value = true;
     error.value = null;
     try {
-      await getClient().deleteApplication({ id });
-      applications.value = applications.value.filter((a) => a.id !== id);
-      if (currentApp.value?.id === id) {
+      await getClient().deleteApplication({ id: id.toWire() });
+      applications.value = applications.value.filter((a) => !names(a.id, id));
+      if (names(currentApp.value?.id, id)) {
         currentApp.value = null;
       }
     } catch (err) {

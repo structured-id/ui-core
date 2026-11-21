@@ -3,6 +3,8 @@ import { ref } from "vue";
 import { UpstreamServiceClient } from "@structured-id/proto/sid/v1/federation/upstream.client";
 import type { UpstreamProvider } from "@structured-id/proto/sid/v1/federation/upstream";
 import { getTransport } from "@structured-id/ui-core";
+import type { UpstreamProviderId } from "@structured-id/ids";
+import { names } from "src/ids";
 
 function getClient() {
   return new UpstreamServiceClient(getTransport());
@@ -30,12 +32,12 @@ export const useUpstreamProvidersStore = defineStore(
       }
     }
 
-    async function getProvider(id: string) {
+    async function getProvider(id: UpstreamProviderId) {
       loading.value = true;
       error.value = null;
       try {
         const { response } = await getClient().getUpstreamProvider({
-          providerId: id,
+          providerId: id.toWire(),
         });
         currentProvider.value = response.provider ?? null;
         return response.provider;
@@ -95,7 +97,7 @@ export const useUpstreamProvidersStore = defineStore(
     }
 
     async function updateProvider(
-      id: string,
+      id: UpstreamProviderId,
       update: {
         name?: string;
         protocol?: number;
@@ -117,7 +119,7 @@ export const useUpstreamProvidersStore = defineStore(
       error.value = null;
       try {
         const { response } = await getClient().updateUpstreamProvider({
-          providerId: id,
+          providerId: id.toWire(),
           name: update.name,
           protocol: update.protocol,
           trustCategory: update.trustCategory,
@@ -134,7 +136,7 @@ export const useUpstreamProvidersStore = defineStore(
           logoUrl: update.logoUrl,
         });
         currentProvider.value = response.provider ?? null;
-        const idx = providers.value.findIndex((p) => p.id === id);
+        const idx = providers.value.findIndex((p) => names(p.id, id));
         if (idx !== -1 && response.provider) {
           providers.value[idx] = response.provider;
         }
@@ -148,13 +150,13 @@ export const useUpstreamProvidersStore = defineStore(
       }
     }
 
-    async function deleteProvider(id: string) {
+    async function deleteProvider(id: UpstreamProviderId) {
       loading.value = true;
       error.value = null;
       try {
-        await getClient().deleteUpstreamProvider({ providerId: id });
-        providers.value = providers.value.filter((p) => p.id !== id);
-        if (currentProvider.value?.id === id) {
+        await getClient().deleteUpstreamProvider({ providerId: id.toWire() });
+        providers.value = providers.value.filter((p) => !names(p.id, id));
+        if (names(currentProvider.value?.id, id)) {
           currentProvider.value = null;
         }
       } catch (err) {

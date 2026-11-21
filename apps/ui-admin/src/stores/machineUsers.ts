@@ -12,6 +12,8 @@ import {
 } from "@structured-id/proto/sid/v1/machine/machine_user";
 import { getTransport } from "@structured-id/ui-core";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import { ProjectId, type MachineUserId } from "@structured-id/ids";
+import { names } from "src/ids";
 
 function getClient() {
   return new MachineUserServiceClient(getTransport());
@@ -25,7 +27,16 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  const projectId = "default";
+  // The console administers the installation's own project.
+  const projectId = ProjectId.system().toWire();
+
+  /** `machineUser` in place of the listed one with its identifier. */
+  function replaceListed(id: MachineUserId, machineUser?: MachineUserInfo) {
+    const idx = machineUsers.value.findIndex((m) => names(m.id, id));
+    if (idx !== -1 && machineUser) {
+      machineUsers.value[idx] = machineUser;
+    }
+  }
 
   async function fetchMachineUsers() {
     loading.value = true;
@@ -41,12 +52,12 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
-  async function getMachineUser(id: string) {
+  async function getMachineUser(id: MachineUserId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getMachineUser({
-        machineUserId: id,
+        machineUserId: id.toWire(),
       });
       currentMachineUser.value = response.machineUser ?? null;
       return response.machineUser;
@@ -97,7 +108,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   async function updateMachineUser(
-    id: string,
+    id: MachineUserId,
     update: {
       displayName: string;
       description: string;
@@ -112,7 +123,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     error.value = null;
     try {
       const { response } = await getClient().updateMachineUser({
-        machineUserId: id,
+        machineUserId: id.toWire(),
         displayName: update.displayName,
         description: update.description,
         scopes: update.scopes,
@@ -122,10 +133,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
         expiresAt: update.expiresAt,
       });
       currentMachineUser.value = response.machineUser ?? null;
-      const idx = machineUsers.value.findIndex((m) => m.id === id);
-      if (idx !== -1 && response.machineUser) {
-        machineUsers.value[idx] = response.machineUser;
-      }
+      replaceListed(id, response.machineUser);
       return response;
     } catch (err) {
       error.value =
@@ -136,13 +144,13 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
-  async function deleteMachineUser(id: string) {
+  async function deleteMachineUser(id: MachineUserId) {
     loading.value = true;
     error.value = null;
     try {
-      await getClient().deleteMachineUser({ machineUserId: id });
-      machineUsers.value = machineUsers.value.filter((m) => m.id !== id);
-      if (currentMachineUser.value?.id === id) {
+      await getClient().deleteMachineUser({ machineUserId: id.toWire() });
+      machineUsers.value = machineUsers.value.filter((m) => !names(m.id, id));
+      if (names(currentMachineUser.value?.id, id)) {
         currentMachineUser.value = null;
       }
     } catch (err) {
@@ -154,18 +162,15 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
-  async function suspendMachineUser(id: string) {
+  async function suspendMachineUser(id: MachineUserId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().suspendMachineUser({
-        machineUserId: id,
+        machineUserId: id.toWire(),
       });
       currentMachineUser.value = response.machineUser ?? null;
-      const idx = machineUsers.value.findIndex((m) => m.id === id);
-      if (idx !== -1 && response.machineUser) {
-        machineUsers.value[idx] = response.machineUser;
-      }
+      replaceListed(id, response.machineUser);
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to suspend machine user";
@@ -175,18 +180,15 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
-  async function reactivateMachineUser(id: string) {
+  async function reactivateMachineUser(id: MachineUserId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().reactivateMachineUser({
-        machineUserId: id,
+        machineUserId: id.toWire(),
       });
       currentMachineUser.value = response.machineUser ?? null;
-      const idx = machineUsers.value.findIndex((m) => m.id === id);
-      if (idx !== -1 && response.machineUser) {
-        machineUsers.value[idx] = response.machineUser;
-      }
+      replaceListed(id, response.machineUser);
     } catch (err) {
       error.value =
         err instanceof Error
@@ -199,12 +201,12 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   // Credentials
-  async function fetchCredentials(machineUserId: string) {
+  async function fetchCredentials(machineUserId: MachineUserId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listMachineCredentials({
-        machineUserId,
+        machineUserId: machineUserId.toWire(),
       });
       credentials.value = response.credentials;
     } catch (err) {
@@ -216,7 +218,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   async function addCredential(req: {
-    machineUserId: string;
+    machineUserId: MachineUserId;
     credentialType: MachineCredentialType;
     algorithm: string;
     publicKeyPem: string;
@@ -226,7 +228,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     error.value = null;
     try {
       const { response } = await getClient().addMachineCredential({
-        machineUserId: req.machineUserId,
+        machineUserId: req.machineUserId.toWire(),
         credentialType: req.credentialType,
         algorithm: req.algorithm,
         publicKeyPem: req.publicKeyPem,
@@ -245,11 +247,14 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     }
   }
 
-  async function revokeCredential(machineUserId: string, kid: string) {
+  async function revokeCredential(machineUserId: MachineUserId, kid: string) {
     loading.value = true;
     error.value = null;
     try {
-      await getClient().revokeMachineCredential({ machineUserId, kid });
+      await getClient().revokeMachineCredential({
+        machineUserId: machineUserId.toWire(),
+        kid,
+      });
       credentials.value = credentials.value.filter((c) => c.kid !== kid);
     } catch (err) {
       error.value =
@@ -261,7 +266,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   async function rotateCredential(req: {
-    machineUserId: string;
+    machineUserId: MachineUserId;
     kid: string;
     algorithm: string;
     publicKeyPem: string;
@@ -271,7 +276,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     error.value = null;
     try {
       const { response } = await getClient().rotateMachineCredential({
-        machineUserId: req.machineUserId,
+        machineUserId: req.machineUserId.toWire(),
         kid: req.kid,
         algorithm: req.algorithm,
         publicKeyPem: req.publicKeyPem,
@@ -290,12 +295,12 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   // Impersonation
-  async function fetchImpersonationGrants(machineUserId: string) {
+  async function fetchImpersonationGrants(machineUserId: MachineUserId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listImpersonationGrants({
-        machineUserId,
+        machineUserId: machineUserId.toWire(),
       });
       impersonationGrants.value = response.grants;
     } catch (err) {
@@ -309,7 +314,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   async function grantImpersonation(req: {
-    machineUserId: string;
+    machineUserId: MachineUserId;
     targetType: ImpersonationTargetType;
     target: string;
     allowedScopes: string[];
@@ -318,7 +323,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     error.value = null;
     try {
       const { response } = await getClient().grantImpersonation({
-        machineUserId: req.machineUserId,
+        machineUserId: req.machineUserId.toWire(),
         targetType: req.targetType,
         target: req.target,
         allowedScopes: req.allowedScopes,
@@ -337,7 +342,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   }
 
   async function revokeImpersonation(
-    machineUserId: string,
+    machineUserId: MachineUserId,
     targetType: string,
     target: string,
   ) {
@@ -345,7 +350,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
     error.value = null;
     try {
       await getClient().revokeImpersonation({
-        machineUserId,
+        machineUserId: machineUserId.toWire(),
         targetType,
         target,
       });

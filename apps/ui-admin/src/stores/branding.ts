@@ -11,6 +11,8 @@ import type {
   BrandingText,
 } from "@structured-id/proto/sid/v1/admin/branding";
 import { getTransport } from "@structured-id/ui-core";
+import type { BrandingConfigId, ProjectId } from "@structured-id/ids";
+import { names } from "src/ids";
 
 function getClient() {
   return new BrandingServiceClient(getTransport());
@@ -24,12 +26,12 @@ export const useBrandingStore = defineStore("branding", () => {
   const saving = ref(false);
   const error = ref<string | null>(null);
 
-  async function fetchPublishedBranding(projectId: string) {
+  async function fetchPublishedBranding(projectId: ProjectId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getPublishedBranding({
-        projectId,
+        projectId: projectId.toWire(),
       });
       config.value = response;
     } catch (err) {
@@ -40,13 +42,16 @@ export const useBrandingStore = defineStore("branding", () => {
     }
   }
 
-  async function fetchBrandingConfig(projectId: string, configId: string) {
+  async function fetchBrandingConfig(
+    projectId: ProjectId,
+    configId: BrandingConfigId,
+  ) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getBrandingConfig({
-        projectId,
-        configId,
+        projectId: projectId.toWire(),
+        configId: configId.toWire(),
       });
       config.value = response;
     } catch (err) {
@@ -57,12 +62,12 @@ export const useBrandingStore = defineStore("branding", () => {
     }
   }
 
-  async function fetchConfigs(projectId: string) {
+  async function fetchConfigs(projectId: ProjectId) {
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().listBrandingConfigs({
-        projectId,
+        projectId: projectId.toWire(),
       });
       configs.value = response.configs;
     } catch (err) {
@@ -74,7 +79,7 @@ export const useBrandingStore = defineStore("branding", () => {
   }
 
   async function createConfig(
-    projectId: string,
+    projectId: ProjectId,
     tokens?: DesignTokens,
     assets?: BrandingAssets,
     darkMode?: DarkModeConfig,
@@ -84,7 +89,7 @@ export const useBrandingStore = defineStore("branding", () => {
     error.value = null;
     try {
       const { response } = await getClient().createBrandingConfig({
-        projectId,
+        projectId: projectId.toWire(),
         tokens,
         assets,
         darkMode,
@@ -102,8 +107,8 @@ export const useBrandingStore = defineStore("branding", () => {
   }
 
   async function updateConfig(
-    projectId: string,
-    configId: string,
+    projectId: ProjectId,
+    configId: BrandingConfigId,
     tokens?: DesignTokens,
     assets?: BrandingAssets,
     darkMode?: DarkModeConfig,
@@ -113,8 +118,8 @@ export const useBrandingStore = defineStore("branding", () => {
     error.value = null;
     try {
       const { response } = await getClient().updateBrandingConfig({
-        projectId,
-        configId,
+        projectId: projectId.toWire(),
+        configId: configId.toWire(),
         tokens,
         assets,
         darkMode,
@@ -131,13 +136,16 @@ export const useBrandingStore = defineStore("branding", () => {
     }
   }
 
-  async function publishConfig(projectId: string, configId: string) {
+  async function publishConfig(
+    projectId: ProjectId,
+    configId: BrandingConfigId,
+  ) {
     saving.value = true;
     error.value = null;
     try {
       const { response } = await getClient().publishBrandingConfig({
-        projectId,
-        configId,
+        projectId: projectId.toWire(),
+        configId: configId.toWire(),
       });
       config.value = response;
       return response;
@@ -152,13 +160,19 @@ export const useBrandingStore = defineStore("branding", () => {
     }
   }
 
-  async function deleteConfig(projectId: string, configId: string) {
+  async function deleteConfig(
+    projectId: ProjectId,
+    configId: BrandingConfigId,
+  ) {
     saving.value = true;
     error.value = null;
     try {
-      await getClient().deleteBrandingConfig({ projectId, configId });
-      configs.value = configs.value.filter((c) => c.id !== configId);
-      if (config.value?.id === configId) config.value = null;
+      await getClient().deleteBrandingConfig({
+        projectId: projectId.toWire(),
+        configId: configId.toWire(),
+      });
+      configs.value = configs.value.filter((c) => !names(c.id, configId));
+      if (names(config.value?.id, configId)) config.value = null;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to delete branding config";

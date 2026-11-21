@@ -8,6 +8,8 @@ import type {
 import { SessionAuthMethod } from "@structured-id/proto/sid/v1/admin/sessions";
 import { getTransport } from "@structured-id/ui-core";
 import type { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
+import type { ProfileId, SessionId } from "@structured-id/ids";
+import { names } from "src/ids";
 
 function getClient() {
   return new SessionServiceClient(getTransport());
@@ -23,7 +25,7 @@ export const useSessionsStore = defineStore("sessions", () => {
 
   async function fetchSessions(filters?: {
     clientId?: string;
-    profileId?: string;
+    profileId?: ProfileId;
     ipAddress?: string;
     authMethod?: SessionAuthMethod;
     startedAfter?: Timestamp;
@@ -38,7 +40,7 @@ export const useSessionsStore = defineStore("sessions", () => {
         pageSize: 25,
         pageToken: filters?.pageToken ?? "",
         clientId: filters?.clientId ?? "",
-        profileId: filters?.profileId ?? "",
+        profileId: filters?.profileId?.toWire(),
         ipAddress: filters?.ipAddress ?? "",
         authMethod: filters?.authMethod ?? SessionAuthMethod.UNSPECIFIED,
         startedAfter: filters?.startedAfter,
@@ -67,11 +69,13 @@ export const useSessionsStore = defineStore("sessions", () => {
     }
   }
 
-  async function revokeSession(sessionId: string) {
+  async function revokeSession(sessionId: SessionId) {
     error.value = null;
     try {
-      await getClient().revokeSession({ sessionId });
-      sessions.value = sessions.value.filter((s) => s.sessionId !== sessionId);
+      await getClient().revokeSession({ sessionId: sessionId.toWire() });
+      sessions.value = sessions.value.filter(
+        (s) => !names(s.sessionId, sessionId),
+      );
       if (stats.value) {
         stats.value = {
           ...stats.value,

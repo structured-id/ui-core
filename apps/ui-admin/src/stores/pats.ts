@@ -1,8 +1,10 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { PatServiceClient } from "@structured-id/proto/sid/v1/machine/pat.client";
-import type { Pat } from "@structured-id/proto/sid/v1/machine/pat";
+import { PatStatus, type Pat } from "@structured-id/proto/sid/v1/machine/pat";
 import { getTransport } from "@structured-id/ui-core";
+import type { PatId } from "@structured-id/ids";
+import { names } from "src/ids";
 
 function getClient() {
   return new PatServiceClient(getTransport());
@@ -26,17 +28,14 @@ export const usePatsStore = defineStore("pats", () => {
     }
   }
 
-  async function revokePat(patId: string) {
+  async function revokePat(patId: PatId) {
     loading.value = true;
     error.value = null;
     try {
-      await getClient().adminRevokePat({ patId });
-      const idx = pats.value.findIndex((p) => p.id === patId);
+      await getClient().adminRevokePat({ patId: patId.toWire() });
+      const idx = pats.value.findIndex((p) => names(p.id, patId));
       if (idx !== -1) {
-        pats.value[idx] = {
-          ...pats.value[idx],
-          status: 2, // PAT_STATUS_REVOKED
-        };
+        pats.value[idx] = { ...pats.value[idx], status: PatStatus.REVOKED };
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to revoke PAT";
