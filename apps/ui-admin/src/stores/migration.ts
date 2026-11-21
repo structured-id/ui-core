@@ -111,6 +111,8 @@ export const useMigrationStore = defineStore("migration", () => {
   ) {
     loading.value = true;
     error.value = null;
+    // A failed parse leaves no earlier file's result to proceed with.
+    parseResult.value = null;
     try {
       const { response } = await getClient().parseMigrationFile({
         source,

@@ -178,16 +178,22 @@ export const useOperationsStore = defineStore("operations", () => {
     }
   }
 
-  async function updateChannelConfig(config: ChannelConfig) {
+  /**
+   * Save `config`. The answer replaces the shown configuration only while
+   * that channel is still the one shown; true when it is.
+   */
+  async function updateChannelConfig(config: ChannelConfig): Promise<boolean> {
+    const channel = config.channel;
     saving.value = true;
     error.value = null;
     try {
       const { response } = await channelClient().updateChannelConfig({
-        channel: config.channel,
+        channel,
         config,
       });
-      channelConfig.value = response;
-      return response;
+      const stillShown = configOf === channel;
+      if (stillShown) channelConfig.value = response;
+      return stillShown;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to update channel config";

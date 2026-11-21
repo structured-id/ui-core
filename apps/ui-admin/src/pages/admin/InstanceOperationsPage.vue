@@ -987,8 +987,9 @@ function openChannelConfig(channel: ChannelType) {
 
 async function saveChannelConfig() {
   if (store.channelConfig) {
-    await store.updateChannelConfig(store.channelConfig);
-    configDialog.value.visible = false;
+    const stillShown = await store.updateChannelConfig(store.channelConfig);
+    // A dialog opened for another channel meanwhile stays open with its edits.
+    if (stillShown) configDialog.value.visible = false;
     store.fetchChannels();
   }
 }

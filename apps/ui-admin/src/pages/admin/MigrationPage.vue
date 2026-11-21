@@ -520,7 +520,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useMigrationStore } from "#admin/stores/migration";
 import {
   BlueprintCategory,
@@ -663,31 +663,36 @@ const mappingColumns: QTableColumn[] = [
   { name: "notes", label: "Notes", field: "notes", align: "left" },
 ];
 
+/**
+ * The input whose parse succeeded and was reviewed: execution runs exactly
+ * this, never a file or source chosen after it.
+ */
+let parsed: { source: MigrationSource; content: string } | null = null;
+
+// Another file or source invalidates the reviewed parse.
+watch([migrationFile, selectedSource], () => {
+  parsed = null;
+  store.parseResult = null;
+});
+
 async function doParseFile() {
   if (!migrationFile.value) return;
+  const source = selectedSource.value;
   const content = await migrationFile.value.text();
-  await store.parseMigrationFile(
-    selectedSource.value,
-    content,
-    migrationFile.value.name,
-  );
+  parsed = null;
+  await store.parseMigrationFile(source, content, migrationFile.value.name);
+  if (store.parseResult) parsed = { source, content };
 }
 
 async function doExecuteMigration(dryRun: boolean) {
-  if (!migrationFile.value) return;
-  const content = await migrationFile.value.text();
+  if (!parsed) return;
+  const { source, content } = parsed;
   let deadline: Timestamp | undefined;
   if (passwordDeadlineStr.value) {
     const d = new Date(passwordDeadlineStr.value);
     deadline = { seconds: BigInt(Math.floor(d.getTime() / 1000)), nanos: 0 };
   }
-  await store.executeMigration(
-    selectedSource.value,
-    content,
-    [],
-    dryRun,
-    deadline,
-  );
+  await store.executeMigration(source, content, [], dryRun, deadline);
 }
 
 // ── Timestamp formatting ──
