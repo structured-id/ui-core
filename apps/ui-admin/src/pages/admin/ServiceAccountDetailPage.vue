@@ -624,7 +624,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { useMachineUsersStore } from "#admin/stores/machineUsers";
@@ -1012,6 +1012,11 @@ function copySecret() {
   $q.notify({ type: "positive", message: "Copied to clipboard" });
 }
 
+let left = false;
+onUnmounted(() => {
+  left = true;
+});
+
 onMounted(async () => {
   const machineUserId = route.params.machineUserId as string;
   if (machineUserId) {
@@ -1023,6 +1028,9 @@ onMounted(async () => {
       return;
     }
     await store.getMachineUser(principal);
+    // Left, or another account opened meanwhile: its dependent lists are
+    // not loaded under that account's page.
+    if (left || !store.shows(principal)) return;
     store.fetchCredentials(principal);
     store.fetchImpersonationGrants(principal);
     rolesStore.fetchRoles();

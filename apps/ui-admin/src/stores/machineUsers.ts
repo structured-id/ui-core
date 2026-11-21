@@ -385,6 +385,7 @@ export const useMachineUsersStore = defineStore("machineUsers", () => {
   return {
     machineUsers,
     currentMachineUser,
+    shows,
     credentials,
     impersonationGrants,
     loading,
