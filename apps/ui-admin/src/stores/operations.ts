@@ -157,11 +157,21 @@ export const useOperationsStore = defineStore("operations", () => {
     }
   }
 
+  /** The channel whose configuration is being shown. */
+  let configOf: ChannelType | null = null;
+
+  /**
+   * Load `channel`'s configuration. Another channel's is cleared at once,
+   * so its form can never be edited and saved under this channel, and an
+   * answer for a channel no longer shown is dropped.
+   */
   async function fetchChannelConfig(channel: ChannelType) {
     error.value = null;
+    configOf = channel;
+    channelConfig.value = null;
     try {
       const { response } = await channelClient().getChannelConfig({ channel });
-      channelConfig.value = response;
+      if (configOf === channel) channelConfig.value = response;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to load channel config";

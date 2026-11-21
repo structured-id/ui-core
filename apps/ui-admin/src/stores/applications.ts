@@ -34,8 +34,10 @@ export const useApplicationsStore = defineStore("applications", () => {
     () => applications.value.filter(isApplicationActive).length,
   );
 
+  /** `app` in the list, and as the open application only if it still is. */
   function replace(app: Application) {
-    currentApp.value = app;
+    const open = currentApp.value?.id;
+    if (open && app.id && sameWire(open, app.id)) currentApp.value = app;
     const idx = applications.value.findIndex(
       (a) =>
         a.id !== undefined && app.id !== undefined && sameWire(a.id, app.id),
@@ -90,14 +92,21 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  /** The application whose detail is shown; another one's starts empty. */
+  let appShown: ApplicationId | null = null;
+
   async function getApplication(id: ApplicationId) {
+    if (!appShown?.equals(id)) {
+      appShown = id;
+      currentApp.value = null;
+    }
     loading.value = true;
     error.value = null;
     try {
       const { response } = await getClient().getApplication({
         id: id.toWire(),
       });
-      currentApp.value = response;
+      if (appShown?.equals(id)) currentApp.value = response;
       return response;
     } catch (err) {
       error.value =

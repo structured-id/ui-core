@@ -575,12 +575,13 @@ async function handleReset() {
     cancel: true,
   }).onOk(async () => {
     try {
-      await store.resetTemplate(
+      const stillLoaded = await store.resetTemplate(
         selectedTemplateId.value!,
         selectedChannel.value,
         selectedLocale.value,
       );
-      populateForm();
+      // Another template loaded meanwhile keeps its own form.
+      if (stillLoaded) populateForm();
       $q.notify({ type: "positive", message: "Template reset to default" });
     } catch {
       $q.notify({ type: "negative", message: store.error ?? "Failed" });

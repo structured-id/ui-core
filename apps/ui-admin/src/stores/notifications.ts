@@ -114,11 +114,16 @@ export const useNotificationsStore = defineStore("notifications", () => {
     }
   }
 
+  /**
+   * Reset `templateId` to its default; like a save, the answer replaces the
+   * loaded template only when it is still the one loaded. True when it did.
+   */
   async function resetTemplate(
     templateId: string,
     channel: NotificationChannel,
     locale: string,
-  ) {
+  ): Promise<boolean> {
+    const loadedAtReset = templateRequest;
     saving.value = true;
     error.value = null;
     try {
@@ -127,8 +132,11 @@ export const useNotificationsStore = defineStore("notifications", () => {
         channel,
         locale,
       });
-      currentTemplate.value = response;
-      return response;
+      const stillLoaded =
+        templateRequest === loadedAtReset &&
+        currentTemplate.value?.templateId === templateId;
+      if (stillLoaded) currentTemplate.value = response;
+      return stillLoaded;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to reset template";

@@ -769,6 +769,7 @@
             color="primary"
             label="Save"
             :loading="store.saving"
+            :disable="!store.channelConfig"
             @click="saveChannelConfig"
           />
         </q-card-actions>
