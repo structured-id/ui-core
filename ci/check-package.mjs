@@ -38,10 +38,17 @@ try {
   const packed = JSON.parse(
     run("tar", ["-xOzf", archive, "package/package.json"], root, true),
   );
+  // A resolution redirecting one of our packages would mean the SDK is not
+  // consumed as published. A development-tool patch is the workspace's own
+  // and never applies to a consumer, whose installs ignore a dependency's
+  // resolutions.
+  const redirectsSdk = Object.keys(packed.resolutions ?? {}).some((key) =>
+    key.startsWith("@structured-id/"),
+  );
   if (
     packed.exports["./proto"] ||
     packed.exports["./browser-vp"] ||
-    packed.resolutions ||
+    redirectsSdk ||
     packed.scripts.generate ||
     !packed.dependencies["@structured-id/proto"]?.startsWith("^")
   ) {
