@@ -6,18 +6,18 @@ import {
   startBffLogin,
   useAuthStore,
 } from "@structured-id/ui-core";
+import { consoleBase } from "#admin/base";
 
 /**
- * The console's mount: its browser adapter (session read, sign-in and
- * sign-out) answers here and its API calls go under `<mount>/api`. The
- * installation's sign-in surface keeps `/api` on the same origin.
+ * Set up the console's adapter and API transports under the console's base
+ * (see {@link consoleBase}): the adapter (session read, sign-in, sign-out)
+ * answers there and the API calls go under `<base>api`. Call before reading
+ * the session.
  */
-export const CONSOLE_MOUNT = "/admin";
-
-/** Set up the console's adapter and API transports; call before reading the session. */
-export function setupConsoleTransports(mount: string = CONSOLE_MOUNT): void {
-  initBff(mount);
-  initAccountApi({ baseUrl: `${mount}/api` });
+export function setupConsoleTransports(): void {
+  const base = consoleBase();
+  initBff(base.slice(0, -1));
+  initAccountApi({ baseUrl: `${base}api` });
 }
 
 /**

@@ -163,7 +163,7 @@
           <q-td :props="props">
             <router-link
               v-if="props.row.profileId"
-              :to="`/admin/users/${shown(props.row.profileId)}`"
+              :to="`/users/${shown(props.row.profileId)}`"
               class="text-primary"
               style="text-decoration: none"
             >

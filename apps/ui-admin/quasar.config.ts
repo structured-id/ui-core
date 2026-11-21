@@ -12,10 +12,15 @@ export default defineConfig(() => {
     build: {
       target: { browser: ["es2022"] },
       vueRouterMode: "history",
-      // The console is served under /admin/; its routes carry that prefix
-      // themselves, so the router's base stays the origin's root.
-      publicPath: "/admin/",
-      vueRouterBase: "/",
+      // One build for every placement the installation configures (`/admin`,
+      // another prefix, an admin host's root): asset URLs are relative and
+      // resolve against the `<base href>` the UI host writes into the shell,
+      // and the router takes its base from there too (`consoleBase`).
+      // Quasar accepts a relative publicPath with hash routing only, so the
+      // relative base is Vite's own.
+      extendViteConf(viteConf) {
+        viteConf.base = "./";
+      },
     },
 
     devServer: {

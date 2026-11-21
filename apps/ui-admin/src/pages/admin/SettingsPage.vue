@@ -412,7 +412,7 @@
               no-caps
               icon="sym_o_palette"
               label="Go to Branding Editor"
-              to="/admin/branding"
+              to="/branding"
             />
           </q-card-actions>
         </q-card>

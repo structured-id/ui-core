@@ -114,21 +114,21 @@
               no-caps
               icon="sym_o_settings"
               label="Settings"
-              to="/admin/settings"
+              to="/settings"
             />
             <q-btn
               outline
               no-caps
               icon="sym_o_group"
               label="Users"
-              to="/admin/users"
+              to="/users"
             />
             <q-btn
               outline
               no-caps
               icon="sym_o_apps"
               label="Applications"
-              to="/admin/applications"
+              to="/applications"
             />
           </div>
         </q-card-section>

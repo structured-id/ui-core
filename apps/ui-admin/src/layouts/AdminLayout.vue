@@ -60,6 +60,7 @@
           v-for="link in navLinks"
           :key="link.to"
           :to="link.to"
+          :exact="link.to === '/'"
           clickable
           v-ripple
           active-class="text-primary bg-blue-1"
@@ -83,6 +84,7 @@ import { ref, computed } from "vue";
 import { useQuasar } from "quasar";
 import { useRoute } from "vue-router";
 import { consoleNav, type AdminNavLink } from "#admin/navigation";
+import { consoleBase } from "#admin/base";
 import { bffLogout } from "@structured-id/ui-core";
 import { useAuthStore } from "#admin/stores/auth";
 
@@ -112,7 +114,7 @@ async function handleLogout() {
     return;
   }
   auth.logout();
-  window.location.assign("/admin/");
+  window.location.assign(consoleBase());
 }
 
 // The menu the console's route carries: the CE entries, plus those a

@@ -3,7 +3,7 @@ import { consoleNav, type AdminNavLink } from "#admin/navigation";
 
 type Page = () => Promise<unknown>;
 
-/** A console page under `/admin`, by its path relative to the console. */
+/** A console page, by its path relative to the console's base. */
 function page(path: string, name: string, component: Page, title?: string) {
   return {
     path,
@@ -13,7 +13,7 @@ function page(path: string, name: string, component: Page, title?: string) {
   } as RouteRecordRaw;
 }
 
-/** The CE console's pages, relative to `/admin`. */
+/** The CE console's pages, relative to the console's base. */
 export const consolePages: RouteRecordRaw[] = [
   page(
     "",
@@ -234,29 +234,28 @@ export const consolePages: RouteRecordRaw[] = [
 
 /** What a composing application adds to the console. */
 export interface ConsoleExtension {
-  /** Pages relative to `/admin`, beside the CE pages. */
+  /** Pages relative to the console's base, beside the CE pages. */
   pages?: RouteRecordRaw[];
-  /** Menu entries after the CE entries. */
+  /** Menu entries after the CE entries, relative to the console's base. */
   nav?: AdminNavLink[];
 }
 
 /**
- * The console's routes: the CE pages and any `extension` pages under the
- * console layout at `/admin`, whose menu lists both, plus the root redirect
- * and the not-found page. An extended console (EE) builds its router from
- * this rather than copying the CE route table.
+ * The console's routes, relative to its base (the router's history base):
+ * the CE pages and any `extension` pages under the console layout, whose
+ * menu lists both, plus the not-found page. An extended console (EE) builds
+ * its router from this rather than copying the CE route table.
  */
 export function adminRoutes(
   extension: ConsoleExtension = {},
 ): RouteRecordRaw[] {
   return [
     {
-      path: "/admin",
+      path: "/",
       component: () => import("#admin/layouts/AdminLayout.vue"),
       meta: { nav: [...consoleNav, ...(extension.nav ?? [])] },
       children: [...consolePages, ...(extension.pages ?? [])],
     },
-    { path: "/", redirect: "/admin" },
     {
       path: "/:catchAll(.*)*",
       name: "not-found",

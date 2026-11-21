@@ -18,4 +18,5 @@ export {
   type ConsoleExtension,
 } from "./router/routes";
 export { consoleNav, type AdminNavLink } from "./navigation";
-export { CONSOLE_MOUNT, guardConsole, setupConsoleTransports } from "./console";
+export { guardConsole, setupConsoleTransports } from "./console";
+export { consoleBase } from "./base";
