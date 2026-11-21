@@ -1,0 +1,55 @@
+{
+  "name": "@structured-id/ui-admin",
+  "private": true,
+  "description": "StructuredID administration console (CE): the installation's /admin web application.",
+  "productName": "StructuredID Admin",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/structured-id/ui-core.git",
+    "directory": "apps/ui-admin"
+  },
+  "scripts": {
+    "postinstall": "quasar prepare",
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "lint": "eslint src/",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@protobuf-ts/grpcweb-transport": "^2.11.1",
+    "@protobuf-ts/runtime": "^2.11.1",
+    "@protobuf-ts/runtime-rpc": "^2.11.1",
+    "@quasar/extras": "^2.1.0",
+    "@structured-id/ids": "^0.11.0",
+    "@structured-id/proto": "^0.20.0",
+    "@structured-id/ui-core": "workspace:^",
+    "pinia": "^4.1.0",
+    "quasar": "^2.35.4",
+    "vue": "^3.5.46",
+    "vue-router": "^5.5.1"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^3.10.4",
+    "@types/node": "^26.6.6",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitejs/plugin-vue": "^6.0.11",
+    "@vue/compiler-dom": "^3.5.46",
+    "@vue/devtools-api": "^8.2.1",
+    "@vue/test-utils": "^2.5.1",
+    "eslint": "^10.15.0",
+    "eslint-plugin-vue": "^10.12.1",
+    "jsdom": "^31.0.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.72.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
+    "vue-eslint-parser": "^10.4.2",
+    "vue-tsc": "^3.3.14"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "license": "AGPL-3.0-only"
+}
