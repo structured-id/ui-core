@@ -1263,6 +1263,9 @@ watch(
       };
     }
   },
+  // Addresses the store already holds fill the form at once: the form must
+  // never stand empty, ready to save, over values that are set.
+  { immediate: true },
 );
 
 // Saving a new console address moves the console there: the browser follows

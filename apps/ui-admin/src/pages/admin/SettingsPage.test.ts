@@ -190,10 +190,10 @@ import SettingsPage from "./SettingsPage.vue";
 import { useSettingsStore } from "#admin/stores/settings";
 import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 
-function mountPage() {
+function mountPage(pinia = createPinia()) {
   return mount(SettingsPage, {
     global: {
-      plugins: [createPinia()],
+      plugins: [pinia],
       stubs: quasarStubs,
     },
   });
@@ -342,6 +342,42 @@ describe("SettingsPage", () => {
     await save.trigger("click");
     await flushPromises();
     expect(realmMocks.updateInstallationAddresses).not.toHaveBeenCalled();
+  });
+
+  // Returning to Settings shows the addresses the store already holds while
+  // they refresh. Bug prevented: the new form started empty until the
+  // refresh answered, so a Save meanwhile wiped the override and moved the
+  // console back to /admin/.
+  it("fills the address form from addresses already read", async () => {
+    const pinia = createPinia();
+    realmMocks.getInstallationAddresses.mockResolvedValueOnce({
+      response: {
+        publicUrl: "https://proxy.example.com/",
+        publicUrlOverridden: true,
+        consoleUrl: "https://sid.example.com/console/",
+      },
+    });
+    mountPage(pinia).unmount();
+    await flushPromises();
+
+    realmMocks.getInstallationAddresses.mockReturnValueOnce(
+      new Promise(() => {}),
+    );
+    realmMocks.updateInstallationAddresses.mockResolvedValueOnce({
+      response: {
+        publicUrl: "https://proxy.example.com/",
+        publicUrlOverridden: true,
+        consoleUrl: "https://sid.example.com/console/",
+      },
+    });
+    const wrapper = mountPage(pinia);
+    await flushPromises();
+    await wrapper.find('[data-test="save-addresses"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateInstallationAddresses).toHaveBeenCalledWith({
+      publicUrl: "https://proxy.example.com/",
+      consoleUrl: "https://sid.example.com/console/",
+    });
   });
 
   it("store.setFeature calls gRPC", async () => {
