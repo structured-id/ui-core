@@ -157,7 +157,7 @@
           </template>
 
           <template #no-data>
-            <div class="full-width text-center q-pa-xl">
+            <div v-if="!store.error" class="full-width text-center q-pa-xl">
               <q-icon name="sym_o_smart_toy" size="64px" color="grey-4" />
               <div class="text-h6 text-grey-6 q-mt-md">
                 No machine users yet
@@ -215,6 +215,14 @@
           color="primary"
           class="q-mb-md"
         />
+
+        <q-banner
+          v-if="patStore.error"
+          dense
+          class="bg-negative text-white q-mb-md"
+        >
+          {{ patStore.error }}
+        </q-banner>
 
         <q-table
           :rows="filteredPats"
@@ -292,7 +300,7 @@
           </template>
 
           <template #no-data>
-            <div class="full-width text-center q-pa-xl">
+            <div v-if="!patStore.error" class="full-width text-center q-pa-xl">
               <q-icon name="sym_o_key" size="64px" color="grey-4" />
               <div class="text-h6 text-grey-6 q-mt-md">No PATs found</div>
               <div class="text-body2 text-grey">

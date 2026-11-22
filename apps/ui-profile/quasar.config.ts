@@ -41,6 +41,10 @@ export default defineConfig(() => {
     },
 
     framework: {
+      // Quasar's own icons (a select's arrow, the table's pager) from the
+      // Material Symbols font the app loads, not the Material Icons it
+      // does not.
+      iconSet: "material-symbols-outlined",
       plugins: ["Notify", "Dialog", "Loading"],
       config: {
         notify: {

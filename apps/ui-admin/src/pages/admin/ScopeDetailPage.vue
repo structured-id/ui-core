@@ -208,7 +208,7 @@
           </template>
 
           <template #no-data>
-            <div class="full-width text-center q-pa-lg">
+            <div v-if="!store.error" class="full-width text-center q-pa-lg">
               <q-icon name="sym_o_label" size="48px" color="grey-4" />
               <div class="text-body1 text-grey-6 q-mt-sm">
                 No claim mappings
