@@ -18,8 +18,14 @@ export default defineConfig(() => {
       // and the router takes its base from there too (`consoleBase`).
       // Quasar accepts a relative publicPath with hash routing only, so the
       // relative base is Vite's own.
+      // The shared components resolve the framework and Vue from this app
+      // (see ui-profile).
       extendViteConf(viteConf) {
         viteConf.base = "./";
+        viteConf.resolve = {
+          ...viteConf.resolve,
+          dedupe: ["quasar", "vue", "vue-router", "pinia"],
+        };
       },
     },
 

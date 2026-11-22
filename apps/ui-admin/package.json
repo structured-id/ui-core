@@ -36,7 +36,7 @@
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
     "@structured-id/ids": "^0.11.0",
-    "@structured-id/proto": "^0.20.0"
+    "@structured-id/proto": "^0.22.0"
   },
   "peerDependencies": {
     "@structured-id/ui-core": "workspace:^",

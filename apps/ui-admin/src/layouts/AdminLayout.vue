@@ -81,19 +81,23 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useQuasar } from "quasar";
 import { useRoute } from "vue-router";
 import { consoleNav, type AdminNavLink } from "#admin/navigation";
-import { consoleBase } from "#admin/base";
-import { bffLogout } from "@structured-id/ui-core";
+import { useQuasar } from "quasar";
+import {
+  endInstallationSession,
+  installationSignInUrl,
+  refusalMessage,
+} from "@structured-id/ui-core";
 import { useAuthStore } from "#admin/stores/auth";
 
 const $q = useQuasar();
 const auth = useAuthStore();
 const leftDrawerOpen = ref(false);
 
-// The installation's own account pages, served on the same origin.
-const ACCOUNT_PAGES = "/account/";
+// The installation's own account pages, where the user manages and ends
+// the session the console acts in.
+const ACCOUNT_PAGES = installationSignInUrl();
 
 const displayName = computed(() => auth.displayName);
 const email = computed(() => auth.email);
@@ -102,19 +106,22 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-// Ends the session at the console's browser adapter; the console's own
-// state is cleared only once the adapter confirms, then sign-in starts again.
+// The console acts in the installation's own session: signing out ends it,
+// and only once it has ended does the page leave for the account pages. A
+// failure keeps the user here, told why, rather than showing them signed
+// out while the session lives on.
 async function handleLogout() {
-  const result = await bffLogout();
-  if (!result.ended) {
+  try {
+    await endInstallationSession();
+  } catch (err) {
     $q.notify({
       type: "negative",
-      message: "Sign-out failed; the session may still be active",
+      message: refusalMessage(err, "Sign-out failed"),
     });
     return;
   }
   auth.logout();
-  window.location.assign(consoleBase());
+  window.location.assign(ACCOUNT_PAGES);
 }
 
 // The menu the console's route carries: the CE entries, plus those a

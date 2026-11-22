@@ -51,13 +51,6 @@
                   filled
                   class="q-mb-md"
                 />
-                <q-input
-                  v-model="realmForm.frontendUrl"
-                  label="Frontend URL"
-                  hint="Base URL for login pages"
-                  filled
-                  class="q-mb-md"
-                />
                 <q-toggle v-model="realmForm.enabled" label="Realm Enabled" />
                 <q-toggle
                   v-model="realmForm.userManagedAccess"
@@ -71,6 +64,45 @@
                   color="primary"
                   :loading="store.loading"
                   @click="saveRealm"
+                />
+              </q-card-actions>
+            </q-card>
+          </div>
+
+          <!-- Addresses -->
+          <div class="col-12 col-md-6">
+            <q-card flat bordered>
+              <q-card-section>
+                <div class="text-h6">Addresses</div>
+              </q-card-section>
+              <q-separator />
+              <q-card-section v-if="store.addresses">
+                <q-input
+                  v-model="addressForm.publicUrl"
+                  label="Public URL"
+                  :hint="
+                    store.addresses.publicUrlOverridden
+                      ? 'Set for a reverse proxy; clear to use the installation\'s own URL'
+                      : 'The installation\'s own URL; set another for a reverse proxy'
+                  "
+                  filled
+                  class="q-mb-md"
+                />
+                <q-input
+                  v-model="addressForm.consoleUrl"
+                  label="Console URL"
+                  hint="Another path on the public URL, or a host of the same site; clear for /admin/"
+                  filled
+                />
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn
+                  label="Save"
+                  color="primary"
+                  data-test="save-addresses"
+                  :disable="!store.addresses"
+                  :loading="store.loading"
+                  @click="saveAddresses"
                 />
               </q-card-actions>
             </q-card>
@@ -1213,10 +1245,47 @@ const tab = ref("general");
 const realmForm = ref<{
   realmName: string;
   displayName: string;
-  frontendUrl: string;
   enabled: boolean;
   userManagedAccess: boolean;
 } | null>(null);
+
+// ── Addresses form ──
+const addressForm = ref({ publicUrl: "", consoleUrl: "" });
+
+watch(
+  () => store.addresses,
+  (a) => {
+    if (a) {
+      addressForm.value = {
+        // An override is shown as set; the installation's own URL as empty.
+        publicUrl: a.publicUrlOverridden ? a.publicUrl : "",
+        consoleUrl: a.consoleUrl,
+      };
+    }
+  },
+  // Addresses the store already holds fill the form at once: the form must
+  // never stand empty, ready to save, over values that are set.
+  { immediate: true },
+);
+
+// Saving a new console address moves the console there: the browser follows
+// it, since this page is no longer served where it is. Nothing is saved
+// before the current addresses are read: an empty field restores a default,
+// so the unread form would wipe what is set.
+async function saveAddresses() {
+  if (!store.addresses) return;
+  const before = store.addresses.consoleUrl;
+  try {
+    const saved = await store.updateAddresses({
+      publicUrl: addressForm.value.publicUrl.trim(),
+      consoleUrl: addressForm.value.consoleUrl.trim(),
+    });
+    $q.notify({ type: "positive", message: "Addresses saved" });
+    if (saved.consoleUrl !== before) window.location.assign(saved.consoleUrl);
+  } catch {
+    $q.notify({ type: "negative", message: store.error ?? "Failed to save" });
+  }
+}
 
 watch(
   () => store.realm,
@@ -1232,7 +1301,6 @@ async function saveRealm() {
   try {
     await store.updateRealm({
       displayName: realmForm.value.displayName,
-      frontendUrl: realmForm.value.frontendUrl,
       enabled: realmForm.value.enabled,
       userManagedAccess: realmForm.value.userManagedAccess,
     });
@@ -1877,6 +1945,7 @@ async function doImport() {
 onMounted(async () => {
   await Promise.all([
     store.fetchRealm(),
+    store.fetchAddresses(),
     store.fetchFeatures(),
     store.fetchLoginSettings(),
     store.fetchKeys(),

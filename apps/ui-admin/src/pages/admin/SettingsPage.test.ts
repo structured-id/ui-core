@@ -9,12 +9,19 @@ const realmMocks = vi.hoisted(() => ({
     response: {
       realmName: "master",
       displayName: "Master Realm",
-      frontendUrl: "https://sid.example.com",
       enabled: true,
       userManagedAccess: false,
     },
   }),
   updateRealm: vi.fn().mockResolvedValue({ response: {} }),
+  getInstallationAddresses: vi.fn().mockResolvedValue({
+    response: {
+      publicUrl: "https://sid.example.com/",
+      publicUrlOverridden: false,
+      consoleUrl: "https://sid.example.com/admin/",
+    },
+  }),
+  updateInstallationAddresses: vi.fn(),
   getLoginSettings: vi.fn().mockResolvedValue({
     response: {
       registrationEnabled: true,
@@ -118,6 +125,7 @@ const securityMocks = await vi.hoisted(async () => {
 
 vi.mock("@structured-id/ui-core", () => ({
   getAccountTransport: () => ({}),
+  refusalMessage: (_err: unknown, fallback: string) => fallback,
 }));
 
 vi.mock("@structured-id/proto/google/protobuf/empty", () => ({
@@ -128,6 +136,8 @@ vi.mock("@structured-id/proto/sid/v1/admin/settings.client", () => ({
   RealmServiceClient: class {
     getRealm = realmMocks.getRealm;
     updateRealm = realmMocks.updateRealm;
+    getInstallationAddresses = realmMocks.getInstallationAddresses;
+    updateInstallationAddresses = realmMocks.updateInstallationAddresses;
     getLoginSettings = realmMocks.getLoginSettings;
     updateLoginSettings = realmMocks.updateLoginSettings;
     getEmailSettings = realmMocks.getEmailSettings;
@@ -180,10 +190,10 @@ import SettingsPage from "./SettingsPage.vue";
 import { useSettingsStore } from "#admin/stores/settings";
 import { quasarStubs } from "#admin/test-utils/quasar-stubs";
 
-function mountPage() {
+function mountPage(pinia = createPinia()) {
   return mount(SettingsPage, {
     global: {
-      plugins: [createPinia()],
+      plugins: [pinia],
       stubs: quasarStubs,
     },
   });
@@ -279,7 +289,6 @@ describe("SettingsPage", () => {
       response: {
         realmName: "master",
         displayName: "Updated Realm",
-        frontendUrl: "https://sid.example.com",
         enabled: true,
         userManagedAccess: false,
       },
@@ -291,6 +300,84 @@ describe("SettingsPage", () => {
     await store.updateRealm({ displayName: "Updated Realm" });
     expect(realmMocks.updateRealm).toHaveBeenCalledOnce();
     expect(store.realm?.displayName).toBe("Updated Realm");
+  });
+
+  // The addresses load with the page; the installation's own URL is shown
+  // as no override, and an emptied console address is sent as the empty
+  // string that restores /admin/, not left out.
+  it("loads the addresses and sends an emptied console address", async () => {
+    realmMocks.updateInstallationAddresses.mockResolvedValue({
+      response: {
+        publicUrl: "https://sid.example.com/",
+        publicUrlOverridden: false,
+        consoleUrl: "https://sid.example.com/admin/",
+      },
+    });
+    mountPage();
+    await flushPromises();
+    const store = useSettingsStore();
+    expect(store.addresses?.consoleUrl).toBe("https://sid.example.com/admin/");
+
+    await store.updateAddresses({ publicUrl: "", consoleUrl: "" });
+    expect(realmMocks.updateInstallationAddresses).toHaveBeenCalledWith({
+      publicUrl: "",
+      consoleUrl: "",
+    });
+  });
+
+  // Empty fields restore the defaults, so saving before the addresses were
+  // read would wipe a public URL override and move the console back to
+  // /admin/. Bug prevented: Save stayed live after the read failed and sent
+  // the empty form.
+  it("does not save addresses it has not read", async () => {
+    realmMocks.getInstallationAddresses.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(useSettingsStore().addresses).toBeNull();
+
+    const save = wrapper.find('[data-test="save-addresses"]');
+    expect(save.exists()).toBe(true);
+    await save.trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateInstallationAddresses).not.toHaveBeenCalled();
+  });
+
+  // Returning to Settings shows the addresses the store already holds while
+  // they refresh. Bug prevented: the new form started empty until the
+  // refresh answered, so a Save meanwhile wiped the override and moved the
+  // console back to /admin/.
+  it("fills the address form from addresses already read", async () => {
+    const pinia = createPinia();
+    realmMocks.getInstallationAddresses.mockResolvedValueOnce({
+      response: {
+        publicUrl: "https://proxy.example.com/",
+        publicUrlOverridden: true,
+        consoleUrl: "https://sid.example.com/console/",
+      },
+    });
+    mountPage(pinia).unmount();
+    await flushPromises();
+
+    realmMocks.getInstallationAddresses.mockReturnValueOnce(
+      new Promise(() => {}),
+    );
+    realmMocks.updateInstallationAddresses.mockResolvedValueOnce({
+      response: {
+        publicUrl: "https://proxy.example.com/",
+        publicUrlOverridden: true,
+        consoleUrl: "https://sid.example.com/console/",
+      },
+    });
+    const wrapper = mountPage(pinia);
+    await flushPromises();
+    await wrapper.find('[data-test="save-addresses"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateInstallationAddresses).toHaveBeenCalledWith({
+      publicUrl: "https://proxy.example.com/",
+      consoleUrl: "https://sid.example.com/console/",
+    });
   });
 
   it("store.setFeature calls gRPC", async () => {

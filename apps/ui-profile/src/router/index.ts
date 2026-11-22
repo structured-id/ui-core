@@ -6,6 +6,9 @@ export default defineRouter(function () {
   return createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
-    history: createWebHistory(process.env.VUE_ROUTER_BASE),
+    // The routes name their full paths (`/account/...`): the history starts
+    // at the origin's root, never at the `<base href>` the UI host gives the
+    // shell for its assets, which vue-router reads when given no base.
+    history: createWebHistory("/"),
   });
 });

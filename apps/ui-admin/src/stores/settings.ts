@@ -8,6 +8,7 @@ import { KeyServiceClient } from "@structured-id/proto/sid/v1/admin/keys.client"
 import { SecurityServiceClient } from "@structured-id/proto/sid/v1/admin/security.client";
 import type {
   RealmSettings,
+  InstallationAddresses,
   LoginSettings,
   SessionConfig,
   TokenConfig,
@@ -52,6 +53,7 @@ function getSecurityClient() {
 export const useSettingsStore = defineStore("settings", () => {
   // ── State ──
   const realm = ref<RealmSettings | null>(null);
+  const addresses = ref<InstallationAddresses | null>(null);
   const loginSettings = ref<LoginSettings | null>(null);
   const sessionConfig = ref<SessionConfig | null>(null);
   const tokenConfig = ref<TokenConfig | null>(null);
@@ -85,7 +87,6 @@ export const useSettingsStore = defineStore("settings", () => {
 
   async function updateRealm(update: {
     displayName?: string;
-    frontendUrl?: string;
     enabled?: boolean;
     userManagedAccess?: boolean;
   }) {
@@ -98,6 +99,43 @@ export const useSettingsStore = defineStore("settings", () => {
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to update realm settings";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  // ── Addresses ──
+
+  async function fetchAddresses() {
+    error.value = null;
+    try {
+      const { response } = await getRealmClient().getInstallationAddresses(
+        Empty.create(),
+      );
+      addresses.value = response;
+    } catch (err) {
+      error.value = refusalMessage(err, "Failed to load the addresses");
+    }
+  }
+
+  /**
+   * Change the addresses `update` names; an empty string restores a default
+   * (no public URL override, the console at /admin/).
+   */
+  async function updateAddresses(update: {
+    publicUrl?: string;
+    consoleUrl?: string;
+  }) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const { response } =
+        await getRealmClient().updateInstallationAddresses(update);
+      addresses.value = response;
+      return response;
+    } catch (err) {
+      error.value = refusalMessage(err, "Failed to update the addresses");
       throw err;
     } finally {
       loading.value = false;
@@ -660,6 +698,9 @@ export const useSettingsStore = defineStore("settings", () => {
     error,
     fetchRealm,
     updateRealm,
+    addresses,
+    fetchAddresses,
+    updateAddresses,
     fetchFeatures,
     setFeature,
     fetchLoginSettings,
