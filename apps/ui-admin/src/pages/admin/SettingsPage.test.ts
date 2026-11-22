@@ -125,6 +125,7 @@ const securityMocks = await vi.hoisted(async () => {
 
 vi.mock("@structured-id/ui-core", () => ({
   getAccountTransport: () => ({}),
+  refusalMessage: (_err: unknown, fallback: string) => fallback,
 }));
 
 vi.mock("@structured-id/proto/google/protobuf/empty", () => ({
@@ -322,6 +323,25 @@ describe("SettingsPage", () => {
       publicUrl: "",
       consoleUrl: "",
     });
+  });
+
+  // Empty fields restore the defaults, so saving before the addresses were
+  // read would wipe a public URL override and move the console back to
+  // /admin/. Bug prevented: Save stayed live after the read failed and sent
+  // the empty form.
+  it("does not save addresses it has not read", async () => {
+    realmMocks.getInstallationAddresses.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(useSettingsStore().addresses).toBeNull();
+
+    const save = wrapper.find('[data-test="save-addresses"]');
+    expect(save.exists()).toBe(true);
+    await save.trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateInstallationAddresses).not.toHaveBeenCalled();
   });
 
   it("store.setFeature calls gRPC", async () => {

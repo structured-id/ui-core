@@ -99,6 +99,8 @@
                 <q-btn
                   label="Save"
                   color="primary"
+                  data-test="save-addresses"
+                  :disable="!store.addresses"
                   :loading="store.loading"
                   @click="saveAddresses"
                 />
@@ -1264,9 +1266,12 @@ watch(
 );
 
 // Saving a new console address moves the console there: the browser follows
-// it, since this page is no longer served where it is.
+// it, since this page is no longer served where it is. Nothing is saved
+// before the current addresses are read: an empty field restores a default,
+// so the unread form would wipe what is set.
 async function saveAddresses() {
-  const before = store.addresses?.consoleUrl;
+  if (!store.addresses) return;
+  const before = store.addresses.consoleUrl;
   try {
     const saved = await store.updateAddresses({
       publicUrl: addressForm.value.publicUrl.trim(),

@@ -44,6 +44,28 @@ describe("status messages", () => {
     }
   });
 
+  // A caller that reads only the response leaves the other parts of the
+  // call unread. Bug prevented: each unread part rejected unhandled, so a
+  // refusal the caller caught still reported unhandled rejections.
+  it("leaves no unhandled rejection when only the response is read", async () => {
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", record);
+    try {
+      const call = decodedStatusMessages().interceptUnary!(
+        () => refused("denied"),
+        method,
+        {},
+        {} as RpcOptions,
+      );
+      await expect(call.response).rejects.toBeInstanceOf(RpcError);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      process.off("unhandledRejection", record);
+    }
+    expect(unhandled).toEqual([]);
+  });
+
   // Text that is not valid percent-encoding is shown as it came.
   it("keeps a message that is not encoding", () => {
     expect(decodeStatusMessage("100% done")).toBe("100% done");

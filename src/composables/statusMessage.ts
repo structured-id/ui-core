@@ -32,10 +32,17 @@ function decoded(err: unknown): unknown {
   return fixed;
 }
 
+/**
+ * `promise` rejecting with the decoded refusal. Marked handled: a caller
+ * reads only the parts of a call it needs, and an unread part must not
+ * report its rejection as unhandled; a reader still sees it reject.
+ */
 function rethrowDecoded<T>(promise: Promise<T>): Promise<T> {
-  return promise.catch((err: unknown) => {
+  const out = promise.catch((err: unknown) => {
     throw decoded(err);
   });
+  out.catch(() => undefined);
+  return out;
 }
 
 /** Decodes the status message of every refusal a unary call answers. */
