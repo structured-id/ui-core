@@ -113,7 +113,7 @@
             </template>
 
             <template #no-data>
-              <div class="full-width text-center q-pa-xl">
+              <div v-if="!store.error" class="full-width text-center q-pa-xl">
                 <q-icon name="sym_o_shield" size="64px" color="grey-4" />
                 <div class="text-h6 text-grey-6 q-mt-md">No admin roles</div>
               </div>
@@ -330,7 +330,7 @@
             </template>
 
             <template #no-data>
-              <div class="full-width text-center q-pa-xl">
+              <div v-if="!store.error" class="full-width text-center q-pa-xl">
                 <q-icon
                   name="sym_o_assignment_ind"
                   size="64px"

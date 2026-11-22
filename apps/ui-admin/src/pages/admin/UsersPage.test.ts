@@ -147,6 +147,21 @@ describe("UsersPage", () => {
     expect(wrapper.find(".q-banner").exists()).toBe(true);
   });
 
+  // A refused list says why and nothing else. Bug prevented: under the
+  // refusal the page also claimed "No users yet / Create your first user"
+  // to an account that may not read the list at all.
+  it("shows no empty state when the list is refused", async () => {
+    mocks.listProfiles.mockRejectedValueOnce(
+      new Error("the caller may not perform this operation"),
+    );
+    const wrapper = await mountPage();
+    await flushPromises();
+    expect(wrapper.text()).toContain(
+      "the caller may not perform this operation",
+    );
+    expect(wrapper.text()).not.toContain("No users yet");
+  });
+
   it("has Create User button", async () => {
     const wrapper = await mountPage();
     await flushPromises();

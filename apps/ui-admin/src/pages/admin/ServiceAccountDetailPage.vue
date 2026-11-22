@@ -264,7 +264,7 @@
             </template>
 
             <template #no-data>
-              <div class="full-width text-center q-pa-lg">
+              <div v-if="!store.error" class="full-width text-center q-pa-lg">
                 <q-icon name="sym_o_key_off" size="48px" color="grey-4" />
                 <div class="text-body2 text-grey q-mt-sm">
                   No credentials yet. Add one to enable authentication.
