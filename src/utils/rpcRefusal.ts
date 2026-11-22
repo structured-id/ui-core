@@ -13,6 +13,10 @@ import {
   LocalizedMessage,
 } from "@structured-id/proto/google/rpc/error_details";
 import { ErrorReason } from "@structured-id/proto/sid/v1/common/errors";
+// The transport hands the status message over as the wire carries it,
+// percent-encoded; a message already decoded by the transport's
+// interceptor decodes to itself.
+import { decodeStatusMessage } from "../composables/statusMessage";
 
 export interface RpcRefusal {
   /** The gRPC status code's name (`FAILED_PRECONDITION`). */
@@ -305,15 +309,6 @@ export function refusalMessage(
 function sidReason(reason: string): ErrorReason | null {
   const code = (ErrorReason as unknown as Record<string, unknown>)[reason];
   return typeof code === "number" ? (code as ErrorReason) : null;
-}
-
-/** The transport hands the status message over as the wire carries it: percent-encoded. */
-function decodeStatusMessage(message: string): string {
-  try {
-    return decodeURIComponent(message);
-  } catch {
-    return message;
-  }
 }
 
 /** The details of the status in the trailer; none when the trailer is missing or unreadable. */

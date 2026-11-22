@@ -19,6 +19,7 @@ import {
 } from "@protobuf-ts/runtime-rpc";
 import { AuthServiceClient } from "@structured-id/proto/sid/v1/authn/auth.client";
 import { operationContext } from "./operationContext";
+import { decodedStatusMessages } from "./statusMessage";
 
 /** The signed-in installation session as the console sees it. */
 export interface InstallationSession {
@@ -62,7 +63,7 @@ export function initInstallationSession(installationUrl: string): void {
   _transport = new GrpcWebFetchTransport({
     baseUrl: `${_base}/api`,
     fetchInit: { credentials: "include" },
-    interceptors: [csrf, operationContext()],
+    interceptors: [csrf, operationContext(), decodedStatusMessages()],
   });
 }
 
