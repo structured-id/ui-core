@@ -83,9 +83,15 @@
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { consoleNav, type AdminNavLink } from "#admin/navigation";
-import { installationSignInUrl } from "@structured-id/ui-core";
+import { useQuasar } from "quasar";
+import {
+  endInstallationSession,
+  installationSignInUrl,
+  refusalMessage,
+} from "@structured-id/ui-core";
 import { useAuthStore } from "#admin/stores/auth";
 
+const $q = useQuasar();
 const auth = useAuthStore();
 const leftDrawerOpen = ref(false);
 
@@ -100,9 +106,20 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-// The console acts in the installation's own session, which its account
-// pages end: sign-out happens there.
-function handleLogout() {
+// The console acts in the installation's own session: signing out ends it,
+// and only once it has ended does the page leave for the account pages. A
+// failure keeps the user here, told why, rather than showing them signed
+// out while the session lives on.
+async function handleLogout() {
+  try {
+    await endInstallationSession();
+  } catch (err) {
+    $q.notify({
+      type: "negative",
+      message: refusalMessage(err, "Sign-out failed"),
+    });
+    return;
+  }
   auth.logout();
   window.location.assign(ACCOUNT_PAGES);
 }

@@ -30,6 +30,7 @@ export {
   checkInstallationSession,
   installationTransport,
   installationSignInUrl,
+  endInstallationSession,
   type InstallationSession,
 } from "./composables/useInstallationSession";
 // For an application's own transport: add the interceptor once, shared by

@@ -10,6 +10,7 @@
  *   2. `checkInstallationSession()` reads the session and its CSRF token
  *   3. `installationTransport()` carries the console's API calls
  *   4. `installationSignInUrl()` is where a signed-out user signs in
+ *   5. `endInstallationSession()` signs out of the installation
  */
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import {
@@ -100,6 +101,24 @@ export async function checkInstallationSession(): Promise<InstallationSession | 
     }
     throw err;
   }
+}
+
+/**
+ * Sign out of the installation: the session the console acts in ends and
+ * its cookie is cleared. Resolves once it has ended; a session already gone
+ * (UNAUTHENTICATED) counts as ended. Any other failure is thrown, so the page
+ * never shows a signed-out state while the session lives on.
+ */
+export async function endInstallationSession(): Promise<void> {
+  const client = new AuthServiceClient(installationTransport());
+  try {
+    await client.endBrowserSession({});
+  } catch (err) {
+    if (!(err instanceof RpcError && err.code === "UNAUTHENTICATED")) {
+      throw err;
+    }
+  }
+  _csrf = null;
 }
 
 /** Where a signed-out user signs in: the installation's account pages. */
