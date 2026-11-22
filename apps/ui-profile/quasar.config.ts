@@ -17,6 +17,15 @@ export default defineConfig(() => {
       // /account/consent), so the router's base stays the origin's root.
       publicPath: "/account/",
       vueRouterBase: "/",
+      // The shared components live in the workspace root, where the
+      // framework is only a peer: they resolve it, and Vue, from this app,
+      // or the build ships a stub that fails at run time.
+      extendViteConf(viteConf) {
+        viteConf.resolve = {
+          ...viteConf.resolve,
+          dedupe: ["quasar", "vue", "vue-router", "pinia"],
+        };
+      },
     },
 
     devServer: {
