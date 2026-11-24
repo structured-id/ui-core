@@ -9,3 +9,4 @@ export * from "./useSecurityLevel";
 export * from "./useCurrentPasswordRequirement";
 export * from "./usePasswordPolicy";
 export * from "./useUpstreamSignIn";
+export * from "./useSignInConnections";
