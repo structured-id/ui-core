@@ -19,6 +19,12 @@ vi.mock("@structured-id/ui-core/profile", () => ({
   getEnrollmentPolicy: api.getEnrollmentPolicy,
   requestPasswordReset: vi.fn(),
   useLoginSuccess: () => ({ onLoginSuccess: vi.fn() }),
+  useSignInConnections: () => ({
+    connections: { value: [] },
+    leaving: { value: null },
+    load: vi.fn().mockResolvedValue(undefined),
+    signInThrough: vi.fn(),
+  }),
 }));
 
 vi.mock("@structured-id/ui-core", () => ({
