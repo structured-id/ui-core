@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/structured-id/ui-core/compare/ui-admin-v0.1.0...ui-admin-v0.2.0) (2026-11-25)
+
+
+### Features
+
+* **profile:** sign-in page offers what its issuer offers ([#146](https://github.com/structured-id/ui-core/issues/146)) ([6657c74](https://github.com/structured-id/ui-core/commit/6657c745417d6b7b1c45f19529c2d4196f5168be)), closes [#145](https://github.com/structured-id/ui-core/issues/145)
+
+
+### Bug Fixes
+
+* **ui-admin:** icon set and empty state under a refusal ([#141](https://github.com/structured-id/ui-core/issues/141)) ([30956c8](https://github.com/structured-id/ui-core/commit/30956c86a07169ad85b831f6069d82b3cfc94206)), closes [#140](https://github.com/structured-id/ui-core/issues/140)
+
 ## 0.1.0 (2026-11-22)
 
 
