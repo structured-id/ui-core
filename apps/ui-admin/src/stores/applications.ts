@@ -5,6 +5,7 @@ import {
   ResourceState,
   type Application,
   type CreateApplicationRequest,
+  type ResourceAccess,
   type UpdateApplicationRequest,
   type UpdateClientRoleRequest,
 } from "@structured-id/proto/sid/v1/projects/projects";
@@ -149,6 +150,59 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  /** Every access `clientId` holds: the resources it may obtain tokens for. */
+  async function listClientAccess(clientId: string): Promise<ResourceAccess[]> {
+    const { response } = await getClient().listResourceAccess({
+      subject: { oneofKind: "clientId", clientId },
+    });
+    return response.access;
+  }
+
+  /**
+   * Gives `clientId` access to the resource with exactly `scopes`, replacing
+   * the scopes of an access it already has: repeating it changes nothing.
+   */
+  async function setClientAccess(
+    clientId: string,
+    resourceId: ResourceAccess["resourceId"],
+    scopes: string[],
+  ): Promise<ResourceAccess> {
+    const { response } = await getClient().setResourceAccess({
+      clientId,
+      resourceId,
+      scopes,
+    });
+    return response;
+  }
+
+  /** Ends `clientId`'s access to the resource. */
+  async function removeClientAccess(
+    clientId: string,
+    resourceId: ResourceAccess["resourceId"],
+  ): Promise<void> {
+    await getClient().removeResourceAccess({ clientId, resourceId });
+  }
+
+  /**
+   * Saves the resource `clientId`'s tokens are for when a request names
+   * none; without `resourceId` the default is removed. The client must have
+   * access to it. No other client setting is touched.
+   */
+  async function setDefaultTarget(
+    clientId: string,
+    resourceId: ResourceAccess["resourceId"],
+  ): Promise<Application> {
+    const { response } = await getClient().updateClientRole({
+      clientId,
+      redirectUris: [],
+      allowedScopes: [],
+      grantTypes: [],
+      defaultResource: { resourceId },
+    });
+    replace(response);
+    return response;
+  }
+
   async function deleteApplication(id: ApplicationId) {
     loading.value = true;
     error.value = null;
@@ -179,6 +233,10 @@ export const useApplicationsStore = defineStore("applications", () => {
     getApplication,
     updateApplication,
     updateClientRole,
+    listClientAccess,
+    setClientAccess,
+    removeClientAccess,
+    setDefaultTarget,
     deleteApplication,
   };
 });

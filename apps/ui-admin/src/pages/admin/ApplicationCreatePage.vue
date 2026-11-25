@@ -127,6 +127,29 @@
               />
             </template>
 
+            <!-- What the new client may reach (not for M2M: a machine names
+                 its target itself) -->
+            <template v-if="form.type !== ApplicationType.API">
+              <div class="text-subtitle2 q-mt-md">Sign-in</div>
+              <q-toggle
+                v-model="form.signIn"
+                label="Sign users in (OpenID Connect)"
+                data-test="sign-in-access"
+              />
+              <div class="text-caption text-grey">
+                <template v-if="form.signIn">
+                  The application gets access to this installation's UserInfo
+                  with the sign-in scopes, saved as its default target, so a
+                  standard sign-in works. It gets access to nothing else.
+                </template>
+                <template v-else>
+                  The application is created with access to no resource: its
+                  requests are refused until you give it access under Access on
+                  its page.
+                </template>
+              </div>
+            </template>
+
             <!-- Grant types -->
             <div class="text-subtitle2 q-mt-md">Grant types</div>
             <div class="q-gutter-sm">
@@ -174,6 +197,26 @@
             <q-icon name="sym_o_warning" />
           </template>
           Save the client secret now. It will not be shown again.
+        </q-banner>
+        <q-banner
+          v-if="signInAccess === 'saved'"
+          class="bg-grey-2 text-dark q-mb-md"
+          rounded
+          data-test="sign-in-saved"
+        >
+          The application can sign users in: it has access to this
+          installation's UserInfo, saved as its default target.
+        </q-banner>
+        <q-banner
+          v-if="signInAccess === 'failed'"
+          class="bg-negative text-white q-mb-md"
+          rounded
+          data-test="sign-in-failed"
+        >
+          The application was created, but its sign-in access was not saved:
+          {{ signInFailure }} Until it has that access its sign-in is refused.
+          Give it under Access on the application's page; do not create the
+          application again.
         </q-banner>
 
         <div class="q-gutter-md" style="max-width: 600px">
@@ -265,7 +308,12 @@ import { useApplicationsStore } from "#admin/stores/applications";
 import { ApplicationType } from "@structured-id/proto/sid/v1/projects/projects";
 import type { Application } from "@structured-id/proto/sid/v1/projects/projects";
 import { ProjectId } from "@structured-id/ids";
+import { refusalMessage } from "@structured-id/ui-core";
 import { shown } from "#admin/ids";
+import {
+  discoverUserinfoEndpoint,
+  grantSignInAccess,
+} from "#admin/signInAccess";
 
 const store = useApplicationsStore();
 
@@ -283,7 +331,14 @@ const form = reactive({
   grantTypes: ["authorization_code", "refresh_token"] as string[],
   indicator: "",
   resourceScopes: "",
+  // A browser or native client is registered to sign users in; the
+  // administrator can still create it with no access.
+  signIn: true,
 });
+
+/** What became of the new client's sign-in access, once it was asked for. */
+const signInAccess = ref<"saved" | "failed" | null>(null);
+const signInFailure = ref("");
 
 // The server requires at least one role.
 const canContinue = computed(
@@ -400,6 +455,27 @@ async function submit() {
     step.value = 3;
   } catch {
     // store.error already set
+    return;
+  }
+  const client = createdApp.value?.client;
+  if (!client || !form.signIn || form.type === ApplicationType.API) return;
+  // The application exists from here on: a failure below is reported beside
+  // its credentials and finished on its page, never by creating it again.
+  try {
+    await store.fetchApplications(ProjectId.system());
+    await grantSignInAccess(
+      {
+        userinfoEndpoint: discoverUserinfoEndpoint,
+        setAccess: store.setClientAccess,
+        setDefaultTarget: store.setDefaultTarget,
+      },
+      client,
+      store.applications,
+    );
+    signInAccess.value = "saved";
+  } catch (e) {
+    signInFailure.value = refusalMessage(e, "the installation refused it.");
+    signInAccess.value = "failed";
   }
 }
 </script>
