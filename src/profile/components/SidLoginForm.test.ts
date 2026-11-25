@@ -146,6 +146,37 @@ describe("SidLoginForm", () => {
     expect(global.find("button").attributes("disabled")).toBeDefined();
   });
 
+  // What is tested: for an issuer that offers no password sign-in the card
+  // keeps the identifier for the methods beside it and has no password
+  // field, submit button, recovery link or password notice; Enter in the
+  // identifier starts no password sign-in.
+  // Bug prevented: a password form on an issuer that refuses every password,
+  // or a passkey sign-in left without the typed login.
+  it("shows no password sign-in when the issuer offers none", async () => {
+    loginFn.mockClear();
+    const w = mount(SidLoginForm, {
+      props: { loginFn, passwordSignIn: false, forgotPasswordUrl: "/reset" },
+      global: { stubs: quasarStubs },
+      slots: {
+        "below-form": `<template #below-form="{ identifier }"><output>{{ identifier }}</output></template>`,
+      },
+    });
+    const inputs = w.findAll("input");
+    expect(inputs).toHaveLength(1);
+    expect(w.find("button").exists()).toBe(false);
+    expect(w.text()).not.toContain("Your password never leaves this device");
+    await inputs[0].setValue("alice");
+    expect(w.find("output").text()).toBe("alice");
+    await w.find("form").trigger("submit");
+    expect(loginFn).not.toHaveBeenCalled();
+
+    // Without a slot the default recovery link goes with the password form.
+    expect(mountLogin({ passwordSignIn: false }).text()).not.toContain(
+      "Forgot password?",
+    );
+    expect(mountLogin().text()).toContain("Forgot password?");
+  });
+
   // Fewer than three characters are nobody yet: the form cannot sign in
   // with them, so its button stays disabled until a third is typed.
   it("cannot sign in with fewer than three characters", async () => {

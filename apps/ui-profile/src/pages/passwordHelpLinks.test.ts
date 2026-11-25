@@ -25,6 +25,18 @@ vi.mock("@structured-id/ui-core/profile", () => ({
     load: vi.fn().mockResolvedValue(undefined),
     signInThrough: vi.fn(),
   }),
+  // An installation that serves password reset: the page links it.
+  useSignInOffer: () => ({
+    offer: {
+      value: {
+        registration: true,
+        passwordReset: true,
+        password: true,
+        passkey: true,
+      },
+    },
+    load: vi.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 vi.mock("@structured-id/ui-core", () => ({

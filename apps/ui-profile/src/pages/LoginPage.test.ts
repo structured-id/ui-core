@@ -8,13 +8,43 @@ const page = vi.hoisted(() => ({
   signInThrough: vi.fn(),
   rd: [] as unknown[],
   origin: [] as string[],
+  // What the installation answers its sign-in page may offer; the page
+  // starts from the unanswered offer and takes this on load.
+  offered: {
+    registration: false,
+    passwordReset: false,
+    password: true,
+    passkey: true,
+  },
+  loadOffer: vi.fn(),
 }));
 
 vi.mock("@structured-id/ui-core/profile", () => ({
   SidLoginForm: {
     name: "SidLoginForm",
-    props: ["loginFn", "localLogin", "registerUrl", "forgotPasswordUrl"],
+    props: [
+      "loginFn",
+      "localLogin",
+      "registerUrl",
+      "forgotPasswordUrl",
+      "showForgotPassword",
+      "passwordSignIn",
+    ],
     template: "<form><slot name='footer' /></form>",
+  },
+  useSignInOffer: () => {
+    const offer = ref({
+      registration: false,
+      passwordReset: false,
+      password: true,
+      passkey: true,
+    });
+    return {
+      offer,
+      load: page.loadOffer.mockImplementation(async () => {
+        offer.value = page.offered;
+      }),
+    };
   },
   useLoginSuccess: () => ({ onLoginSuccess: vi.fn() }),
   useSignInConnections: (rd: () => unknown, origin: string) => {
@@ -68,6 +98,12 @@ describe("the sign-in page's entry connections", () => {
     page.listed = [];
     page.rd.length = 0;
     page.origin.length = 0;
+    page.offered = {
+      registration: false,
+      passwordReset: false,
+      password: true,
+      passkey: true,
+    };
   });
 
   // What is tested: the page reads the connections for its own request and
@@ -108,5 +144,72 @@ describe("the sign-in page's entry connections", () => {
     ]);
     await buttons[1]!.trigger("click");
     expect(page.signInThrough).toHaveBeenCalledExactlyOnceWith("bbbb2222");
+  });
+});
+
+describe("what the sign-in page offers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    page.listed = [];
+  });
+
+  // What is tested: an installation that registers nobody by themselves and
+  // serves no password reset gets a sign-in form with neither link.
+  // Bug prevented (seen on the development platform): "Create one" and
+  // "Forgot password?" on an invitation-only issuer, both leading to a
+  // refusal.
+  it("links neither registration nor recovery when the installation offers none", async () => {
+    page.offered = {
+      registration: false,
+      passwordReset: false,
+      password: true,
+      passkey: true,
+    };
+    const form = (await shown()).findComponent({ name: "SidLoginForm" });
+    expect(page.loadOffer).toHaveBeenCalledOnce();
+    expect(form.props("registerUrl")).toBeUndefined();
+    expect(form.props("showForgotPassword")).toBe(false);
+    expect(form.props("passwordSignIn")).toBe(true);
+  });
+
+  // What is tested: each link follows its own setting and keeps the waiting
+  // request.
+  // Bug prevented: an open installation losing its links, or a link dropping
+  // the request the browser was sent here to complete.
+  it("links what the installation offers, with the waiting request", async () => {
+    page.offered = {
+      registration: true,
+      passwordReset: true,
+      password: true,
+      passkey: true,
+    };
+    const form = (await shown()).findComponent({ name: "SidLoginForm" });
+    const register = new URL(
+      form.props("registerUrl") as string,
+      "https://sid.example.com",
+    );
+    expect(register.pathname).toBe("/account/register");
+    expect(register.searchParams.get("rd")).toBe(RD);
+    expect(form.props("showForgotPassword")).toBe(true);
+    const reset = new URL(
+      form.props("forgotPasswordUrl") as string,
+      "https://sid.example.com",
+    );
+    expect(reset.pathname).toBe("/account/reset");
+    expect(reset.searchParams.get("rd")).toBe(RD);
+  });
+
+  // What is tested: an installation without password sign-in shows no
+  // password form.
+  // Bug prevented: a password form whose every submission is refused.
+  it("shows no password form when the installation offers no password sign-in", async () => {
+    page.offered = {
+      registration: false,
+      passwordReset: false,
+      password: false,
+      passkey: true,
+    };
+    const form = (await shown()).findComponent({ name: "SidLoginForm" });
+    expect(form.props("passwordSignIn")).toBe(false);
   });
 });

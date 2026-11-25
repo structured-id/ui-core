@@ -1158,14 +1158,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@structured-id/proto@npm:^0.22.0":
-  version: 0.22.0
-  resolution: "@structured-id/proto@npm:0.22.0"
+"@structured-id/proto@npm:^0.23.0":
+  version: 0.23.0
+  resolution: "@structured-id/proto@npm:0.23.0"
   dependencies:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/ids": "npm:^0.11.0"
-  checksum: 10c0/124d47b3ecdaa54b6ecbb8a7c4f08d6dbec37f85f2cd0a2412d9af7ec0bb44af5b5762dfb6b04f6ce312cc6772de85587bad294dd48e6ef5cc0d9ee50237fb5c
+  checksum: 10c0/a508274444d4924f2b92bce1f12f120997534c518e346475542cd811c8cfc16e2682df1e92245ed82c5d6a4a323152e5822d8db7e6fa028ecb48c67cc8502368
   languageName: node
   linkType: hard
 
@@ -1179,7 +1179,7 @@ __metadata:
     "@quasar/app-vite": "npm:^3.10.4"
     "@quasar/extras": "npm:^2.1.0"
     "@structured-id/ids": "npm:^0.11.0"
-    "@structured-id/proto": "npm:^0.22.0"
+    "@structured-id/proto": "npm:^0.23.0"
     "@structured-id/ui-core": "workspace:^"
     "@types/node": "npm:^26.6.6"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -1217,7 +1217,7 @@ __metadata:
     "@protobuf-ts/runtime": "npm:^2.11.1"
     "@protobuf-ts/runtime-rpc": "npm:^2.11.1"
     "@structured-id/ids": "npm:^0.11.0"
-    "@structured-id/proto": "npm:^0.22.0"
+    "@structured-id/proto": "npm:^0.23.0"
     "@structured-world/structured-email-address-ts": "npm:^0.0.22"
     "@structured-world/structured-public-domains": "npm:0.0.x"
     "@types/node": "npm:^26"
@@ -1262,7 +1262,7 @@ __metadata:
     "@quasar/extras": "npm:^2.1.0"
     "@structured-id/ids": "npm:^0.11.0"
     "@structured-id/opaque": "npm:^2.2.1"
-    "@structured-id/proto": "npm:^0.22.0"
+    "@structured-id/proto": "npm:^0.23.0"
     "@structured-id/ui-core": "workspace:^"
     "@types/node": "npm:^26.6.6"
     "@typescript/native": "npm:typescript@^7.0.2"

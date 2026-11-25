@@ -47,6 +47,7 @@
         />
 
         <q-input
+          v-if="passwordSignIn"
           v-model="password"
           :type="showPassword ? 'text' : 'password'"
           :label="passwordLabel"
@@ -71,6 +72,7 @@
         <slot name="extra-fields" />
 
         <q-btn
+          v-if="passwordSignIn"
           type="submit"
           :label="submitLabel"
           color="primary"
@@ -82,7 +84,10 @@
       </q-form>
 
       <slot name="below-form" :identifier="typedLogin">
-        <div v-if="showForgotPassword" class="text-right q-mt-xs">
+        <div
+          v-if="passwordSignIn && showForgotPassword"
+          class="text-right q-mt-xs"
+        >
           <router-link
             v-if="forgotPasswordUrl"
             :to="forgotPasswordUrl"
@@ -100,7 +105,10 @@
         </div>
       </slot>
 
-      <div class="text-caption text-grey-6 text-center q-mt-md">
+      <div
+        v-if="passwordSignIn"
+        class="text-caption text-grey-6 text-center q-mt-md"
+      >
         <q-icon name="sym_o_shield" size="xs" class="q-mr-xs" />
         {{ securityNotice }}
       </div>
@@ -178,6 +186,13 @@ const props = withDefaults(
      * sign-in.
      */
     localLogin?: boolean;
+    /**
+     * Whether the issuer offers sign-in with a password. Without it the card
+     * keeps the identifier field for the methods offered beside it (the
+     * `below-form` slot) and shows no password field, submit button or
+     * password notice.
+     */
+    passwordSignIn?: boolean;
     /** External login function — receives (identifier, password, stepCallback) */
     loginFn: (
       identifier: string,
@@ -195,6 +210,7 @@ const props = withDefaults(
     principalTypes: () => ["email", "phone", "username"],
     principalTexts: () => ({}),
     localLogin: false,
+    passwordSignIn: true,
     passwordLabel: "Password",
     passwordRequiredText: REQUIRED_FIELD_TEXT,
     showForgotPassword: true,
@@ -250,6 +266,9 @@ function setStep(step: number) {
 }
 
 async function onSubmit() {
+  // Enter in the identifier field submits the form; without a password
+  // sign-in there is nothing to submit.
+  if (!props.passwordSignIn) return;
   loading.value = true;
   error.value = null;
   opaqueStep.value = 0;
