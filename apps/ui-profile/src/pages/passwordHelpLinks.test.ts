@@ -9,34 +9,11 @@ const api = vi.hoisted(() => ({
 vi.mock("@structured-id/ui-core/profile", () => ({
   AdministratorClaim: { UNSPECIFIED: 0, OPEN: 1, CLAIMED: 2 },
   EnrollmentMode: { UNSPECIFIED: 0, OPEN: 1, INVITE_ONLY: 2, ADMIN_ONLY: 3 },
-  SidLoginForm: {
-    name: "SidLoginForm",
-    props: ["loginFn", "localLogin", "registerUrl", "forgotPasswordUrl"],
-    template: "<form />",
-  },
   SidRegistrationForm: { name: "SidRegistrationForm", template: "<form />" },
   getInstanceStatus: api.getInstanceStatus,
   getEnrollmentPolicy: api.getEnrollmentPolicy,
   requestPasswordReset: vi.fn(),
   useLoginSuccess: () => ({ onLoginSuccess: vi.fn() }),
-  useSignInConnections: () => ({
-    connections: { value: [] },
-    leaving: { value: null },
-    load: vi.fn().mockResolvedValue(undefined),
-    signInThrough: vi.fn(),
-  }),
-  // An installation that serves password reset: the page links it.
-  useSignInOffer: () => ({
-    offer: {
-      value: {
-        registration: true,
-        passwordReset: true,
-        password: true,
-        passkey: true,
-      },
-    },
-    load: vi.fn().mockResolvedValue(undefined),
-  }),
 }));
 
 vi.mock("@structured-id/ui-core", () => ({
@@ -55,7 +32,6 @@ vi.mock("src/composables/useAuth", () => ({
 const query: Record<string, string> = {};
 vi.mock("vue-router", () => ({ useRoute: () => ({ query }) }));
 
-import LoginPage from "./LoginPage.vue";
 import ResetRequestPage from "./ResetRequestPage.vue";
 import RegisterPage from "./RegisterPage.vue";
 
@@ -83,18 +59,13 @@ function linkTo(w: ReturnType<typeof shallowMount>, label: string) {
 
 // Regression: password help and the ways back to sign-in dropped `rd`, so
 // signing in afterwards landed in /account instead of finishing the
-// requesting application's authorization.
+// requesting application's authorization. The sign-in page's own link to
+// password help is covered with that page (LoginPage.test.ts).
 describe("sign-in links keep the authorization continuation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const k of Object.keys(query)) delete query[k];
     query.rd = RD;
-  });
-
-  it("from the sign-in page to password help", () => {
-    const w = shallowMount(LoginPage, { global: { stubs } });
-    const form = w.findComponent({ name: "SidLoginForm" });
-    expect(form.props("forgotPasswordUrl")).toBe(withRd("/account/reset"));
   });
 
   it("from password help back to sign-in", () => {

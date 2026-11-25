@@ -1,5 +1,6 @@
 // Slot-based auth forms
 export { default as SidLoginForm } from "./SidLoginForm.vue";
+export { default as SidSignInPending } from "./SidSignInPending.vue";
 export { default as SidRegistrationForm } from "./SidRegistrationForm.vue";
 export type { RegistrationExtras } from "./SidRegistrationForm.vue";
 export { default as SidMfaChallenge } from "./SidMfaChallenge.vue";

@@ -7,13 +7,11 @@ const service = vi.hoisted(() => ({
     passwordResetOpen: boolean;
     signInMethods: string[];
   },
-  calls: 0,
 }));
 
 vi.mock("@structured-id/proto/sid/v1/ui/public_settings.client", () => ({
   PublicUiSettingsServiceClient: class {
     async getPublicUiSettings() {
-      service.calls += 1;
       if (service.answer === null) throw new Error("UNIMPLEMENTED");
       return { response: service.answer };
     }
@@ -22,23 +20,14 @@ vi.mock("@structured-id/proto/sid/v1/ui/public_settings.client", () => ({
 vi.mock("../../index", () => ({ getTransport: () => ({}) }));
 
 import {
-  UNANSWERED_SIGN_IN_OFFER,
   signInOfferApi,
   useSignInOffer,
   type SignInOffer,
 } from "./useSignInOffer";
 
-const CLOSED: SignInOffer = {
-  registration: false,
-  passwordReset: false,
-  password: true,
-  passkey: true,
-};
-
 describe("signInOfferApi", () => {
   beforeEach(() => {
     service.answer = null;
-    service.calls = 0;
   });
 
   // What is tested: the issuer's published settings become the page's offer,
@@ -89,48 +78,52 @@ describe("signInOfferApi", () => {
 });
 
 describe("useSignInOffer", () => {
-  // What is tested: before the issuer answers the page has no public link
-  // and keeps its sign-in forms.
-  // Bug prevented: "Create one" shown for a moment on an installation that
-  // registers nobody, or a holder left without a form to sign in with.
-  it("offers the forms and no public link before the answer", () => {
-    const { offer } = useSignInOffer({ api: { read: vi.fn() } });
-    expect(offer.value).toEqual(CLOSED);
-    expect(UNANSWERED_SIGN_IN_OFFER).toEqual(CLOSED);
+  const OPEN: SignInOffer = {
+    registration: true,
+    passwordReset: true,
+    password: true,
+    passkey: true,
+  };
+
+  // What is tested: before the issuer answers there is no offer at all.
+  // Bug prevented: a sign-in form shown for a method the issuer never
+  // stated, on an issuer that then refuses every attempt with it.
+  it("has no offer before the answer", () => {
+    const { offer, failed } = useSignInOffer({ api: { read: vi.fn() } });
+    expect(offer.value).toBeNull();
+    expect(failed.value).toBe(false);
   });
 
   it("takes the issuer's answer", async () => {
-    const answer: SignInOffer = {
-      registration: true,
-      passwordReset: true,
-      password: true,
-      passkey: false,
-    };
-    const { offer, load } = useSignInOffer({
+    const answer: SignInOffer = { ...OPEN, passkey: false };
+    const { offer, failed, load } = useSignInOffer({
       api: { read: vi.fn(async () => answer) },
     });
     await load();
     expect(offer.value).toEqual(answer);
+    expect(failed.value).toBe(false);
   });
 
-  // What is tested: an issuer that does not answer leaves the unanswered
-  // offer, also after an earlier answer.
-  // Bug prevented: an unreadable policy treated as an open one, or a stale
-  // open answer kept after the issuer stopped answering.
-  it("falls back to the unanswered offer when the issuer does not answer", async () => {
+  // What is tested: an issuer that does not answer leaves no offer and says
+  // so, also after an earlier answer; a retry that is answered clears it.
+  // Bug prevented: an unreadable policy treated as an open one, a stale
+  // answer kept as current, or a failure the page can never leave.
+  it("says the issuer did not answer and recovers on a retry", async () => {
     const read = vi
       .fn<() => Promise<SignInOffer>>()
-      .mockResolvedValueOnce({
-        registration: true,
-        passwordReset: true,
-        password: true,
-        passkey: true,
-      })
-      .mockRejectedValueOnce(new Error("unavailable"));
-    const { offer, load } = useSignInOffer({ api: { read } });
+      .mockResolvedValueOnce(OPEN)
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValueOnce({ ...OPEN, registration: false });
+    const { offer, failed, load } = useSignInOffer({ api: { read } });
     await load();
-    expect(offer.value.registration).toBe(true);
+    expect(offer.value).toEqual(OPEN);
+
     await load();
-    expect(offer.value).toEqual(CLOSED);
+    expect(offer.value).toBeNull();
+    expect(failed.value).toBe(true);
+
+    await load();
+    expect(offer.value).toEqual({ ...OPEN, registration: false });
+    expect(failed.value).toBe(false);
   });
 });

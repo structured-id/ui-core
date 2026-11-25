@@ -2,51 +2,52 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 
+interface Offer {
+  registration: boolean;
+  passwordReset: boolean;
+  password: boolean;
+  passkey: boolean;
+}
+
 const page = vi.hoisted(() => ({
   listed: [] as { handle: string; name: string }[],
   load: vi.fn(),
   signInThrough: vi.fn(),
   rd: [] as unknown[],
   origin: [] as string[],
-  // What the installation answers its sign-in page may offer; the page
-  // starts from the unanswered offer and takes this on load.
-  offered: {
-    registration: false,
-    passwordReset: false,
-    password: true,
-    passkey: true,
-  },
+  // What the installation answers its sign-in page may offer, one answer per
+  // read; `null` is a read that gets no answer, `"open"` one still under way.
+  answers: [] as (Offer | null | "open")[],
   loadOffer: vi.fn(),
+  // The passkey sign-in the page starts, and what it continues with.
+  signInWithPasskey: vi.fn(),
+  onPasskeySuccess: undefined as undefined | ((r: unknown) => unknown),
+  onLoginSuccess: vi.fn(),
 }));
 
 vi.mock("@structured-id/ui-core/profile", () => ({
   SidLoginForm: {
     name: "SidLoginForm",
-    props: [
-      "loginFn",
-      "localLogin",
-      "registerUrl",
-      "forgotPasswordUrl",
-      "showForgotPassword",
-      "passwordSignIn",
-    ],
-    template: "<form><slot name='footer' /></form>",
+    props: ["loginFn", "localLogin", "registerUrl", "passwordSignIn"],
+    // The slot gets the login typed, as the real form gives it.
+    template:
+      "<form><slot name='below-form' identifier='alice' /><slot name='footer' /></form>",
   },
-  useSignInOffer: () => {
-    const offer = ref({
-      registration: false,
-      passwordReset: false,
-      password: true,
-      passkey: true,
-    });
+  SidSignInPending: {
+    name: "SidSignInPending",
+    props: ["failed"],
+    emits: ["retry"],
+    template: "<section data-test='pending'><slot name='footer' /></section>",
+  },
+  useLoginSuccess: () => ({ onLoginSuccess: page.onLoginSuccess }),
+  usePasskeySignIn: (options: { onSuccess: (r: unknown) => unknown }) => {
+    page.onPasskeySuccess = options.onSuccess;
     return {
-      offer,
-      load: page.loadOffer.mockImplementation(async () => {
-        offer.value = page.offered;
-      }),
+      signInWithPasskey: page.signInWithPasskey,
+      loading: ref(false),
+      error: ref<string | null>(null),
     };
   },
-  useLoginSuccess: () => ({ onLoginSuccess: vi.fn() }),
   useSignInConnections: (rd: () => unknown, origin: string) => {
     const connections = ref<{ handle: string; name: string }[]>([]);
     page.rd.push(rd());
@@ -58,6 +59,20 @@ vi.mock("@structured-id/ui-core/profile", () => ({
         connections.value = page.listed;
       }),
       signInThrough: page.signInThrough,
+    };
+  },
+  useSignInOffer: () => {
+    const offer = ref<Offer | null>(null);
+    const failed = ref(false);
+    return {
+      offer,
+      failed,
+      load: page.loadOffer.mockImplementation(async () => {
+        const answer = page.answers.shift() ?? null;
+        if (answer === "open") return new Promise<void>(() => {});
+        offer.value = answer;
+        failed.value = answer === null;
+      }),
     };
   },
 }));
@@ -78,12 +93,25 @@ const stubs = {
   CeremonyFrame: { template: "<div><slot /></div>" },
   QSeparator: true,
   QCardSection: { template: "<div><slot /></div>" },
+  QBanner: { template: "<div><slot /></div>" },
   QBtn: {
     name: "QBtn",
     props: ["label", "loading", "disable"],
     emits: ["click"],
     template: "<button @click=\"$emit('click')\">{{ label }}</button>",
   },
+  RouterLink: {
+    name: "RouterLink",
+    props: ["to"],
+    template: "<a :href='to'><slot /></a>",
+  },
+};
+
+const OPEN: Offer = {
+  registration: true,
+  passwordReset: true,
+  password: true,
+  passkey: true,
 };
 
 async function shown() {
@@ -92,20 +120,16 @@ async function shown() {
   return w;
 }
 
-describe("the sign-in page's entry connections", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    page.listed = [];
-    page.rd.length = 0;
-    page.origin.length = 0;
-    page.offered = {
-      registration: false,
-      passwordReset: false,
-      password: true,
-      passkey: true,
-    };
-  });
+beforeEach(() => {
+  vi.clearAllMocks();
+  page.listed = [];
+  page.rd.length = 0;
+  page.origin.length = 0;
+  page.answers = [OPEN];
+  page.onPasskeySuccess = undefined;
+});
 
+describe("the sign-in page's entry connections", () => {
   // What is tested: the page reads the connections for its own request and
   // origin when it opens.
   // Bug prevented: a page that never asks, so a configured connection is
@@ -122,7 +146,7 @@ describe("the sign-in page's entry connections", () => {
   // Bug prevented: an empty "or sign in with" section on every CE page.
   it("shows nothing beside the form without connections", async () => {
     const w = await shown();
-    expect(w.findAll("button")).toHaveLength(0);
+    expect(w.findAll('[data-test="sign-in-connection"]')).toHaveLength(0);
     expect(w.text()).not.toContain("Or sign in with");
   });
 
@@ -136,7 +160,7 @@ describe("the sign-in page's entry connections", () => {
       { handle: "cccc3333", name: "Head office" },
     ];
     const w = await shown();
-    const buttons = w.findAll("button");
+    const buttons = w.findAll('[data-test="sign-in-connection"]');
     expect(buttons.map((b) => b.text())).toEqual([
       "Partner",
       "Partner",
@@ -148,28 +172,19 @@ describe("the sign-in page's entry connections", () => {
 });
 
 describe("what the sign-in page offers", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    page.listed = [];
-  });
-
   // What is tested: an installation that registers nobody by themselves and
   // serves no password reset gets a sign-in form with neither link.
   // Bug prevented (seen on the development platform): "Create one" and
   // "Forgot password?" on an invitation-only issuer, both leading to a
   // refusal.
   it("links neither registration nor recovery when the installation offers none", async () => {
-    page.offered = {
-      registration: false,
-      passwordReset: false,
-      password: true,
-      passkey: true,
-    };
-    const form = (await shown()).findComponent({ name: "SidLoginForm" });
+    page.answers = [{ ...OPEN, registration: false, passwordReset: false }];
+    const w = await shown();
+    const form = w.findComponent({ name: "SidLoginForm" });
     expect(page.loadOffer).toHaveBeenCalledOnce();
     expect(form.props("registerUrl")).toBeUndefined();
-    expect(form.props("showForgotPassword")).toBe(false);
     expect(form.props("passwordSignIn")).toBe(true);
+    expect(w.find('[data-test="forgot-password"]').exists()).toBe(false);
   });
 
   // What is tested: each link follows its own setting and keeps the waiting
@@ -177,39 +192,86 @@ describe("what the sign-in page offers", () => {
   // Bug prevented: an open installation losing its links, or a link dropping
   // the request the browser was sent here to complete.
   it("links what the installation offers, with the waiting request", async () => {
-    page.offered = {
-      registration: true,
-      passwordReset: true,
-      password: true,
-      passkey: true,
-    };
-    const form = (await shown()).findComponent({ name: "SidLoginForm" });
+    const w = await shown();
+    const form = w.findComponent({ name: "SidLoginForm" });
     const register = new URL(
       form.props("registerUrl") as string,
       "https://sid.example.com",
     );
     expect(register.pathname).toBe("/account/register");
     expect(register.searchParams.get("rd")).toBe(RD);
-    expect(form.props("showForgotPassword")).toBe(true);
     const reset = new URL(
-      form.props("forgotPasswordUrl") as string,
+      w.find('[data-test="forgot-password"]').attributes("href")!,
       "https://sid.example.com",
     );
     expect(reset.pathname).toBe("/account/reset");
     expect(reset.searchParams.get("rd")).toBe(RD);
   });
 
-  // What is tested: an installation without password sign-in shows no
-  // password form.
-  // Bug prevented: a password form whose every submission is refused.
-  it("shows no password form when the installation offers no password sign-in", async () => {
-    page.offered = {
-      registration: false,
-      passwordReset: false,
-      password: false,
-      passkey: true,
-    };
-    const form = (await shown()).findComponent({ name: "SidLoginForm" });
-    expect(form.props("passwordSignIn")).toBe(false);
+  // What is tested: an installation that offers passkeys alone shows no
+  // password form and no recovery link, and has a passkey button that starts
+  // the sign-in for the login typed and continues as any other sign-in.
+  // Bug prevented: the password form hidden with nothing left to press, or
+  // a passkey sign-in that never returns to the waiting request.
+  it("signs in with a passkey when the installation offers no password", async () => {
+    page.answers = [{ ...OPEN, password: false }];
+    const w = await shown();
+    expect(
+      w.findComponent({ name: "SidLoginForm" }).props("passwordSignIn"),
+    ).toBe(false);
+    expect(w.find('[data-test="forgot-password"]').exists()).toBe(false);
+
+    await w.find('[data-test="passkey"]').trigger("click");
+    expect(page.signInWithPasskey).toHaveBeenCalledExactlyOnceWith("alice");
+
+    const signedIn = { sessionId: "s", pending: null };
+    await page.onPasskeySuccess!(signedIn);
+    expect(page.onLoginSuccess).toHaveBeenCalledExactlyOnceWith(signedIn);
+  });
+
+  // What is tested: without the passkey method there is no passkey button.
+  // Bug prevented: a button whose every attempt the installation refuses.
+  it("shows no passkey button when the installation offers none", async () => {
+    page.answers = [{ ...OPEN, passkey: false }];
+    const w = await shown();
+    expect(w.find('[data-test="passkey"]').exists()).toBe(false);
+  });
+});
+
+describe("the sign-in page before it knows the offer", () => {
+  // What is tested: an installation that does not answer gets the failure
+  // with its connections and no sign-in form; a retry that is answered shows
+  // the offered form.
+  // Bug prevented: both sign-in forms shown for an installation that never
+  // stated them, or a failed page with no way on.
+  it("shows no form until the installation answers, and recovers on a retry", async () => {
+    page.answers = [null, { ...OPEN, registration: false }];
+    page.listed = [{ handle: "aaaa1111", name: "Partner" }];
+    const w = await shown();
+
+    const pending = w.findComponent({ name: "SidSignInPending" });
+    expect(pending.props("failed")).toBe(true);
+    expect(w.findComponent({ name: "SidLoginForm" }).exists()).toBe(false);
+    expect(w.find('[data-test="passkey"]').exists()).toBe(false);
+    // The connections are confirmed by their own read.
+    expect(w.findAll('[data-test="sign-in-connection"]')).toHaveLength(1);
+
+    pending.vm.$emit("retry");
+    await flushPromises();
+    expect(page.loadOffer).toHaveBeenCalledTimes(2);
+    expect(w.findComponent({ name: "SidSignInPending" }).exists()).toBe(false);
+    expect(w.findComponent({ name: "SidLoginForm" }).exists()).toBe(true);
+  });
+
+  // What is tested: while the read is under way the page waits, without a
+  // form and without a failure.
+  // Bug prevented: a form flashing before the answer.
+  it("waits without a form while the offer is read", async () => {
+    page.answers = ["open"];
+    const w = await shown();
+    const pending = w.findComponent({ name: "SidSignInPending" });
+    expect(pending.exists()).toBe(true);
+    expect(pending.props("failed")).toBe(false);
+    expect(w.findComponent({ name: "SidLoginForm" }).exists()).toBe(false);
   });
 });
