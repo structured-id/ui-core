@@ -7,6 +7,10 @@
  *
  * Nothing here is about a particular account: the answer is the same for
  * every visitor, so a shown form reveals no account's existence or factors.
+ *
+ * The offer has no assumed value. Until the issuer answers there is none,
+ * and an issuer that does not answer leaves none: the page shows that state
+ * instead of a form the issuer never stated.
  */
 import { ref } from "vue";
 import { PublicUiSettingsServiceClient } from "@structured-id/proto/sid/v1/ui/public_settings.client";
@@ -27,19 +31,6 @@ export interface SignInOffer {
   /** The issuer offers sign-in with a passkey. */
   passkey: boolean;
 }
-
-/**
- * The offer before the issuer answered, and when it does not answer. No
- * public link: one that leads to a refusal is worse than none, and an
- * unknown policy is never read as an open one. The sign-in forms stay: they
- * are how a holder enters, and the issuer refuses a method it does not serve.
- */
-export const UNANSWERED_SIGN_IN_OFFER: Readonly<SignInOffer> = Object.freeze({
-  registration: false,
-  passwordReset: false,
-  password: true,
-  passkey: true,
-});
 
 /** The call the page makes; the sign-in surface's issuer by default. */
 export interface SignInOfferApi {
@@ -69,20 +60,25 @@ export interface SignInOfferOptions {
 }
 
 /**
- * The sign-in page's offer. `load` reads it once when the page opens; an
- * open page is not updated afterwards, and a choice the issuer closed since
- * is refused by its handler.
+ * The sign-in page's offer: `offer` is null until the issuer answered, and
+ * `failed` says the last read got no answer. `load` reads it when the page
+ * opens and again on a retry; an open page is not updated afterwards, and a
+ * choice the issuer closed since is refused by its handler.
  */
 export function useSignInOffer(options: SignInOfferOptions = {}) {
-  const offer = ref<SignInOffer>({ ...UNANSWERED_SIGN_IN_OFFER });
+  const offer = ref<SignInOffer | null>(null);
+  const failed = ref(false);
 
   async function load() {
+    failed.value = false;
     try {
       offer.value = await (options.api ?? signInOfferApi()).read();
     } catch {
-      offer.value = { ...UNANSWERED_SIGN_IN_OFFER };
+      // A stale answer is not shown as the current one.
+      offer.value = null;
+      failed.value = true;
     }
   }
 
-  return { offer, load };
+  return { offer, failed, load };
 }
