@@ -5,6 +5,10 @@
 # Each package releases on its own: @structured-id/ui-core (repository root,
 # tags vX.Y.Z) and @structured-id/ui-admin (apps/ui-admin, tags
 # ui-admin-vX.Y.Z). A package's publish job runs only for its own release.
+# Each has its own release PR, whose branch names the package: a PR shared
+# by both is not released when only the root package changed, because
+# release-please then reads it as a single release and requires the branch
+# to name its component.
 #
 # npm trusted publishing (OIDC) is configured for this workflow file and the
 # `release` environment, per package:
