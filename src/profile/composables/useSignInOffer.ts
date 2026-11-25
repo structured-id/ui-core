@@ -1,0 +1,88 @@
+/**
+ * What a sign-in page may offer, as the issuer its ceremonies run at
+ * publishes it: whether a visitor may create an account, whether the issuer
+ * serves self-service password reset, and which local sign-in methods it
+ * offers. The page shows a link or a form only for what is offered; the
+ * issuer's handlers enforce the same policy whatever the page shows.
+ *
+ * Nothing here is about a particular account: the answer is the same for
+ * every visitor, so a shown form reveals no account's existence or factors.
+ */
+import { ref } from "vue";
+import { PublicUiSettingsServiceClient } from "@structured-id/proto/sid/v1/ui/public_settings.client";
+import { getTransport } from "../../index";
+
+/** The local sign-in methods a page knows how to show. */
+const PASSWORD_METHOD = "opaque";
+const PASSKEY_METHOD = "webauthn";
+
+/** What the sign-in page offers. */
+export interface SignInOffer {
+  /** A visitor may start creating an account from the page. */
+  registration: boolean;
+  /** The issuer serves self-service password reset. */
+  passwordReset: boolean;
+  /** The issuer offers sign-in with a password. */
+  password: boolean;
+  /** The issuer offers sign-in with a passkey. */
+  passkey: boolean;
+}
+
+/**
+ * The offer before the issuer answered, and when it does not answer. No
+ * public link: one that leads to a refusal is worse than none, and an
+ * unknown policy is never read as an open one. The sign-in forms stay: they
+ * are how a holder enters, and the issuer refuses a method it does not serve.
+ */
+export const UNANSWERED_SIGN_IN_OFFER: Readonly<SignInOffer> = Object.freeze({
+  registration: false,
+  passwordReset: false,
+  password: true,
+  passkey: true,
+});
+
+/** The call the page makes; the sign-in surface's issuer by default. */
+export interface SignInOfferApi {
+  /** The issuer's published offer. */
+  read(): Promise<SignInOffer>;
+}
+
+/** The issuer's public UI settings on the sign-in surface. */
+export function signInOfferApi(): SignInOfferApi {
+  return {
+    async read() {
+      const client = new PublicUiSettingsServiceClient(getTransport());
+      const { response } = await client.getPublicUiSettings({});
+      return {
+        registration: response.registrationOpen,
+        passwordReset: response.passwordResetOpen,
+        password: response.signInMethods.includes(PASSWORD_METHOD),
+        passkey: response.signInMethods.includes(PASSKEY_METHOD),
+      };
+    },
+  };
+}
+
+/** Options of {@link useSignInOffer}. */
+export interface SignInOfferOptions {
+  api?: SignInOfferApi;
+}
+
+/**
+ * The sign-in page's offer. `load` reads it once when the page opens; an
+ * open page is not updated afterwards, and a choice the issuer closed since
+ * is refused by its handler.
+ */
+export function useSignInOffer(options: SignInOfferOptions = {}) {
+  const offer = ref<SignInOffer>({ ...UNANSWERED_SIGN_IN_OFFER });
+
+  async function load() {
+    try {
+      offer.value = await (options.api ?? signInOfferApi()).read();
+    } catch {
+      offer.value = { ...UNANSWERED_SIGN_IN_OFFER };
+    }
+  }
+
+  return { offer, load };
+}

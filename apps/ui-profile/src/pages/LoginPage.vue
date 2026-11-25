@@ -3,7 +3,13 @@
     <sid-login-form
       :login-fn="login"
       local-login
-      :register-url="withContinuation('/account/register', route.query)"
+      :password-sign-in="offer.password"
+      :register-url="
+        offer.registration
+          ? withContinuation('/account/register', route.query)
+          : undefined
+      "
+      :show-forgot-password="offer.passwordReset"
       :forgot-password-url="withContinuation('/account/reset', route.query)"
       @success="onLoginSuccess"
     >
@@ -40,6 +46,7 @@ import {
   SidLoginForm,
   useLoginSuccess,
   useSignInConnections,
+  useSignInOffer,
 } from "@structured-id/ui-core/profile";
 import CeremonyFrame from "src/components/CeremonyFrame.vue";
 import { useAuth } from "src/composables/useAuth";
@@ -61,9 +68,16 @@ const { connections, leaving, load, signInThrough } = useSignInConnections(
   window.location.origin,
 );
 
+// What this installation offers on its sign-in page: account creation,
+// password recovery and the password form appear only when it offers them.
+// Registration by an invitation or the installation's claim token keeps its
+// own address.
+const { offer, load: loadOffer } = useSignInOffer();
+
 // The password client loads while the user types.
 onMounted(() => {
   void prewarm();
   void load();
+  void loadOffer();
 });
 </script>
