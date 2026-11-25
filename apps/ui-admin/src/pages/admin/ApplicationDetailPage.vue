@@ -69,6 +69,7 @@
       <template v-if="client">
         <q-tab name="protocol" label="Protocol" icon="sym_o_settings" />
         <q-tab name="credentials" label="Credentials" icon="sym_o_key" />
+        <q-tab name="access" label="Access" icon="sym_o_lock_open" />
         <q-tab name="scopes" label="Scopes & Claims" icon="sym_o_badge" />
         <q-tab
           name="device-auth"
@@ -372,6 +373,16 @@
         </div>
       </q-tab-panel>
 
+      <!-- Access Tab: the resources this client may obtain tokens for -->
+      <q-tab-panel name="access">
+        <client-access-panel
+          v-if="client"
+          :client="client"
+          :applications="store.applications"
+          :readonly="isSystem"
+        />
+      </q-tab-panel>
+
       <!-- Scopes & Claims Tab -->
       <q-tab-panel name="scopes">
         <div v-if="client" class="q-gutter-md" style="max-width: 600px">
@@ -611,7 +622,8 @@ import {
   type UpdateClientRoleRequest,
 } from "@structured-id/proto/sid/v1/projects/projects";
 import { Timestamp } from "@structured-id/proto/google/protobuf/timestamp";
-import { ApplicationId, required } from "@structured-id/ids";
+import { ApplicationId, ProjectId, required } from "@structured-id/ids";
+import ClientAccessPanel from "#admin/components/ClientAccessPanel.vue";
 import {
   applicationTypeLabel,
   applicationTypeColor,
@@ -863,6 +875,12 @@ onMounted(async () => {
   const id = route.params.id as string;
   if (id) {
     await store.getApplication(ApplicationId.parse(id));
+  }
+  // The Access tab names resources by their applications; a page opened by
+  // its address has no list yet. The console administers the installation's
+  // own project.
+  if (!store.applications.length) {
+    await store.fetchApplications(ProjectId.system());
   }
 });
 </script>
