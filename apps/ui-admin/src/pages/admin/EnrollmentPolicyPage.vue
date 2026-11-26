@@ -663,10 +663,9 @@ function addDomain() {
 async function savePolicy() {
   await store.updatePolicy({
     mode: editMode.value,
-    invite:
-      editMode.value === EnrollmentMode.INVITE_ONLY
-        ? { ...editInviteConfig.value }
-        : undefined,
+    // The invite defaults belong to the policy in every mode: the
+    // installation keeps them across modes and refuses an update without.
+    invite: { ...editInviteConfig.value },
     allowedDomains:
       editMode.value === EnrollmentMode.DOMAIN_RESTRICTED
         ? [...editDomains.value]

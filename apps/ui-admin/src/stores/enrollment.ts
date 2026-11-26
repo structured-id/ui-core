@@ -26,7 +26,8 @@ function getClient() {
 /** The policy an administrator edits: the stored policy's own fields. */
 export interface PolicyEdit {
   mode: EnrollmentMode;
-  invite?: InviteConfig;
+  /** Kept in every mode; the installation refuses a policy without it. */
+  invite: InviteConfig;
   allowedDomains: string[];
   trackSource: boolean;
 }
