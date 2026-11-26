@@ -178,7 +178,11 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
 
   // ── Enrollment Policy ──
 
-  async function fetchPolicy() {
+  /**
+   * Reads the stored policy; resolves to whether it was read. A failed read
+   * leaves no policy: one read earlier is not shown as the current one.
+   */
+  async function fetchPolicy(): Promise<boolean> {
     loading.value = true;
     error.value = null;
     try {
@@ -186,8 +190,11 @@ export const useEnrollmentStore = defineStore("enrollment", () => {
         Empty.create(),
       );
       policy.value = response;
+      return true;
     } catch (err) {
+      policy.value = null;
       error.value = message(err, "Failed to load enrollment policy");
+      return false;
     } finally {
       loading.value = false;
     }

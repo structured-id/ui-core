@@ -42,13 +42,20 @@ function stored(mode: EnrollmentMode) {
   };
 }
 
+/** The registration mode choice: a test picks a mode by emitting it. */
+const ModeChoice = {
+  template: "<div />",
+  props: ["modelValue", "options"],
+  emits: ["update:modelValue"],
+};
+
 async function mountPage() {
   const page = mount(EnrollmentPolicyPage, {
     global: {
       plugins: [createPinia()],
       stubs: {
         ...quasarStubs,
-        QOptionGroup: { template: "<div />", props: ["modelValue", "options"] },
+        QOptionGroup: ModeChoice,
         QTabs: { template: "<div><slot /></div>" },
         QTab: { template: "<div />" },
         QSpace: { template: "<div />" },
@@ -63,14 +70,18 @@ async function mountPage() {
   return page;
 }
 
-async function save(page: Awaited<ReturnType<typeof mountPage>>) {
+type Page = Awaited<ReturnType<typeof mountPage>>;
+
+async function press(page: Page, label: string) {
   const button = page
     .findAll("button")
-    .find((candidate) => candidate.text() === "Save Policy");
-  expect(button, "the Save Policy button").toBeDefined();
+    .find((candidate) => candidate.text() === label);
+  expect(button, `the ${label} button`).toBeDefined();
   await button!.trigger("click");
   await flushPromises();
 }
+
+const save = (page: Page) => press(page, "Save Policy");
 
 describe("EnrollmentPolicyPage", () => {
   beforeEach(() => {
@@ -95,6 +106,42 @@ describe("EnrollmentPolicyPage", () => {
     expect(mocks.updateEnrollmentPolicy).toHaveBeenCalledTimes(1);
     const sent = mocks.updateEnrollmentPolicy.mock.calls[0][0].policy;
     expect(sent.mode).toBe(mode);
+    expect(sent.invite).toEqual({ defaultMaxUses: 5, defaultExpiryHours: 24 });
+  });
+
+  // An update replaces the whole policy. While the stored policy was never
+  // read the form holds only its own initial values (open, one use, no
+  // expiry): saving them would open registration and overwrite the real
+  // invite terms. Nothing is sent until a read succeeds; then a mode change
+  // keeps the stored terms.
+  it("sends nothing until the stored policy is read", async () => {
+    mocks.getEnrollmentPolicy.mockRejectedValueOnce(new Error("unavailable"));
+    const page = await mountPage();
+    expect(page.find('[data-test="policy-unread"]').text()).toContain(
+      "unavailable",
+    );
+
+    await save(page);
+    expect(mocks.updateEnrollmentPolicy).not.toHaveBeenCalled();
+
+    mocks.getEnrollmentPolicy.mockResolvedValue({
+      response: stored(EnrollmentMode.INVITE_ONLY),
+    });
+    mocks.updateEnrollmentPolicy.mockResolvedValue({
+      response: stored(EnrollmentMode.ADMIN_ONLY),
+    });
+    await press(page, "Retry");
+    expect(page.find('[data-test="policy-unread"]').exists()).toBe(false);
+
+    page
+      .findComponent(ModeChoice)
+      .vm.$emit("update:modelValue", EnrollmentMode.ADMIN_ONLY);
+    await flushPromises();
+    await save(page);
+
+    expect(mocks.updateEnrollmentPolicy).toHaveBeenCalledTimes(1);
+    const sent = mocks.updateEnrollmentPolicy.mock.calls[0][0].policy;
+    expect(sent.mode).toBe(EnrollmentMode.ADMIN_ONLY);
     expect(sent.invite).toEqual({ defaultMaxUses: 5, defaultExpiryHours: 24 });
   });
 });
