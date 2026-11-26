@@ -17,6 +17,83 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [5.0.0](https://github.com/structured-id/ui-core/compare/v4.21.1...v5.0.0) (2026-11-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **profile:** SidRegistrationForm no longer takes passwordMinLength and passwordMinLengthText; it loads the policy (passwordPolicyFn) and takes passwordRuleText(rule, count) for the messages.
+* **auth:** `changePassword(credentialId, newPassword, onProgress)` becomes `changePassword({ credentialId, newPassword, currentPassword }, onProgress)`; `RegistrationProgress` is replaced by `PasswordOperationProgress`; `ZkppClientApi.loginFinish` takes the OPAQUE context as a fourth argument.
+* **ui:** consume generated SDK clients ([#12](https://github.com/structured-id/ui-core/issues/12))
+* useAuth (session state) and useOpaqueAuth are removed; use createAuth. completePasswordReset takes the operation id and a PasswordRegistrationProof. SidRegistrationForm registerFn receives (identifier, password, extras { inviteCode?, claimToken? }) and a progress callback. initBff takes no cookie name and bffCsrfToken answers after checkBffSession. Account composables need initAccountApi at startup; startBffLogin returns to a path. oauth2Authorize requires issuerHandle. passwordOperationMessage and ERROR_KEYS are removed; use refusalMessage and REFUSAL_TEXTS. The generated Principal no longer has subjectType or subjectId, and PrincipalSubjectType is gone.
+
+### Features
+
+* **auth:** password ceremony and current-password proof in a change ([#14](https://github.com/structured-id/ui-core/issues/14)) ([e193e27](https://github.com/structured-id/ui-core/commit/e193e27ed6af92ea48c0cba4b747e9c651a39563)), closes [#13](https://github.com/structured-id/ui-core/issues/13)
+* **auth:** passwordless registration client ([#113](https://github.com/structured-id/ui-core/issues/113)) ([076d1f8](https://github.com/structured-id/ui-core/commit/076d1f8731f1108b80ecb438e32e5aa8f5c96b7c)), closes [#112](https://github.com/structured-id/ui-core/issues/112)
+* **bff:** report the sign-out outcome ([#25](https://github.com/structured-id/ui-core/issues/25)) ([cdb468e](https://github.com/structured-id/ui-core/commit/cdb468e864b315d3d11370acf8802fcea5b5f286)), closes [#24](https://github.com/structured-id/ui-core/issues/24)
+* CE account and administration applications ([#136](https://github.com/structured-id/ui-core/issues/136)) ([0b6b22a](https://github.com/structured-id/ui-core/commit/0b6b22ae420499684d5d33d599778b805c694992)), closes [#135](https://github.com/structured-id/ui-core/issues/135)
+* **ci:** add PR validation workflow ([d8d4f2a](https://github.com/structured-id/ui-core/commit/d8d4f2af6aa89cd49ab44b76cab7fb23970ed547))
+* **ci:** add PR validation workflow ([0491385](https://github.com/structured-id/ui-core/commit/0491385510efef638330f2a5ef4c3c67e660a592))
+* **deps:** move to @structured-id/proto 0.4 ([db3d921](https://github.com/structured-id/ui-core/commit/db3d921d879a8de16bdda3aeb7529bd964b6c69a)), closes [#44](https://github.com/structured-id/ui-core/issues/44)
+* **deps:** move to @structured-id/proto 0.4 ([#46](https://github.com/structured-id/ui-core/issues/46)) ([db3d921](https://github.com/structured-id/ui-core/commit/db3d921d879a8de16bdda3aeb7529bd964b6c69a))
+* **deps:** move to @structured-id/proto 0.6 ([#53](https://github.com/structured-id/ui-core/issues/53)) ([51adcfd](https://github.com/structured-id/ui-core/commit/51adcfd2142741359b4c445a700f31405d6b954f)), closes [#52](https://github.com/structured-id/ui-core/issues/52)
+* **email:** check addresses with structured-email-address ([#39](https://github.com/structured-id/ui-core/issues/39)) ([d73ceee](https://github.com/structured-id/ui-core/commit/d73ceee3633dab68d8b47c797e9f5375134a85fb)), closes [#38](https://github.com/structured-id/ui-core/issues/38)
+* **forms:** admitted principal types and field-bound refusals ([#31](https://github.com/structured-id/ui-core/issues/31)) ([4c8909f](https://github.com/structured-id/ui-core/commit/4c8909fee4ef5881dc279cbd023647b7fe6498fd)), closes [#30](https://github.com/structured-id/ui-core/issues/30)
+* **grpc:** export the operation context interceptor ([#81](https://github.com/structured-id/ui-core/issues/81)) ([93488f9](https://github.com/structured-id/ui-core/commit/93488f9a67911bfa4bbbad4f56060d3f6af25788)), closes [#80](https://github.com/structured-id/ui-core/issues/80)
+* **grpc:** send the operation context on keyed methods ([#78](https://github.com/structured-id/ui-core/issues/78)) ([e6cb1ab](https://github.com/structured-id/ui-core/commit/e6cb1abc5c1adf59494fa7bad8a64d8018840558)), closes [#77](https://github.com/structured-id/ui-core/issues/77)
+* **identity:** typed identity references ([#87](https://github.com/structured-id/ui-core/issues/87)) ([0697128](https://github.com/structured-id/ui-core/commit/06971288e408b07d38014416cf125162e4bac5b1)), closes [#86](https://github.com/structured-id/ui-core/issues/86)
+* **passkey:** offer passkeys in the sign-in field's autofill ([#110](https://github.com/structured-id/ui-core/issues/110)) ([9964b24](https://github.com/structured-id/ui-core/commit/9964b24228d9788882ed2dbb792300440f6848fe)), closes [#109](https://github.com/structured-id/ui-core/issues/109)
+* **passkey:** share the passkey ceremony on the WebAuthn JSON forms ([#69](https://github.com/structured-id/ui-core/issues/69)) ([53b77b4](https://github.com/structured-id/ui-core/commit/53b77b4933796dd7c8b6a9c1e3dca0fbb1389f92)), closes [#68](https://github.com/structured-id/ui-core/issues/68)
+* password ceremonies on the ZKPP client ([d5d0dea](https://github.com/structured-id/ui-core/commit/d5d0dea4302ca6127e24eb3c6696ca50801f891c))
+* **principal-input:** label several types as Login until recognized ([#34](https://github.com/structured-id/ui-core/issues/34)) ([e0e4de8](https://github.com/structured-id/ui-core/commit/e0e4de8e41a0a6483e4d2694fc0dcc17df469d99)), closes [#33](https://github.com/structured-id/ui-core/issues/33)
+* **profile:** add showConfirmPassword prop to SidRegistrationForm ([e12c118](https://github.com/structured-id/ui-core/commit/e12c1183ab63072a1d3df4c792b5151c23be5e0d))
+* **profile:** complete the second factor a sign-in owes ([#97](https://github.com/structured-id/ui-core/issues/97)) ([6e646a0](https://github.com/structured-id/ui-core/commit/6e646a0af5335611555d36c734a4eae6c6c97be1)), closes [#96](https://github.com/structured-id/ui-core/issues/96)
+* **profile:** consent interaction client ([#129](https://github.com/structured-id/ui-core/issues/129)) ([1325784](https://github.com/structured-id/ui-core/commit/1325784134531b8309708f787c23a67a8db0134f)), closes [#128](https://github.com/structured-id/ui-core/issues/128)
+* **profile:** enforce 6-char min username on registration ([eb7181c](https://github.com/structured-id/ui-core/commit/eb7181cb12d58e3becf7ac4cf016815415372679))
+* **profile:** give the typed login to methods beside the password ([#122](https://github.com/structured-id/ui-core/issues/122)) ([2e89773](https://github.com/structured-id/ui-core/commit/2e897734731e1c83eb28806d5d9c6ae1e59dfe82)), closes [#121](https://github.com/structured-id/ui-core/issues/121)
+* **profile:** sign in through a registered entry connection ([#144](https://github.com/structured-id/ui-core/issues/144)) ([a4ace12](https://github.com/structured-id/ui-core/commit/a4ace12f79fa725d8fa7e42fb84f8fa01744abec)), closes [#143](https://github.com/structured-id/ui-core/issues/143)
+* **profile:** sign-in page offers what its issuer offers ([#146](https://github.com/structured-id/ui-core/issues/146)) ([6657c74](https://github.com/structured-id/ui-core/commit/6657c745417d6b7b1c45f19529c2d4196f5168be)), closes [#145](https://github.com/structured-id/ui-core/issues/145)
+* **profile:** take the instance claim state from proto 0.3 ([#19](https://github.com/structured-id/ui-core/issues/19)) ([c95fee9](https://github.com/structured-id/ui-core/commit/c95fee92217ba14f8ccfb1f7bf3f1a6e76db5bbc)), closes [#18](https://github.com/structured-id/ui-core/issues/18)
+* **profile:** typed identifiers on the auth API ([#84](https://github.com/structured-id/ui-core/issues/84)) ([19ce7a8](https://github.com/structured-id/ui-core/commit/19ce7a8127bd7224c2266f54c536d2641c3e63c6)), closes [#83](https://github.com/structured-id/ui-core/issues/83)
+* **profile:** upstream identity provider sign-in ([#56](https://github.com/structured-id/ui-core/issues/56)) ([856b9c9](https://github.com/structured-id/ui-core/commit/856b9c9a33dab570836687e2a409fe64b2c9eef3)), closes [#55](https://github.com/structured-id/ui-core/issues/55)
+* **refusal:** name a closed registration ([#66](https://github.com/structured-id/ui-core/issues/66)) ([6f60ee8](https://github.com/structured-id/ui-core/commit/6f60ee8ca5bb7500cd20ca21c36a7cc6925e3ed5)), closes [#65](https://github.com/structured-id/ui-core/issues/65)
+* **session:** read and end the session over the UI host ([#50](https://github.com/structured-id/ui-core/issues/50)) ([964a573](https://github.com/structured-id/ui-core/commit/964a57372d133abae57b9d08ef4752892011545b)), closes [#49](https://github.com/structured-id/ui-core/issues/49)
+* **transport:** send an operation key with state-changing calls ([#72](https://github.com/structured-id/ui-core/issues/72)) ([edbeac9](https://github.com/structured-id/ui-core/commit/edbeac9dba659dcd8df73b630a2392611bc37690))
+* **ui-admin:** run the console in the installation's own session ([#139](https://github.com/structured-id/ui-core/issues/139)) ([7ef8860](https://github.com/structured-id/ui-core/commit/7ef88600668955d2135c08dfb5c2aa2126fbd066)), closes [#138](https://github.com/structured-id/ui-core/issues/138)
+
+
+### Bug Fixes
+
+* **auth:** accept the current opaque client's registration and sign-in finish ([#107](https://github.com/structured-id/ui-core/issues/107)) ([727c821](https://github.com/structured-id/ui-core/commit/727c821e04d09854400b6bb2254ba667ef34a63e)), closes [#106](https://github.com/structured-id/ui-core/issues/106)
+* **auth:** ask for a discoverable passkey without a login ([#116](https://github.com/structured-id/ui-core/issues/116)) ([a24022d](https://github.com/structured-id/ui-core/commit/a24022d1de3b34880113ecbab0d551b6dd0bc283)), closes [#115](https://github.com/structured-id/ui-core/issues/115)
+* **auth:** show a refused password sign-in as a sign-in refusal ([#100](https://github.com/structured-id/ui-core/issues/100)) ([759cce7](https://github.com/structured-id/ui-core/commit/759cce73252ea310867f524c2f41f03ea47d1e9d)), closes [#99](https://github.com/structured-id/ui-core/issues/99)
+* **auth:** the registration result carries no Profile identifier ([#42](https://github.com/structured-id/ui-core/issues/42)) ([a84784e](https://github.com/structured-id/ui-core/commit/a84784ec766eaecbda9109758de0f270eef9dc85)), closes [#41](https://github.com/structured-id/ui-core/issues/41)
+* **ceremony:** show progress and activity under reduced motion ([#59](https://github.com/structured-id/ui-core/issues/59)) ([0372f36](https://github.com/structured-id/ui-core/commit/0372f3602bbe6807b179e5deec29726c118ef34d)), closes [#58](https://github.com/structured-id/ui-core/issues/58)
+* **ci:** drop @semantic-release/npm — use exec publishCmd for OIDC ([8b9ac93](https://github.com/structured-id/ui-core/commit/8b9ac9397679eeaa0b4868dead7a0da18f4b3a2b))
+* **ci:** drop @semantic-release/npm — use exec publishCmd for OIDC ([bec76cb](https://github.com/structured-id/ui-core/commit/bec76cb21c872e675f6fb26880558ac70e887675))
+* **ci:** use GitHub App token for semantic-release ([89bcc1a](https://github.com/structured-id/ui-core/commit/89bcc1aa62d4cc018e9fe02f7666ad626cde4f01))
+* **ci:** use GitHub App token for semantic-release (mirror gitlab-mcp pattern) ([d07082a](https://github.com/structured-id/ui-core/commit/d07082a666f8dbe55c877f31e77fb36715e63fa7))
+* **deps:** take @structured-id/ids 0.7 and @structured-id/proto 0.14 ([#93](https://github.com/structured-id/ui-core/issues/93)) ([1a214f0](https://github.com/structured-id/ui-core/commit/1a214f026df8b98cba662129eb21ce9837a27270)), closes [#92](https://github.com/structured-id/ui-core/issues/92)
+* **forms:** check sign-in fields once left, one required text ([#22](https://github.com/structured-id/ui-core/issues/22)) ([9cd29cb](https://github.com/structured-id/ui-core/commit/9cd29cb1b87792b22ee8301fd92d34437e334aae)), closes [#21](https://github.com/structured-id/ui-core/issues/21)
+* **identity:** consumers take the typed identity answers ([#90](https://github.com/structured-id/ui-core/issues/90)) ([48b523c](https://github.com/structured-id/ui-core/commit/48b523c5c6591f19c910c40167dec428930caf25)), closes [#89](https://github.com/structured-id/ui-core/issues/89)
+* **npm:** add repository field for provenance verification ([041fe4d](https://github.com/structured-id/ui-core/commit/041fe4d399b7e08a235ef55c12eb4c71b3850476))
+* **npm:** add repository field for provenance verification ([7aa9071](https://github.com/structured-id/ui-core/commit/7aa9071cb3390e291197ff02065f3e28b9e3025f))
+* **principal:** send a global username as typed ([#36](https://github.com/structured-id/ui-core/issues/36)) ([701751d](https://github.com/structured-id/ui-core/commit/701751d0e10c3b72a752d01fd747d903998da1ec)), closes [#35](https://github.com/structured-id/ui-core/issues/35)
+* **profile:** accept an assigned local username at local sign-in ([#126](https://github.com/structured-id/ui-core/issues/126)) ([f372add](https://github.com/structured-id/ui-core/commit/f372add18be625110a24a7e2d53ab68d6dab8d71)), closes [#125](https://github.com/structured-id/ui-core/issues/125)
+* **profile:** check new passwords against the server policy ([#28](https://github.com/structured-id/ui-core/issues/28)) ([b31b0b0](https://github.com/structured-id/ui-core/commit/b31b0b0e448401a23ddd05cd5f7db68db64a8b91)), closes [#27](https://github.com/structured-id/ui-core/issues/27)
+* **profile:** passkey sign-in and no assumed sign-in offer ([#148](https://github.com/structured-id/ui-core/issues/148)) ([a99327c](https://github.com/structured-id/ui-core/commit/a99327c57ff5fe2635d7a766d2d34b9478f4a9cb)), closes [#147](https://github.com/structured-id/ui-core/issues/147)
+* **profile:** return to a root-addressed issuer's request ([#119](https://github.com/structured-id/ui-core/issues/119)) ([ab4d4a7](https://github.com/structured-id/ui-core/commit/ab4d4a7ab16fb544421ecbe58d28e65a81f961a6)), closes [#118](https://github.com/structured-id/ui-core/issues/118)
+* **refusal:** say what an MFA_REQUIRED refusal asks for ([#103](https://github.com/structured-id/ui-core/issues/103)) ([b30475c](https://github.com/structured-id/ui-core/commit/b30475c00bc0fe263bec04a3317b6345b67d5bf8)), closes [#102](https://github.com/structured-id/ui-core/issues/102)
+* **session:** call the host's session service under /api ([#63](https://github.com/structured-id/ui-core/issues/63)) ([861918c](https://github.com/structured-id/ui-core/commit/861918c60c63e12dd621ca5b488cc29cc169216d)), closes [#62](https://github.com/structured-id/ui-core/issues/62)
+* **submodule:** retarget proto to GitHub HEAD ([1e90620](https://github.com/structured-id/ui-core/commit/1e906209695fdf4fbeffe053c6a352f2ad477cc2))
+* **submodule:** retarget proto to GitHub initial commit ([a47a3e7](https://github.com/structured-id/ui-core/commit/a47a3e76392484f0e653dd9fa4456b1f6d352e08))
+
+
+### Code Refactoring
+
+* **ui:** consume generated SDK clients ([#12](https://github.com/structured-id/ui-core/issues/12)) ([ed32342](https://github.com/structured-id/ui-core/commit/ed32342180ec9a81e5c5396263d0911e63d0f0b0)), closes [#11](https://github.com/structured-id/ui-core/issues/11)
+
 ## [4.21.1](https://github.com/structured-id/ui-core/compare/v4.21.0...v4.21.1) (2026-11-25)
 
 
