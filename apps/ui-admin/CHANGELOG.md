@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/structured-id/ui-core/compare/ui-admin-v0.3.0...ui-admin-v0.4.0) (2026-11-26)
+
+
+### Features
+
+* **ui-admin:** choose the session domain in settings ([#166](https://github.com/structured-id/ui-core/issues/166)) ([27c599f](https://github.com/structured-id/ui-core/commit/27c599fb42d7252d63930aaa8199c3d8b29375ff)), closes [#165](https://github.com/structured-id/ui-core/issues/165)
+
 ## [0.3.0](https://github.com/structured-id/ui-core/compare/ui-admin-v0.2.0...ui-admin-v0.3.0) (2026-11-26)
 
 
