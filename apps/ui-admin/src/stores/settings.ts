@@ -11,6 +11,8 @@ import type {
   InstallationAddresses,
   LoginSettings,
   SessionConfig,
+  SessionCookieDomain,
+  SessionCookieScope,
   TokenConfig,
   Feature,
   EmailSettings,
@@ -54,6 +56,7 @@ export const useSettingsStore = defineStore("settings", () => {
   // ── State ──
   const realm = ref<RealmSettings | null>(null);
   const addresses = ref<InstallationAddresses | null>(null);
+  const cookieScope = ref<SessionCookieScope | null>(null);
   const loginSettings = ref<LoginSettings | null>(null);
   const sessionConfig = ref<SessionConfig | null>(null);
   const tokenConfig = ref<TokenConfig | null>(null);
@@ -136,6 +139,41 @@ export const useSettingsStore = defineStore("settings", () => {
       return response;
     } catch (err) {
       error.value = refusalMessage(err, "Failed to update the addresses");
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  // ── Session domain ──
+
+  async function fetchCookieScope() {
+    error.value = null;
+    try {
+      const { response } = await getRealmClient().getSessionCookieScope(
+        Empty.create(),
+      );
+      cookieScope.value = response;
+    } catch (err) {
+      error.value = refusalMessage(err, "Failed to load the session domain");
+    }
+  }
+
+  /** Replace the session domain scope whole with `scope`. */
+  async function updateCookieScope(scope: {
+    domain: SessionCookieDomain;
+    subdomains: string[];
+    subdomainPattern: string;
+  }) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const { response } =
+        await getRealmClient().updateSessionCookieScope(scope);
+      cookieScope.value = response;
+      return response;
+    } catch (err) {
+      error.value = refusalMessage(err, "Failed to update the session domain");
       throw err;
     } finally {
       loading.value = false;
@@ -701,6 +739,9 @@ export const useSettingsStore = defineStore("settings", () => {
     addresses,
     fetchAddresses,
     updateAddresses,
+    cookieScope,
+    fetchCookieScope,
+    updateCookieScope,
     fetchFeatures,
     setFeature,
     fetchLoginSettings,
