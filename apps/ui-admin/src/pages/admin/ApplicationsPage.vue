@@ -100,6 +100,14 @@
               class="q-ml-xs"
               dense
             />
+            <q-badge
+              v-if="isManagedApplication(props.row)"
+              color="grey-7"
+              label="Managed by SID"
+              class="q-ml-xs"
+              dense
+              data-test="managed-application"
+            />
           </div>
         </q-td>
       </template>
@@ -155,11 +163,13 @@
       <template #body-cell-actions="props">
         <q-td :props="props" auto-width>
           <q-btn
+            v-if="!isManagedApplication(props.row)"
             flat
             round
             dense
             icon="sym_o_delete"
             color="negative"
+            data-test="delete-application"
             @click.stop="confirmDelete(props.row)"
           >
             <q-tooltip>Delete</q-tooltip>
@@ -231,6 +241,7 @@ import { copyToClipboard, useQuasar } from "quasar";
 import {
   useApplicationsStore,
   isApplicationActive,
+  isManagedApplication,
 } from "#admin/stores/applications";
 import { ApplicationType } from "@structured-id/proto/sid/v1/projects/projects";
 import type { Application } from "@structured-id/proto/sid/v1/projects/projects";

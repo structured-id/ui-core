@@ -285,6 +285,32 @@ describe("ApplicationsPage", () => {
     expect(store.activeCount).toBe(2);
   });
 
+  // Regression: the list offered Delete on every row, the applications SID
+  // itself provisions and keeps (its account pages, this console) included,
+  // although their own page hides it and the server refuses it.
+  // What is tested: a managed application's row says so and offers no
+  // Delete; an ordinary one still does.
+  it("offers no delete on an application SID manages", async () => {
+    mocks.listApplications.mockResolvedValue({
+      response: {
+        applications: [
+          makeApp({
+            id: appId(1).toWire(),
+            name: "Account",
+            systemIntegration: 1,
+          }),
+          makeApp({ id: appId(2).toWire(), name: "Notes" }),
+        ],
+      },
+    });
+    const wrapper = await mountPage();
+    await flushPromises();
+    expect(wrapper.findAll('[data-test="delete-application"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-test="managed-application"]')).toHaveLength(
+      1,
+    );
+  });
+
   it("renders a resource-only application without a client id", async () => {
     mocks.listApplications.mockResolvedValue({
       response: { applications: [makeResourceApp(1, 1)] },
