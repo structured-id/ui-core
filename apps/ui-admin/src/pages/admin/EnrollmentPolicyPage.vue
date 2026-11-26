@@ -21,6 +21,27 @@
       {{ store.error }}
     </q-banner>
 
+    <!-- The policy could not be read: nothing here is the stored policy, so
+         nothing can be saved over it until a read succeeds. -->
+    <q-banner
+      v-if="policyReadError"
+      dense
+      class="bg-warning q-mb-md"
+      data-test="policy-unread"
+    >
+      The enrollment policy could not be loaded: {{ policyReadError }}. It
+      cannot be changed until it is read.
+      <template #action>
+        <q-btn
+          flat
+          label="Retry"
+          data-test="reload-policy"
+          :loading="store.loading"
+          @click="readPolicy"
+        />
+      </template>
+    </q-banner>
+
     <!-- Tabs -->
     <q-tabs v-model="tab" dense align="left" class="q-mb-lg" no-caps>
       <q-tab name="policy" label="Policy" icon="sym_o_policy" />
@@ -180,6 +201,7 @@
               icon="sym_o_save"
               unelevated
               :loading="store.loading"
+              :disable="!policyRead"
               @click="savePolicy"
             />
 
@@ -660,13 +682,35 @@ function addDomain() {
   newDomain.value = "";
 }
 
+// Whether the form holds the stored policy: an update replaces the whole
+// policy, so the form's initial values are never sent in its place.
+const policyRead = ref(false);
+const policyReadError = ref<string | null>(null);
+
+/** Fills the form from the stored policy; a failed read leaves it unsavable. */
+async function readPolicy() {
+  policyRead.value = false;
+  policyReadError.value = null;
+  if (!(await store.fetchPolicy()) || !store.policy) {
+    policyReadError.value = store.error ?? "no answer";
+    return;
+  }
+  editMode.value = store.policy.mode;
+  editDomains.value = [...store.policy.allowedDomains];
+  editTrackSource.value = store.policy.trackSource;
+  if (store.policy.invite) {
+    editInviteConfig.value = { ...store.policy.invite };
+  }
+  policyRead.value = true;
+}
+
 async function savePolicy() {
+  if (!policyRead.value) return;
   await store.updatePolicy({
     mode: editMode.value,
-    invite:
-      editMode.value === EnrollmentMode.INVITE_ONLY
-        ? { ...editInviteConfig.value }
-        : undefined,
+    // The invite defaults belong to the policy in every mode: the
+    // installation keeps them across modes and refuses an update without.
+    invite: { ...editInviteConfig.value },
     allowedDomains:
       editMode.value === EnrollmentMode.DOMAIN_RESTRICTED
         ? [...editDomains.value]
@@ -799,15 +843,7 @@ const statsPeriod = ref(30);
 
 // ── Init ──
 onMounted(async () => {
-  await store.fetchPolicy();
-  if (store.policy) {
-    editMode.value = store.policy.mode;
-    editDomains.value = [...store.policy.allowedDomains];
-    editTrackSource.value = store.policy.trackSource;
-    if (store.policy.invite) {
-      editInviteConfig.value = { ...store.policy.invite };
-    }
-  }
+  await readPolicy();
   store.fetchInvites();
   store.fetchRegistrationStats(statsPeriod.value);
 });
