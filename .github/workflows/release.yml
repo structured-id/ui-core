@@ -4,7 +4,11 @@
 #
 # Each package releases on its own: @structured-id/ui-core (repository root,
 # tags vX.Y.Z) and @structured-id/ui-admin (apps/ui-admin, tags
-# ui-admin-vX.Y.Z). A package is published when the version its manifest
+# ui-admin-vX.Y.Z). The account pages (apps/ui-profile, tags
+# ui-profile-vX.Y.Z) are a private application: their release is a tag, a
+# GitHub release and a changelog, for builds that take the pages from this
+# repository at a released revision; nothing of it is published to npm.
+# A package is published when the version its manifest
 # entry names is tagged and not on npm yet: in the run that created the
 # release, and in any later run if that one never reached publishing.
 # Each has its own release PR, whose branch names the package: a PR shared
