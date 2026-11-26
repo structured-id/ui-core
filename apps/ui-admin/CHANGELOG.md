@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/structured-id/ui-core/compare/ui-admin-v0.2.0...ui-admin-v0.3.0) (2026-11-26)
+
+
+### Features
+
+* **ui-admin:** give a client access to resources and a default target ([#153](https://github.com/structured-id/ui-core/issues/153)) ([c674ca6](https://github.com/structured-id/ui-core/commit/c674ca612c3ef5cde45d9fb796bc99596aef1b22)), closes [#152](https://github.com/structured-id/ui-core/issues/152)
+
+
+### Bug Fixes
+
+* **ui-admin:** managed applications and a malformed address ([#155](https://github.com/structured-id/ui-core/issues/155)) ([1bf5f89](https://github.com/structured-id/ui-core/commit/1bf5f891e2a50913335f3f248fa020ad6eab9163)), closes [#154](https://github.com/structured-id/ui-core/issues/154)
+
 ## [0.2.0](https://github.com/structured-id/ui-core/compare/ui-admin-v0.1.0...ui-admin-v0.2.0) (2026-11-25)
 
 
