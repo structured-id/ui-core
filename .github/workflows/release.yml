@@ -4,7 +4,9 @@
 #
 # Each package releases on its own: @structured-id/ui-core (repository root,
 # tags vX.Y.Z) and @structured-id/ui-admin (apps/ui-admin, tags
-# ui-admin-vX.Y.Z). A package's publish job runs only for its own release.
+# ui-admin-vX.Y.Z). A package is published when the version its manifest
+# entry names is tagged and not on npm yet: in the run that created the
+# release, and in any later run if that one never reached publishing.
 # Each has its own release PR, whose branch names the package: a PR shared
 # by both is not released when only the root package changed, because
 # release-please then reads it as a single release and requires the branch
@@ -29,11 +31,6 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    outputs:
-      released: ${{ steps.release.outputs.release_created }}
-      tag: ${{ steps.release.outputs.tag_name }}
-      admin-released: ${{ steps.release.outputs['apps/ui-admin--release_created'] }}
-      admin-tag: ${{ steps.release.outputs['apps/ui-admin--tag_name'] }}
     steps:
       - name: Generate release token
         id: app-token
@@ -49,9 +46,47 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  publish:
+  # The tag of each package's current version when it is tagged and npm does
+  # not have it; empty otherwise. Runs after release-please, so a release
+  # created in this run is seen.
+  pending:
     needs: release-please
-    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pending.outputs.tag }}
+      admin-tag: ${{ steps.pending.outputs.admin-tag }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Find tagged versions npm does not have
+        id: pending
+        run: |
+          pending() {
+            local output="$1" package_dir="$2" tag_prefix="$3" manifest_key="$4"
+            local name version tag
+            name="$(node -p "require('./${package_dir}/package.json').name")"
+            version="$(node -p "require('./.release-please-manifest.json')['${manifest_key}']")"
+            tag="${tag_prefix}${version}"
+            if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null; then
+              echo "${name}@${version}: ${tag} is not tagged; nothing to publish."
+              return
+            fi
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "${name}@${version} is already published; nothing to do."
+              return
+            fi
+            echo "${name}@${version} is tagged ${tag} and not on npm."
+            echo "${output}=${tag}" >> "${GITHUB_OUTPUT}"
+          }
+          pending tag . v .
+          pending admin-tag apps/ui-admin ui-admin-v apps/ui-admin
+
+  publish:
+    needs: pending
+    if: needs.pending.outputs.tag != ''
     runs-on: ubuntu-latest
     environment: release # required for npm OIDC trusted publishing
     permissions:
@@ -61,7 +96,7 @@ jobs:
       - name: Checkout the release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release-please.outputs.tag }}
+          ref: ${{ needs.pending.outputs.tag }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -84,7 +119,7 @@ jobs:
       # application's bundler compiles them.
       - name: Publish to npm
         env:
-          TAG: ${{ needs.release-please.outputs.tag }}
+          TAG: ${{ needs.pending.outputs.tag }}
         run: |
           NAME="$(node -p "require('./package.json').name")"
           PV="$(node -p "require('./package.json').version")"
@@ -98,9 +133,11 @@ jobs:
           fi
           npm publish --provenance --access public
 
+  # After the root package's job, whichever way it ended: the console's
+  # archive requires the root package's current version.
   publish-ui-admin:
-    needs: release-please
-    if: needs.release-please.outputs.admin-released == 'true'
+    needs: [pending, publish]
+    if: ${{ !cancelled() && needs.publish.result != 'failure' && needs.pending.outputs.admin-tag != '' }}
     runs-on: ubuntu-latest
     environment: release # required for npm OIDC trusted publishing
     permissions:
@@ -110,7 +147,7 @@ jobs:
       - name: Checkout the release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release-please.outputs.admin-tag }}
+          ref: ${{ needs.pending.outputs.admin-tag }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -132,7 +169,7 @@ jobs:
       - name: Publish to npm
         working-directory: apps/ui-admin
         env:
-          TAG: ${{ needs.release-please.outputs.admin-tag }}
+          TAG: ${{ needs.pending.outputs.admin-tag }}
         run: |
           NAME="$(node -p "require('./package.json').name")"
           PV="$(node -p "require('./package.json').version")"
