@@ -15,7 +15,28 @@
       :recovery-methods="level.recoveryMethods.value"
       @edit-label="editLabel"
       @revoke="confirmRevoke"
-    />
+    >
+      <template v-if="passkeysSupported" #actions>
+        <div class="q-mt-md">
+          <q-btn
+            outline
+            color="primary"
+            icon="sym_o_passkey"
+            label="Add a passkey"
+            :loading="addingPasskey"
+            data-test="add-passkey"
+            @click="addPasskey"
+          />
+          <div
+            v-if="passkeyError"
+            class="text-negative q-mt-sm"
+            data-test="add-passkey-error"
+          >
+            {{ passkeyError }}
+          </div>
+        </div>
+      </template>
+    </security-settings>
 
     <q-card v-if="password" flat bordered class="q-mt-lg">
       <q-card-section>
@@ -81,10 +102,16 @@ import {
   revokeCredential,
   updateCredentialLabel,
   useSecurityLevel,
+  webAuthnRegistrationFinish,
+  webAuthnRegistrationStart,
   type Credential,
   type Principal,
 } from "@structured-id/ui-core/profile";
-import { refusalMessage } from "@structured-id/ui-core";
+import {
+  PasskeyError,
+  createPasskey,
+  refusalMessage,
+} from "@structured-id/ui-core";
 import { useAuth } from "src/composables/useAuth";
 
 const $q = useQuasar();
@@ -151,6 +178,44 @@ function confirmRevoke(cred: Credential) {
       error.value = refusalMessage(e, "The sign-in method was not removed");
     }
   });
+}
+
+/** Whether this browser can create a passkey at all. */
+const passkeysSupported = typeof PublicKeyCredential !== "undefined";
+const addingPasskey = ref(false);
+const passkeyError = ref<string | null>(null);
+
+/**
+ * Adds a passkey to the signed-in account: the installation decides whether
+ * this session may enroll one, the device creates it, and only a finished
+ * registration counts. A ceremony the user cancels adds nothing and says so.
+ */
+async function addPasskey() {
+  addingPasskey.value = true;
+  passkeyError.value = null;
+  try {
+    const started = await webAuthnRegistrationStart();
+    const credential = await createPasskey(started.options);
+    await webAuthnRegistrationFinish(credential);
+    $q.notify({ type: "positive", message: "Passkey added" });
+    await load();
+  } catch (e) {
+    if (e instanceof PasskeyError) {
+      // A request the page stopped itself has nothing to tell.
+      if (e.failure !== "aborted") {
+        passkeyError.value =
+          e.failure === "cancelled"
+            ? "No passkey was added: the request was cancelled or timed out"
+            : e.failure === "already-registered"
+              ? "This device already holds a passkey for this account"
+              : "The passkey was not added";
+      }
+    } else {
+      passkeyError.value = refusalMessage(e, "The passkey was not added");
+    }
+  } finally {
+    addingPasskey.value = false;
+  }
 }
 
 /** The current password is proved inside the change, whatever the policy. */
