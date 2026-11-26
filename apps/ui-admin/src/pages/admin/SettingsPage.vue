@@ -108,6 +108,81 @@
             </q-card>
           </div>
 
+          <!-- Session domain -->
+          <div class="col-12 col-md-6">
+            <q-card flat bordered>
+              <q-card-section>
+                <div class="text-h6">Session domain</div>
+                <div v-if="store.cookieScope" class="text-caption text-grey">
+                  Where a browser signed in to this installation stays signed
+                  in. This domain is
+                  <span data-test="session-base-domain">{{
+                    store.cookieScope.baseDomain
+                  }}</span>.
+                </div>
+              </q-card-section>
+              <q-separator />
+              <q-card-section v-if="store.cookieScope">
+                <q-option-group
+                  v-model="scopeForm.domain"
+                  :options="scopeOptions"
+                  data-test="session-scope"
+                />
+                <template
+                  v-if="
+                    scopeForm.domain === SessionCookieDomain.SELECTED_SUBDOMAINS
+                  "
+                >
+                  <q-option-group
+                    v-model="scopeForm.selectBy"
+                    :options="selectByOptions"
+                    inline
+                    class="q-mt-sm"
+                    data-test="session-select-by"
+                  />
+                  <q-input
+                    v-if="scopeForm.selectBy === 'list'"
+                    v-model="scopeForm.subdomains"
+                    label="Subdomains"
+                    hint="Full host names under this domain, one per line"
+                    type="textarea"
+                    autogrow
+                    filled
+                    class="q-mt-sm"
+                    data-test="session-subdomains"
+                  />
+                  <q-input
+                    v-else
+                    v-model="scopeForm.subdomainPattern"
+                    label="Expression"
+                    hint="A regular expression matched against the whole host name"
+                    filled
+                    class="q-mt-sm"
+                    data-test="session-pattern"
+                  />
+                </template>
+                <div
+                  v-if="narrows"
+                  class="text-caption text-warning q-mt-sm"
+                  data-test="session-narrowing"
+                >
+                  Narrowing the scope signs out the browsers that shared the
+                  wider one.
+                </div>
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn
+                  label="Save"
+                  color="primary"
+                  data-test="save-session-scope"
+                  :disable="!store.cookieScope"
+                  :loading="store.loading"
+                  @click="saveCookieScope"
+                />
+              </q-card-actions>
+            </q-card>
+          </div>
+
           <!-- Features -->
           <div class="col-12 col-md-6">
             <q-card flat bordered>
@@ -1206,9 +1281,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 import { useQuasar } from "quasar";
 import { useSettingsStore } from "#admin/stores/settings";
+import {
+  narrows as scopeNarrows,
+  type SessionScope,
+} from "#admin/sessionScope";
 import { KeyProviderType } from "@structured-id/proto/sid/v1/admin/keys";
 import { BruteForceLockoutMode } from "@structured-id/proto/sid/v1/admin/security";
 import {
@@ -1216,6 +1295,7 @@ import {
   SmtpAuthType,
   SmtpEncryptionType,
   ImportConflictStrategy,
+  SessionCookieDomain,
   XOAuth2ProviderType,
 } from "@structured-id/proto/sid/v1/admin/settings";
 import type {
@@ -1282,6 +1362,93 @@ async function saveAddresses() {
     });
     $q.notify({ type: "positive", message: "Addresses saved" });
     if (saved.consoleUrl !== before) window.location.assign(saved.consoleUrl);
+  } catch {
+    $q.notify({ type: "negative", message: store.error ?? "Failed to save" });
+  }
+}
+
+// ── Session domain form ──
+const scopeOptions = [
+  { label: "This domain only", value: SessionCookieDomain.THIS_HOST },
+  {
+    label: "This domain and all its subdomains",
+    value: SessionCookieDomain.ALL_SUBDOMAINS,
+  },
+  {
+    label: "This domain and selected subdomains",
+    value: SessionCookieDomain.SELECTED_SUBDOMAINS,
+  },
+];
+const selectByOptions = [
+  { label: "A list", value: "list" },
+  { label: "An expression", value: "pattern" },
+];
+const scopeForm = ref<{
+  domain: SessionCookieDomain;
+  selectBy: "list" | "pattern";
+  subdomains: string;
+  subdomainPattern: string;
+}>({
+  domain: SessionCookieDomain.THIS_HOST,
+  selectBy: "list",
+  subdomains: "",
+  subdomainPattern: "",
+});
+
+watch(
+  () => store.cookieScope,
+  (scope) => {
+    if (scope) {
+      scopeForm.value = {
+        domain: scope.domain,
+        // A stored expression is shown as one; a list otherwise.
+        selectBy:
+          scope.subdomainPattern && scope.subdomains.length === 0
+            ? "pattern"
+            : "list",
+        subdomains: scope.subdomains.join("\n"),
+        subdomainPattern: scope.subdomainPattern,
+      };
+    }
+  },
+  // As the addresses: the form never stands ready to save over an unread scope.
+  { immediate: true },
+);
+
+/**
+ * The scope the form saves. Only the selection in use is a part of it: the
+ * other way's leftover text is not. Host names are written the way the
+ * installation stores them, lowercase and without a trailing dot.
+ */
+const scopeToSave = computed<SessionScope>(() => {
+  const selected =
+    scopeForm.value.domain === SessionCookieDomain.SELECTED_SUBDOMAINS;
+  const byList = selected && scopeForm.value.selectBy === "list";
+  const byPattern = selected && scopeForm.value.selectBy === "pattern";
+  return {
+    domain: scopeForm.value.domain,
+    subdomains: byList
+      ? scopeForm.value.subdomains
+          .split(/\s+/)
+          .map((host) => host.trim().toLowerCase().replace(/\.$/, ""))
+          .filter(Boolean)
+      : [],
+    subdomainPattern: byPattern ? scopeForm.value.subdomainPattern.trim() : "",
+  };
+});
+
+/** Whether saving the form shares the session with fewer hosts than now. */
+const narrows = computed(
+  () =>
+    !!store.cookieScope && scopeNarrows(store.cookieScope, scopeToSave.value),
+);
+
+// Nothing is saved before the current scope is read.
+async function saveCookieScope() {
+  if (!store.cookieScope) return;
+  try {
+    await store.updateCookieScope(scopeToSave.value);
+    $q.notify({ type: "positive", message: "Session domain saved" });
   } catch {
     $q.notify({ type: "negative", message: store.error ?? "Failed to save" });
   }
@@ -1946,6 +2113,7 @@ onMounted(async () => {
   await Promise.all([
     store.fetchRealm(),
     store.fetchAddresses(),
+    store.fetchCookieScope(),
     store.fetchFeatures(),
     store.fetchLoginSettings(),
     store.fetchKeys(),

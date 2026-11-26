@@ -22,6 +22,17 @@ const realmMocks = vi.hoisted(() => ({
     },
   }),
   updateInstallationAddresses: vi.fn(),
+  // SessionCookieDomain: THIS_HOST 1, ALL_SUBDOMAINS 2, SELECTED_SUBDOMAINS 3.
+  getSessionCookieScope: vi.fn().mockResolvedValue({
+    response: {
+      domain: 1,
+      baseDomain: "sid.example.com",
+      subdomains: [],
+      subdomainPattern: "",
+      revision: 0n,
+    },
+  }),
+  updateSessionCookieScope: vi.fn(),
   getLoginSettings: vi.fn().mockResolvedValue({
     response: {
       registrationEnabled: true,
@@ -138,6 +149,8 @@ vi.mock("@structured-id/proto/sid/v1/admin/settings.client", () => ({
     updateRealm = realmMocks.updateRealm;
     getInstallationAddresses = realmMocks.getInstallationAddresses;
     updateInstallationAddresses = realmMocks.updateInstallationAddresses;
+    getSessionCookieScope = realmMocks.getSessionCookieScope;
+    updateSessionCookieScope = realmMocks.updateSessionCookieScope;
     getLoginSettings = realmMocks.getLoginSettings;
     updateLoginSettings = realmMocks.updateLoginSettings;
     getEmailSettings = realmMocks.getEmailSettings;
@@ -378,6 +391,137 @@ describe("SettingsPage", () => {
       publicUrl: "https://proxy.example.com/",
       consoleUrl: "https://sid.example.com/console/",
     });
+  });
+
+  /** The session scope the installation answers, read or saved. */
+  function scope(
+    domain: number,
+    subdomains: string[] = [],
+    subdomainPattern = "",
+  ) {
+    return {
+      response: {
+        domain,
+        baseDomain: "sid.example.com",
+        subdomains,
+        subdomainPattern,
+        revision: 1n,
+      },
+    };
+  }
+
+  // The session domain loads with the page, with the base domain it derives
+  // from, and a saved scope is the one the page shows when it is opened
+  // again: a list of selected subdomains is sent as that list and no
+  // expression. Bug prevented: a console with no control for the scope the
+  // installation serves, or one that forgets the saved scope.
+  it("saves a list of selected subdomains and shows it when reopened", async () => {
+    const pinia = createPinia();
+    realmMocks.getSessionCookieScope.mockResolvedValueOnce(
+      scope(3, ["app.sid.example.com", "wiki.sid.example.com"]),
+    );
+    realmMocks.updateSessionCookieScope.mockResolvedValueOnce(
+      scope(3, ["app.sid.example.com", "wiki.sid.example.com"]),
+    );
+    const wrapper = mountPage(pinia);
+    await flushPromises();
+    expect(wrapper.find('[data-test="session-base-domain"]').text()).toBe(
+      "sid.example.com",
+    );
+
+    await wrapper.find('[data-test="save-session-scope"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateSessionCookieScope).toHaveBeenCalledWith({
+      domain: 3,
+      subdomains: ["app.sid.example.com", "wiki.sid.example.com"],
+      subdomainPattern: "",
+    });
+    wrapper.unmount();
+
+    // Reopened while the refresh is still on its way: the saved scope is
+    // what the form holds and what a save sends.
+    realmMocks.getSessionCookieScope.mockReturnValueOnce(new Promise(() => {}));
+    realmMocks.updateSessionCookieScope.mockResolvedValueOnce(
+      scope(3, ["app.sid.example.com", "wiki.sid.example.com"]),
+    );
+    const reopened = mountPage(pinia);
+    await flushPromises();
+    await reopened.find('[data-test="save-session-scope"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateSessionCookieScope).toHaveBeenLastCalledWith({
+      domain: 3,
+      subdomains: ["app.sid.example.com", "wiki.sid.example.com"],
+      subdomainPattern: "",
+    });
+  });
+
+  // The other way to select subdomains: a stored expression is sent as the
+  // expression, with no list beside it.
+  it("saves an expression of selected subdomains", async () => {
+    const pattern = "^[a-z]+\\.apps\\.sid\\.example\\.com$";
+    realmMocks.getSessionCookieScope.mockResolvedValueOnce(
+      scope(3, [], pattern),
+    );
+    realmMocks.updateSessionCookieScope.mockResolvedValueOnce(
+      scope(3, [], pattern),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.find('[data-test="save-session-scope"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateSessionCookieScope).toHaveBeenCalledWith({
+      domain: 3,
+      subdomains: [],
+      subdomainPattern: pattern,
+    });
+  });
+
+  // A scope that selects no subdomains sends none: all subdomains is the
+  // scope alone.
+  it("saves all subdomains without a selection", async () => {
+    realmMocks.getSessionCookieScope.mockResolvedValueOnce(scope(2));
+    realmMocks.updateSessionCookieScope.mockResolvedValueOnce(scope(2));
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.find('[data-test="save-session-scope"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateSessionCookieScope).toHaveBeenCalledWith({
+      domain: 2,
+      subdomains: [],
+      subdomainPattern: "",
+    });
+  });
+
+  // Saving before the scope was read would replace it with the form's
+  // default, this domain only, and sign out the browsers that shared a wider
+  // one.
+  it("does not save a session domain it has not read", async () => {
+    realmMocks.getSessionCookieScope.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(useSettingsStore().cookieScope).toBeNull();
+
+    await wrapper.find('[data-test="save-session-scope"]').trigger("click");
+    await flushPromises();
+    expect(realmMocks.updateSessionCookieScope).not.toHaveBeenCalled();
+  });
+
+  // A scope the installation refuses stays in the form, and the stored scope
+  // is not replaced by what was refused.
+  it("keeps the stored scope when the installation refuses a change", async () => {
+    realmMocks.getSessionCookieScope.mockResolvedValueOnce(scope(2));
+    realmMocks.updateSessionCookieScope.mockRejectedValueOnce(
+      new Error("refused"),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.find('[data-test="save-session-scope"]').trigger("click");
+    await flushPromises();
+    const store = useSettingsStore();
+    expect(store.cookieScope?.domain).toBe(2);
+    expect(store.error).toBe("Failed to update the session domain");
   });
 
   it("store.setFeature calls gRPC", async () => {
