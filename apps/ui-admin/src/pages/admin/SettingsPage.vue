@@ -1284,6 +1284,10 @@
 import { computed, ref, onMounted, watch } from "vue";
 import { useQuasar } from "quasar";
 import { useSettingsStore } from "#admin/stores/settings";
+import {
+  narrows as scopeNarrows,
+  type SessionScope,
+} from "#admin/sessionScope";
 import { KeyProviderType } from "@structured-id/proto/sid/v1/admin/keys";
 import { BruteForceLockoutMode } from "@structured-id/proto/sid/v1/admin/security";
 import {
@@ -1411,43 +1415,39 @@ watch(
   { immediate: true },
 );
 
-/** How far a scope's cookie reaches: wider scopes have higher numbers. */
-function reach(domain: SessionCookieDomain): number {
-  return domain === SessionCookieDomain.ALL_SUBDOMAINS
-    ? 2
-    : domain === SessionCookieDomain.SELECTED_SUBDOMAINS
-      ? 1
-      : 0;
-}
-
-/** Whether saving the form shares the session with fewer hosts than now. */
-const narrows = computed(
-  () =>
-    !!store.cookieScope &&
-    reach(scopeForm.value.domain) < reach(store.cookieScope.domain),
-);
-
-// Only the selection in use is sent: the other way's leftover text is not a
-// part of the scope. Nothing is saved before the current scope is read.
-async function saveCookieScope() {
-  if (!store.cookieScope) return;
+/**
+ * The scope the form saves. Only the selection in use is a part of it: the
+ * other way's leftover text is not. Host names are written the way the
+ * installation stores them, lowercase and without a trailing dot.
+ */
+const scopeToSave = computed<SessionScope>(() => {
   const selected =
     scopeForm.value.domain === SessionCookieDomain.SELECTED_SUBDOMAINS;
   const byList = selected && scopeForm.value.selectBy === "list";
   const byPattern = selected && scopeForm.value.selectBy === "pattern";
+  return {
+    domain: scopeForm.value.domain,
+    subdomains: byList
+      ? scopeForm.value.subdomains
+          .split(/\s+/)
+          .map((host) => host.trim().toLowerCase().replace(/\.$/, ""))
+          .filter(Boolean)
+      : [],
+    subdomainPattern: byPattern ? scopeForm.value.subdomainPattern.trim() : "",
+  };
+});
+
+/** Whether saving the form shares the session with fewer hosts than now. */
+const narrows = computed(
+  () =>
+    !!store.cookieScope && scopeNarrows(store.cookieScope, scopeToSave.value),
+);
+
+// Nothing is saved before the current scope is read.
+async function saveCookieScope() {
+  if (!store.cookieScope) return;
   try {
-    await store.updateCookieScope({
-      domain: scopeForm.value.domain,
-      subdomains: byList
-        ? scopeForm.value.subdomains
-            .split(/\s+/)
-            .map((host) => host.trim())
-            .filter(Boolean)
-        : [],
-      subdomainPattern: byPattern
-        ? scopeForm.value.subdomainPattern.trim()
-        : "",
-    });
+    await store.updateCookieScope(scopeToSave.value);
     $q.notify({ type: "positive", message: "Session domain saved" });
   } catch {
     $q.notify({ type: "negative", message: store.error ?? "Failed to save" });
