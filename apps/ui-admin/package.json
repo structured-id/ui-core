@@ -73,5 +73,5 @@
     "node": ">=26"
   },
   "license": "AGPL-3.0-only",
-  "version": "0.4.0"
+  "version": "0.4.1"
 }

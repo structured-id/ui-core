@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/structured-id/ui-core/compare/ui-admin-v0.4.0...ui-admin-v0.4.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **ui-admin:** save enrollment policy in every mode ([#169](https://github.com/structured-id/ui-core/issues/169)) ([1f0a6c4](https://github.com/structured-id/ui-core/commit/1f0a6c4b23519b9d4d63a9905d15672d78affced)), closes [#168](https://github.com/structured-id/ui-core/issues/168)
+
 ## [0.4.0](https://github.com/structured-id/ui-core/compare/ui-admin-v0.3.0...ui-admin-v0.4.0) (2026-11-26)
 
 
