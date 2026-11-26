@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { ProjectServiceClient } from "@structured-id/proto/sid/v1/projects/projects.client";
 import {
   ResourceState,
+  SystemIntegration,
   type Application,
   type CreateApplicationRequest,
   type ResourceAccess,
@@ -21,6 +22,17 @@ function getClient() {
 export function isApplicationActive(app: Application): boolean {
   return (
     app.client?.active === true || app.resource?.state === ResourceState.ACTIVE
+  );
+}
+
+/**
+ * An application SID provisions and keeps for itself (its account pages,
+ * this console): an administrator reads it and neither edits nor deletes it.
+ */
+export function isManagedApplication(app: Application): boolean {
+  return (
+    (app.systemIntegration ?? SystemIntegration.UNSPECIFIED) !==
+    SystemIntegration.UNSPECIFIED
   );
 }
 

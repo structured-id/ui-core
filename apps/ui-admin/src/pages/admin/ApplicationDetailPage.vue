@@ -614,10 +614,10 @@ import { copyToClipboard, useQuasar } from "quasar";
 import {
   useApplicationsStore,
   isApplicationActive,
+  isManagedApplication,
 } from "#admin/stores/applications";
 import {
   ApplicationType,
-  SystemIntegration,
   TokenEndpointAuthMethod,
   type UpdateClientRoleRequest,
 } from "@structured-id/proto/sid/v1/projects/projects";
@@ -672,9 +672,7 @@ const verificationUri = computed(() => {
 const client = computed(() => store.currentApp?.client);
 const resource = computed(() => store.currentApp?.resource);
 const isSystem = computed(
-  () =>
-    (store.currentApp?.systemIntegration ?? SystemIntegration.UNSPECIFIED) !==
-    SystemIntegration.UNSPECIFIED,
+  () => !!store.currentApp && isManagedApplication(store.currentApp),
 );
 
 const generalFormChanged = computed(
@@ -871,10 +869,19 @@ async function executeRegenerate() {
 }
 
 onMounted(async () => {
-  // The route names the application by its UUID text; a malformed one throws.
+  // The route names the application by its UUID text. An address that names
+  // none is said so on the page, not thrown out of the mount.
   const id = route.params.id as string;
   if (id) {
-    await store.getApplication(ApplicationId.parse(id));
+    let named: ApplicationId;
+    try {
+      named = ApplicationId.parse(id);
+    } catch {
+      store.currentApp = null;
+      store.error = "This address names no application.";
+      return;
+    }
+    await store.getApplication(named);
   }
   // The Access tab names resources by their applications; a page opened by
   // its address has no list yet. The console administers the installation's
