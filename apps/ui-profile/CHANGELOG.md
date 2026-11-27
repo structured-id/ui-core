@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/structured-id/ui-core/compare/ui-profile-v0.1.0...ui-profile-v0.1.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **ui-profile:** registration follows published settings ([#173](https://github.com/structured-id/ui-core/issues/173)) ([721f320](https://github.com/structured-id/ui-core/commit/721f3201a7a92a4ecfde13ce98838ee518e469c4)), closes [#172](https://github.com/structured-id/ui-core/issues/172)
+
 ## 0.1.0 (2026-11-26)
 
 
