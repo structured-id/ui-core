@@ -30,7 +30,21 @@ describe("isStaleChunk", () => {
     }
   });
 
+  // Bug prevented: a route whose stylesheet is gone. The bundler's preload
+  // helper rejects it with a plain Error before the module is imported, so
+  // the browser's TypeError never comes.
+  it("recognises a missing route stylesheet", () => {
+    expect(
+      isStaleChunk(
+        new Error(
+          "Unable to preload CSS for /assets/SecurityPage-B-znM5FE.css",
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("leaves other failures to the router", () => {
+    expect(isStaleChunk(new Error("Unable to load the profile"))).toBe(false);
     expect(isStaleChunk(new TypeError("x is not a function"))).toBe(false);
     expect(isStaleChunk(new Error(GONE[0]))).toBe(false);
     expect(isStaleChunk(GONE[0])).toBe(false);
@@ -63,6 +77,18 @@ describe("reloadOnStaleChunk", () => {
     await router.push("/register?reference=abc").catch(() => undefined);
 
     expect(load).toHaveBeenCalledExactlyOnceWith("/register?reference=abc");
+  });
+
+  it("loads the target page afresh when its stylesheet is gone", async () => {
+    const router = staleRouter(
+      new Error("Unable to preload CSS for /assets/SecurityPage-B-znM5FE.css"),
+    );
+    const load = vi.fn();
+    reloadOnStaleChunk(router, load);
+
+    await router.push("/register").catch(() => undefined);
+
+    expect(load).toHaveBeenCalledExactlyOnceWith("/register");
   });
 
   // A fresh load that still misses the chunk is a broken deployment: loading

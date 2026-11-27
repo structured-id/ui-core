@@ -6,14 +6,19 @@ const RELOADED = "sid.staleChunkReload";
 /**
  * A route chunk the server no longer has: the page was loaded from an earlier
  * deployment. Chromium, Firefox and Safari each word the failed import
- * differently, always as a TypeError.
+ * differently, always as a TypeError. A route's stylesheet is preloaded
+ * before its module is imported; missing, the bundler's preload helper
+ * rejects with a plain Error of its own wording.
  */
 export function isStaleChunk(error: unknown): boolean {
-  return (
-    error instanceof TypeError &&
-    /dynamically imported module|Importing a module script failed/.test(
+  if (error instanceof TypeError) {
+    return /dynamically imported module|Importing a module script failed/.test(
       error.message,
-    )
+    );
+  }
+  return (
+    error instanceof Error &&
+    error.message.startsWith("Unable to preload CSS for ")
   );
 }
 
