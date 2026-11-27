@@ -100,6 +100,10 @@ export {
   type RpcRefusal,
 } from "./utils/rpcRefusal";
 
+// For an application's router: a page opened before a deployment loads the
+// target afresh when its route chunk is gone.
+export { isStaleChunk, reloadOnStaleChunk } from "./utils/staleChunk";
+
 // Types
 export type { AuthState, SessionInfo, GrpcConfig } from "./types";
 

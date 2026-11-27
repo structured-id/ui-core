@@ -1,9 +1,10 @@
 import { defineRouter } from "#q-app";
 import { createRouter, createWebHistory } from "vue-router";
+import { reloadOnStaleChunk } from "@structured-id/ui-core";
 import routes from "./routes";
 
 export default defineRouter(function () {
-  return createRouter({
+  const router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
     // The routes name their full paths (`/account/...`): the history starts
@@ -11,4 +12,6 @@ export default defineRouter(function () {
     // shell for its assets, which vue-router reads when given no base.
     history: createWebHistory("/"),
   });
+  reloadOnStaleChunk(router);
+  return router;
 });
