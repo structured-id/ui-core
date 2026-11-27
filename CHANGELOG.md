@@ -17,6 +17,13 @@ subjectId, and PrincipalSubjectType is gone.
 
 * password ceremonies on the ZKPP client as a major release ([5ba1e7b](https://github.com/structured-id/ui-core/commit/5ba1e7bac6d8ba42a6a7ad97e890639c24694f13))
 
+## [4.21.4](https://github.com/structured-id/ui-core/compare/v4.21.3...v4.21.4) (2026-11-27)
+
+
+### Bug Fixes
+
+* **router:** reload a page whose route chunk is gone ([#180](https://github.com/structured-id/ui-core/issues/180)) ([dda8e81](https://github.com/structured-id/ui-core/commit/dda8e81072576877b7b008778f9a0f405ab62c5a)), closes [#179](https://github.com/structured-id/ui-core/issues/179)
+
 ## [4.21.3](https://github.com/structured-id/ui-core/compare/v4.21.2...v4.21.3) (2026-11-27)
 
 
