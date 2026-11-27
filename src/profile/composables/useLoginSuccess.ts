@@ -15,6 +15,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "../../index";
 import { checkBffSession } from "../../index";
 import type { PendingSignIn } from "../pendingSignIn";
+import { signInEntryOf } from "../signInEntry";
 
 export interface LoginSuccessResult {
   sessionId?: SessionId;
@@ -115,11 +116,11 @@ export function useLoginSuccess(
   async function onLoginSuccess(result?: LoginSuccessResult) {
     if (result?.pending) {
       // Not signed in yet: the second factor completes the sign-in, and the
-      // authorization request it waits for goes along.
-      const rd = router.currentRoute.value.query.rd;
+      // authorization request it waits for goes along with its issuer's
+      // route, so the factor page reads the same issuer.
       await router.push({
         path: options.secondFactorPath ?? SECOND_FACTOR_PATH,
-        query: typeof rd === "string" ? { rd } : {},
+        query: signInEntryOf(router.currentRoute.value.query),
       });
       return;
     }

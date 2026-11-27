@@ -10,6 +10,11 @@
  * PKCE verifier and nonce itself and checks `state` on completion.
  */
 import { UpstreamProviderId } from "@structured-id/ids";
+import {
+  issuerRouteHint,
+  signInEntryOf,
+  type SignInEntry,
+} from "./signInEntry";
 
 /** Where the provider returns the browser, unless the app names its own. */
 export const UPSTREAM_CALLBACK_PATH = "/account/upstream/callback";
@@ -31,6 +36,10 @@ export interface PendingUpstream {
   provider: UpstreamProviderId;
   /** The authorization request the sign-in completes, if one sent the user. */
   rd: string | null;
+  /** The ceremony route the request's issuer named, if it named one. */
+  route?: string;
+  /** Whether the request's issuer offered its federated entry. */
+  federated?: boolean;
 }
 
 const PREFIX = "sid.upstream.";
@@ -43,8 +52,25 @@ export function rememberUpstream(
 ): void {
   storage.setItem(
     PREFIX + state,
-    JSON.stringify({ provider: pending.provider.toString(), rd: pending.rd }),
+    JSON.stringify({
+      provider: pending.provider.toString(),
+      rd: pending.rd,
+      route: pending.route,
+      federated: pending.federated === true ? true : undefined,
+    }),
   );
+}
+
+/**
+ * The sign-in `pending` was started in, as the pages pass it on: the request
+ * and, with it, its issuer's route and federated entry.
+ */
+export function signInEntryOfPending(pending: PendingUpstream): SignInEntry {
+  if (pending.rd === null) return {};
+  const entry: SignInEntry = { rd: pending.rd };
+  if (pending.route !== undefined) entry.route = pending.route;
+  if (pending.federated) entry.federated = "1";
+  return entry;
 }
 
 /** What was kept for `state`, left in place; `undefined` when nothing is. */
@@ -55,13 +81,22 @@ export function peekUpstream(
   const kept = storage.getItem(PREFIX + state);
   if (kept === null) return undefined;
   try {
-    const parsed = JSON.parse(kept) as { provider?: unknown; rd?: unknown };
+    const parsed = JSON.parse(kept) as {
+      provider?: unknown;
+      rd?: unknown;
+      route?: unknown;
+      federated?: unknown;
+    };
     if (typeof parsed.provider !== "string") return undefined;
-    return {
+    const pending: PendingUpstream = {
       // An entry whose provider is no identifier was not kept by this code.
       provider: UpstreamProviderId.parse(parsed.provider),
       rd: typeof parsed.rd === "string" ? parsed.rd : null,
     };
+    const route = issuerRouteHint(parsed.route);
+    if (route !== undefined) pending.route = route;
+    if (parsed.federated === true) pending.federated = true;
+    return pending;
   } catch {
     return undefined;
   }
@@ -78,19 +113,33 @@ export function takeUpstream(
 }
 
 /**
- * The authorization request this page load completes: `rd` in the query, or
- * on the callback page the one kept for its `state`. The callback's own `rd`
- * is never used: the provider's return carries none.
+ * The sign-in this page load belongs to, read before anything is addressed:
+ * what its query names, or on the callback page what was kept for its
+ * `state`. The callback's own query names no sign-in: the provider's return
+ * carries none, and anyone can add to it.
+ */
+export function signInEntryOfPage(
+  location: Pick<Location, "pathname" | "search">,
+  storage: Storage,
+  callbackPath: string = UPSTREAM_CALLBACK_PATH,
+): SignInEntry {
+  const query = new URLSearchParams(location.search);
+  if (location.pathname === callbackPath) {
+    const state = query.get("state");
+    const pending = state ? peekUpstream(storage, state) : undefined;
+    return pending ? signInEntryOfPending(pending) : {};
+  }
+  return signInEntryOf(Object.fromEntries(query));
+}
+
+/**
+ * The authorization request this page load completes: the `rd` of
+ * {@link signInEntryOfPage}.
  */
 export function upstreamRequestOfPage(
   location: Pick<Location, "pathname" | "search">,
   storage: Storage,
   callbackPath: string = UPSTREAM_CALLBACK_PATH,
 ): string | null {
-  const query = new URLSearchParams(location.search);
-  if (location.pathname === callbackPath) {
-    const state = query.get("state");
-    return state ? (peekUpstream(storage, state)?.rd ?? null) : null;
-  }
-  return query.get("rd");
+  return signInEntryOfPage(location, storage, callbackPath).rd ?? null;
 }
