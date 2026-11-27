@@ -83,9 +83,30 @@ describe("RegisterPage", () => {
     // A self-hosted installation's open registration, unless a case says
     // otherwise.
     api.readRegistrationSettings.mockResolvedValue({
+      open: true,
       principalTypes: ["email", "phone", "username"],
       usernameMinLength: 3,
     });
+  });
+
+  // The policy may admit visitors while the installation itself takes no
+  // registrations (its own switch is off): it then publishes registration
+  // as closed, with the types and minimum unchanged.
+  // Bug prevented: the form shown on the direct address, where the first
+  // request of the registration is refused.
+  it("offers no form when the installation publishes registration closed", async () => {
+    api.getInstanceStatus.mockResolvedValue({ claim: 2 });
+    api.getEnrollmentPolicy.mockResolvedValue({ mode: 1 });
+    api.readRegistrationSettings.mockResolvedValue({
+      open: false,
+      principalTypes: ["email", "phone", "username"],
+      usernameMinLength: 3,
+    });
+    const w = mountPage();
+    await flushPromises();
+
+    expect(form(w).exists()).toBe(false);
+    expect(w.text()).toContain("does not accept registration");
   });
 
   // The form admits what the installation publishes: its types and its
@@ -112,6 +133,7 @@ describe("RegisterPage", () => {
     api.getInstanceStatus.mockResolvedValue({ claim: 2 });
     api.getEnrollmentPolicy.mockResolvedValue({ mode: 4 });
     api.readRegistrationSettings.mockResolvedValue({
+      open: true,
       principalTypes: ["email"],
       usernameMinLength: undefined,
     });
@@ -159,10 +181,16 @@ describe("RegisterPage", () => {
   });
 
   // Once claimed, an invite-only policy asks for an invite, pre-filled from
-  // the link an administrator shared.
+  // the link an administrator shared. The installation publishes
+  // registration as closed to a visitor then: the invite is its own entry.
   it("asks for an invite under an invite-only policy", async () => {
     api.getInstanceStatus.mockResolvedValue({ claim: 2 });
     api.getEnrollmentPolicy.mockResolvedValue({ mode: 2 });
+    api.readRegistrationSettings.mockResolvedValue({
+      open: false,
+      principalTypes: ["email", "phone", "username"],
+      usernameMinLength: 3,
+    });
     query.invite = "ABCD1234";
     const w = mountPage();
     await flushPromises();

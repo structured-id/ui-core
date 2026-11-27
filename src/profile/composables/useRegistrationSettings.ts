@@ -15,6 +15,12 @@ import type { AcceptedPrincipalType } from "../../quasar/principalInputTexts";
 
 /** What an ordinary registration admits. */
 export interface RegistrationSettings {
+  /**
+   * A visitor may start a registration on their own. Closed where the
+   * installation takes none, and where only an invitation admits: an
+   * invitation is its own entry.
+   */
+  open: boolean;
   /** The types a new account may register with; none where nobody may. */
   principalTypes: AcceptedPrincipalType[];
   /** The shortest username admitted; none where no username registers. */
@@ -46,6 +52,7 @@ export async function readRegistrationSettings(): Promise<RegistrationSettings> 
     if (field && !principalTypes.includes(field)) principalTypes.push(field);
   }
   return {
+    open: response.registrationOpen,
     principalTypes,
     usernameMinLength: principalTypes.includes("username")
       ? response.registrationUsernameMinLength

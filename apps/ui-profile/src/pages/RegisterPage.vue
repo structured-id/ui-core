@@ -111,12 +111,19 @@ async function load() {
     // No assumed values: a form opens only with what the installation
     // published, and a read that fails is the outage below.
     const settings = await readRegistrationSettings();
-    if (settings.principalTypes.length === 0) {
+    inviteRequired.value = policy.mode === EnrollmentMode.INVITE_ONLY;
+    // A visitor starts only where the installation publishes registration
+    // as open: the policy may admit visitors while the installation itself
+    // takes no registration. An invitation is its own entry and is closed
+    // to a visitor by its nature, so it does not wait for that.
+    if (
+      settings.principalTypes.length === 0 ||
+      (!settings.open && !inviteRequired.value)
+    ) {
       state.value = "closed";
       return;
     }
     admitted.value = settings;
-    inviteRequired.value = policy.mode === EnrollmentMode.INVITE_ONLY;
     state.value = "open";
   } catch (e) {
     unavailableText.value = refusalMessage(
