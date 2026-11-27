@@ -1,6 +1,6 @@
 {
   "name": "@structured-id/ui-core",
-  "version": "4.21.2",
+  "version": "4.21.3",
   "type": "module",
   "publishConfig": {
     "access": "public",
