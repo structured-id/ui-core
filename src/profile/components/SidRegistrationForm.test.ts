@@ -198,6 +198,41 @@ describe("SidRegistrationForm", () => {
     }
   });
 
+  // The settings an installation publishes decide what an ordinary
+  // registration may submit: a self-hosted one admits a three-character
+  // username, a domain-restricted one an email only.
+  // Bug prevented: `ivy` stopped before any request on an installation whose
+  // minimum is three, and a username offered where only an email registers.
+  it("admits what the installation's settings admit", async () => {
+    const submittable = async (
+      props: Record<string, unknown>,
+      value: string,
+    ) => {
+      const w = mountForm({ claimRequired: false, ...props });
+      const [principal, password, confirm] = w.findAll("input");
+      await password.setValue("Secret-Pass-123");
+      await confirm.setValue("Secret-Pass-123");
+      await principal.setValue(value);
+      const enabled = w.find("button").attributes("disabled") === undefined;
+      w.unmount();
+      return enabled;
+    };
+    const selfHosted = {
+      usernameMinLength: 3,
+      principalTypes: ["email", "phone", "username"],
+    };
+    expect(await submittable(selfHosted, "ivy")).toBe(true);
+    expect(await submittable(selfHosted, "iv")).toBe(false);
+
+    const domainRestricted = {
+      usernameMinLength: undefined,
+      principalTypes: ["email"],
+    };
+    expect(await submittable(domainRestricted, "ivy@example.com")).toBe(true);
+    expect(await submittable(domainRestricted, "ivy")).toBe(false);
+    expect(await submittable(domainRestricted, "ivy_the_user")).toBe(false);
+  });
+
   it("submits the invite code when the installation is claimed", async () => {
     registerFn.mockClear();
     const w = mountForm({ initialInviteCode: "ABCD1234" });
