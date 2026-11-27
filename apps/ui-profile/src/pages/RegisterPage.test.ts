@@ -6,6 +6,7 @@ import { flushPromises, shallowMount } from "@vue/test-utils";
 const api = vi.hoisted(() => ({
   getInstanceStatus: vi.fn(),
   getEnrollmentPolicy: vi.fn(),
+  readRegistrationSettings: vi.fn(),
   register: vi.fn(),
   login: vi.fn(),
   onLoginSuccess: vi.fn(),
@@ -28,12 +29,15 @@ vi.mock("@structured-id/ui-core/profile", () => ({
       "inviteRequired",
       "initialInviteCode",
       "loginUrl",
+      "principalTypes",
+      "usernameMinLength",
     ],
     emits: ["success"],
     template: "<form />",
   },
   getInstanceStatus: api.getInstanceStatus,
   getEnrollmentPolicy: api.getEnrollmentPolicy,
+  readRegistrationSettings: api.readRegistrationSettings,
   useLoginSuccess: () => ({ onLoginSuccess: api.onLoginSuccess }),
 }));
 
@@ -76,6 +80,70 @@ describe("RegisterPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const k of Object.keys(query)) delete query[k];
+    // A self-hosted installation's open registration, unless a case says
+    // otherwise.
+    api.readRegistrationSettings.mockResolvedValue({
+      principalTypes: ["email", "phone", "username"],
+      usernameMinLength: 3,
+    });
+  });
+
+  // The form admits what the installation publishes: its types and its
+  // username minimum, not values of the page's own.
+  // Bug prevented: a three-character name stopped before any request on an
+  // installation that admits it, because the form assumed six.
+  it("gives the form the installation's registration settings", async () => {
+    api.getInstanceStatus.mockResolvedValue({ claim: 2 });
+    api.getEnrollmentPolicy.mockResolvedValue({ mode: 1 });
+    const w = mountPage();
+    await flushPromises();
+
+    expect(form(w).props("principalTypes")).toEqual([
+      "email",
+      "phone",
+      "username",
+    ]);
+    expect(form(w).props("usernameMinLength")).toBe(3);
+  });
+
+  // Under a domain-restricted policy the installation registers an email
+  // only, and the form offers nothing else.
+  it("offers only an email under a domain-restricted policy", async () => {
+    api.getInstanceStatus.mockResolvedValue({ claim: 2 });
+    api.getEnrollmentPolicy.mockResolvedValue({ mode: 4 });
+    api.readRegistrationSettings.mockResolvedValue({
+      principalTypes: ["email"],
+      usernameMinLength: undefined,
+    });
+    const w = mountPage();
+    await flushPromises();
+
+    expect(form(w).props("principalTypes")).toEqual(["email"]);
+    expect(form(w).props("usernameMinLength")).toBeUndefined();
+  });
+
+  // Settings that cannot be read are an outage: no form opens with values
+  // the installation never stated.
+  it("shows an outage when the settings cannot be read", async () => {
+    api.getInstanceStatus.mockResolvedValue({ claim: 2 });
+    api.getEnrollmentPolicy.mockResolvedValue({ mode: 1 });
+    api.readRegistrationSettings.mockRejectedValue(new Error("UNAVAILABLE"));
+    const w = mountPage();
+    await flushPromises();
+
+    expect(form(w).exists()).toBe(false);
+    expect(w.text()).toContain("cannot be reached");
+  });
+
+  // The claim registration is a scenario of its own: the first administrator
+  // registers by the claim's rules, and the settings are not read for it.
+  it("keeps the claim registration's own admission", async () => {
+    api.getInstanceStatus.mockResolvedValue({ claim: 1 });
+    const w = mountPage();
+    await flushPromises();
+
+    expect(form(w).props("claimRequired")).toBe(true);
+    expect(api.readRegistrationSettings).not.toHaveBeenCalled();
   });
 
   // While the installation waits for its first administrator, the claim

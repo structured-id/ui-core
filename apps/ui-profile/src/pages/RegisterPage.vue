@@ -36,6 +36,8 @@
       :claim-required="claimRequired"
       :invite-required="inviteRequired"
       :initial-invite-code="initialInviteCode"
+      :principal-types="admitted?.principalTypes"
+      :username-min-length="admitted?.usernameMinLength"
       :login-url="withContinuation('/account/login', route.query)"
       @success="afterRegistration"
     />
@@ -51,10 +53,12 @@ import {
   SidRegistrationForm,
   getEnrollmentPolicy,
   getInstanceStatus,
+  readRegistrationSettings,
   useLoginSuccess,
   type LoginSuccessResult,
   type PasswordOperationProgress,
   type RegistrationExtras,
+  type RegistrationSettings,
 } from "@structured-id/ui-core/profile";
 import { refusalMessage } from "@structured-id/ui-core";
 import CeremonyFrame from "src/components/CeremonyFrame.vue";
@@ -72,6 +76,11 @@ const state = ref<State>("loading");
 const unavailableText = ref("");
 const claimRequired = ref(false);
 const inviteRequired = ref(false);
+/**
+ * What an ordinary registration admits here, as the installation publishes
+ * it; none in the claim registration, which has its own admission.
+ */
+const admitted = ref<RegistrationSettings | undefined>(undefined);
 const initialInviteCode =
   typeof route.query.invite === "string" ? route.query.invite : "";
 
@@ -81,10 +90,12 @@ let signedIn: LoginSuccessResult | null = null;
 /**
  * What the installation admits now: while it waits for its first
  * administrator only the claim token does, whatever the enrollment mode;
- * afterwards the enrollment policy decides.
+ * afterwards the enrollment policy decides who may register, and the
+ * installation's published settings with which principal.
  */
 async function load() {
   state.value = "loading";
+  admitted.value = undefined;
   try {
     const status = await getInstanceStatus();
     claimRequired.value = status.claim === AdministratorClaim.OPEN;
@@ -97,6 +108,14 @@ async function load() {
       state.value = "closed";
       return;
     }
+    // No assumed values: a form opens only with what the installation
+    // published, and a read that fails is the outage below.
+    const settings = await readRegistrationSettings();
+    if (settings.principalTypes.length === 0) {
+      state.value = "closed";
+      return;
+    }
+    admitted.value = settings;
     inviteRequired.value = policy.mode === EnrollmentMode.INVITE_ONLY;
     state.value = "open";
   } catch (e) {

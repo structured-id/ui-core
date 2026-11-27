@@ -11,4 +11,5 @@ export * from "./usePasswordPolicy";
 export * from "./useUpstreamSignIn";
 export * from "./useSignInConnections";
 export * from "./useSignInOffer";
+export * from "./useRegistrationSettings";
 export * from "./usePasskeySignIn";
