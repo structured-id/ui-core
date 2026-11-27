@@ -14,6 +14,7 @@ export * from "./components";
 
 // Upstream identity provider sign-in: what a return keeps
 export * from "./upstream";
+export * from "./signInEntry";
 
 // A browser sign-in owing its second factor
 export * from "./pendingSignIn";

@@ -229,6 +229,28 @@ describe("useLoginSuccess (BFF cookie mode)", () => {
     expect(mockCheckBffSession).not.toHaveBeenCalled();
   });
 
+  // Regression: the factor page got the request (`rd`) alone. A
+  // root-addressed issuer on a shared host names its route; without it the
+  // factor page, opened afresh, read the request at the host root, another
+  // issuer's address, and the issuer's federated entry was lost.
+  it("keeps the issuer's route and federated entry on the way to the factor", async () => {
+    const { result, router } = await withApp(
+      () => useLoginSuccess("/account", { issuerOrigin: ISSUER }),
+      `/login?route=%2Fi%2F0123abcd&federated=1&lang=en&rd=${encodeURIComponent(CONTINUATION)}`,
+    );
+
+    await result.onLoginSuccess({
+      pending: { secondFactors: [StepUpMethod.TOTP], enrollableFactors: [] },
+    });
+
+    expect(router.currentRoute.value.path).toBe(SECOND_FACTOR_PATH);
+    expect(router.currentRoute.value.query).toEqual({
+      rd: CONTINUATION,
+      route: "/i/0123abcd",
+      federated: "1",
+    });
+  });
+
   it("navigates when BFF session returns null (cookie not yet set)", async () => {
     mockCheckBffSession.mockResolvedValue(null);
 

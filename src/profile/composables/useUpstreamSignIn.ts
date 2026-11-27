@@ -3,7 +3,7 @@
  * the sign-in surface's transport. See `../upstream` for what is kept
  * between leaving for the provider and its return.
  */
-import { ref, shallowRef } from "vue";
+import { computed, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { UpstreamProviderId, required } from "@structured-id/ids";
 import { getTransport } from "../../index";
@@ -12,9 +12,12 @@ import { UpstreamServiceClient } from "@structured-id/proto/sid/v1/federation/up
 import {
   UPSTREAM_CALLBACK_PATH,
   rememberUpstream,
+  signInEntryOfPending,
   takeUpstream,
   upstreamCallbackUri,
+  type PendingUpstream,
 } from "../upstream";
+import { signInEntryOf, type SignInEntry } from "../signInEntry";
 import { useLoginSuccess, type LoginSuccessOptions } from "./useLoginSuccess";
 import { holdPendingSignIn, pendingSignIn } from "../pendingSignIn";
 
@@ -110,34 +113,59 @@ export function pageBrowser(
   };
 }
 
+/** What the issuer of the request said about itself when it sent the user. */
+export interface UpstreamIssuerHints {
+  /** The route its ceremonies run on, if it named one. */
+  route?: string;
+  /** Whether it offered its federated entry. */
+  federated?: boolean;
+}
+
 /**
- * Leave for `provider`, keeping the request `rd` for the return: the issuer
- * starts the sign-in for this origin's callback page.
+ * Leave for `provider`, keeping the request `rd` and what its issuer said
+ * about itself for the return: the issuer starts the sign-in for this
+ * origin's callback page.
  */
 export async function startUpstream(
   provider: UpstreamProviderId,
   rd: string | null,
   api: UpstreamApi = upstreamApi(),
   browser: UpstreamBrowser = pageBrowser(),
+  issuer: UpstreamIssuerHints = {},
 ): Promise<void> {
   const started = await api.initiate(
     provider,
     upstreamCallbackUri(browser.origin, browser.callbackPath),
   );
-  rememberUpstream(browser.storage, started.stateToken, { provider, rd });
+  const pending: PendingUpstream = { provider, rd };
+  // The hints belong to the request: without one there is nothing to keep.
+  if (rd !== null) {
+    if (issuer.route !== undefined) pending.route = issuer.route;
+    if (issuer.federated) pending.federated = true;
+  }
+  rememberUpstream(browser.storage, started.stateToken, pending);
   browser.leaveTo(started.authorizationUrl);
 }
 
 /**
  * Give up the return carrying `state`, which the provider answered with an
- * error (RFC 6749 §4.1.2.1): its kept entry is taken, and the request it
- * waited for, if any, is answered for signing in another way.
+ * error (RFC 6749 §4.1.2.1): its kept entry is taken, and the sign-in it
+ * was started in, if any, is answered for signing in another way.
  */
+export function abandonUpstreamEntry(
+  state: string,
+  browser: UpstreamBrowser = pageBrowser(),
+): SignInEntry {
+  const pending = takeUpstream(browser.storage, state);
+  return pending ? signInEntryOfPending(pending) : {};
+}
+
+/** {@link abandonUpstreamEntry}, answering the waiting request alone. */
 export function abandonUpstream(
   state: string,
   browser: UpstreamBrowser = pageBrowser(),
 ): string | null {
-  return takeUpstream(browser.storage, state)?.rd ?? null;
+  return abandonUpstreamEntry(state, browser).rd ?? null;
 }
 
 /** How a return to the callback page ended. */
@@ -146,6 +174,8 @@ export type UpstreamReturn =
       /** `failed`: the issuer could not complete it. */
       outcome: UpstreamOutcome | "failed";
       rd: string | null;
+      /** The sign-in the return was started in. */
+      entry: SignInEntry;
     }
   | { outcome: "unknown" };
 
@@ -164,6 +194,7 @@ export async function completeUpstream(
 ): Promise<UpstreamReturn> {
   const pending = takeUpstream(browser.storage, state);
   if (!pending) return { outcome: "unknown" };
+  const entry = signInEntryOfPending(pending);
   try {
     const outcome = await api.complete(
       pending.provider,
@@ -171,9 +202,9 @@ export async function completeUpstream(
       state,
       upstreamCallbackUri(browser.origin, browser.callbackPath),
     );
-    return { outcome, rd: pending.rd };
+    return { outcome, rd: pending.rd, entry };
   } catch {
-    return { outcome: "failed", rd: pending.rd };
+    return { outcome: "failed", rd: pending.rd, entry };
   }
 }
 
@@ -197,6 +228,17 @@ export function useUpstreamSignIn(
   const loading = ref<string | null>(null);
   const error = ref<string | null>(null);
   const api = () => options.api ?? upstreamApi();
+  const route = useRoute();
+
+  /**
+   * What the issuer of the request `request` said about itself: this page's
+   * own entry, when it is the entry of that request.
+   */
+  function issuerHints(request: string | null): UpstreamIssuerHints {
+    const entry = signInEntryOf(route.query);
+    if (request === null || entry.rd !== request) return {};
+    return { route: entry.route, federated: entry.federated === "1" };
+  }
 
   async function load() {
     try {
@@ -211,11 +253,13 @@ export function useUpstreamSignIn(
     loading.value = provider.toString();
     error.value = null;
     try {
+      const request = rd();
       await startUpstream(
         provider,
-        rd(),
+        request,
         api(),
         options.browser ?? pageBrowser(options.callbackPath),
+        issuerHints(request),
       );
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Sign-in failed";
@@ -253,8 +297,13 @@ export function useUpstreamCallback(
   const router = useRouter();
   const { onLoginSuccess } = useLoginSuccess(redirectTo, options);
   const failure = ref<UpstreamFailure | null>(null);
-  /** The request a failed return still waits for, to sign in another way. */
-  const continued = ref<string | null>(null);
+  /**
+   * The sign-in a failed return was started in, to sign in another way at
+   * the same issuer; empty when no request waited.
+   */
+  const entry = ref<SignInEntry>({});
+  /** The request of {@link entry}. */
+  const continued = computed(() => entry.value.rd ?? null);
   const browser = () => options.browser ?? pageBrowser(options.callbackPath);
 
   function text(value: unknown): string | null {
@@ -265,7 +314,7 @@ export function useUpstreamCallback(
     const code = text(route.query.code);
     const state = text(route.query.state);
     if (text(route.query.error)) {
-      if (state) continued.value = abandonUpstream(state, browser());
+      if (state) entry.value = abandonUpstreamEntry(state, browser());
       failure.value = "provider-error";
       return;
     }
@@ -284,15 +333,13 @@ export function useUpstreamCallback(
         failure.value = "unknown";
         return;
       }
-      continued.value = done.rd;
+      entry.value = done.entry;
       if (done.outcome === "linking-required" || done.outcome === "failed") {
         failure.value = done.outcome;
         return;
       }
-      await router.replace({
-        path: route.path,
-        query: done.rd ? { rd: done.rd } : {},
-      });
+      // What the return URL added is gone: only the kept sign-in continues.
+      await router.replace({ path: route.path, query: done.entry });
       // A sign-in owing its second factor continues to the factor's page.
       await onLoginSuccess(
         done.outcome === "second-factor" ? { pending: pendingSignIn() } : {},
@@ -302,5 +349,5 @@ export function useUpstreamCallback(
     }
   }
 
-  return { failure, continued, complete };
+  return { failure, continued, entry, complete };
 }

@@ -4,6 +4,7 @@ import {
   UPSTREAM_CALLBACK_PATH,
   peekUpstream,
   rememberUpstream,
+  signInEntryOfPage,
   takeUpstream,
   upstreamCallbackUri,
   upstreamRequestOfPage,
@@ -60,6 +61,47 @@ describe("the kept return", () => {
     expect(takeUpstream(sessionStorage, "s1")).toBeUndefined();
   });
 
+  // What is tested: the one kept entry holds the sign-in the user left, with
+  // the issuer's route and its offered federated entry.
+  // Bug prevented: the entry kept the request alone, so the return of a
+  // sign-in at an issuer that named its route was read at the host root and
+  // signing in another way lost the federated entry.
+  it("keeps the issuer's route and federated entry with the request", () => {
+    rememberUpstream(sessionStorage, "s1", {
+      provider: P1,
+      rd: RD,
+      route: "/i/0123abcd",
+      federated: true,
+    });
+    const kept = peekUpstream(sessionStorage, "s1");
+    expect(kept?.route).toBe("/i/0123abcd");
+    expect(kept?.federated).toBe(true);
+    expect(sessionStorage.length).toBe(1);
+
+    // A sign-in whose issuer named neither keeps neither.
+    rememberUpstream(sessionStorage, "s2", { provider: P1, rd: RD });
+    const plain = peekUpstream(sessionStorage, "s2");
+    expect(plain?.route).toBeUndefined();
+    expect(plain?.federated).toBeUndefined();
+  });
+
+  // An entry naming a route that is not an issuer route chooses no path.
+  it("reads no route that is not an issuer route", () => {
+    sessionStorage.setItem(
+      "sid.upstream.s1",
+      JSON.stringify({
+        provider: P1.toString(),
+        rd: RD,
+        route: "/admin",
+        federated: "1",
+      }),
+    );
+    const kept = peekUpstream(sessionStorage, "s1");
+    expect(kept?.rd).toBe(RD);
+    expect(kept?.route).toBeUndefined();
+    expect(kept?.federated).toBeUndefined();
+  });
+
   // A malformed or foreign entry is no return.
   it("ignores what it did not write", () => {
     sessionStorage.setItem("sid.upstream.s1", "not json");
@@ -110,6 +152,49 @@ describe("upstreamRequestOfPage", () => {
         sessionStorage,
       ),
     ).toBeNull();
+  });
+
+  // What is tested: the page's sign-in, read before anything is addressed:
+  // from its query everywhere, and on the callback page only from the entry
+  // kept for its state.
+  // Bug prevented: a callback page that knew the request but not the route
+  // of the issuer it was started at, or one taking a route from the return
+  // URL, which anyone can write.
+  it("restores the callback's whole sign-in from its kept return alone", () => {
+    expect(
+      signInEntryOfPage(
+        location(
+          `/account/login?route=%2Fi%2F0123abcd&federated=1&rd=${encodeURIComponent(RD)}`,
+        ),
+        sessionStorage,
+      ),
+    ).toEqual({ rd: RD, route: "/i/0123abcd", federated: "1" });
+
+    rememberUpstream(sessionStorage, "s1", {
+      provider: P1,
+      rd: RD,
+      route: "/i/0123abcd",
+      federated: true,
+    });
+    expect(
+      signInEntryOfPage(
+        location(
+          `${UPSTREAM_CALLBACK_PATH}?code=c&state=s1&route=%2Fi%2Fother&rd=x`,
+        ),
+        sessionStorage,
+      ),
+    ).toEqual({ rd: RD, route: "/i/0123abcd", federated: "1" });
+    expect(peekUpstream(sessionStorage, "s1")).toBeDefined();
+
+    // An unknown state names no sign-in, whatever the return URL adds.
+    expect(
+      signInEntryOfPage(
+        location(
+          `${UPSTREAM_CALLBACK_PATH}?state=other&route=%2Fi%2F0123abcd&federated=1&rd=${encodeURIComponent(RD)}`,
+        ),
+        sessionStorage,
+      ),
+    ).toEqual({});
   });
 
   // An app with its own callback path reads its own callback page.

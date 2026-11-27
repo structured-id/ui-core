@@ -113,7 +113,7 @@ describe("completeUpstream", () => {
       "s1",
       `${ORIGIN}${UPSTREAM_CALLBACK_PATH}`,
     );
-    expect(done).toEqual({ outcome: "signed-in", rd: RD });
+    expect(done).toEqual({ outcome: "signed-in", rd: RD, entry: { rd: RD } });
   });
 
   // A return this tab did not start, or one already completed, asks the
@@ -140,6 +140,7 @@ describe("completeUpstream", () => {
     expect(await completeUpstream("c1", "s1", calls, page)).toEqual({
       outcome: "linking-required",
       rd: RD,
+      entry: { rd: RD },
     });
   });
 });
@@ -288,6 +289,45 @@ describe("useUpstreamCallback", () => {
     expect(left).toEqual([]);
     expect(router.currentRoute.value.path).toBe(SECOND_FACTOR_PATH);
     expect(router.currentRoute.value.query.rd).toBe(RD);
+  });
+
+  // What is tested: a return of a sign-in started at an issuer that named
+  // its route and offered its federated entry continues with both, whether
+  // it completes towards the second factor or the provider refused; names
+  // added to the return URL change nothing.
+  // Bug prevented: the factor page and the way back to sign in addressed
+  // with the request alone, read at the host root, the federated entry gone.
+  it("continues with the issuer's route and federated entry it started with", async () => {
+    const issuer = { route: "/i/0123abcd", federated: true };
+    const kept = { rd: RD, route: "/i/0123abcd", federated: "1" };
+
+    const calls = api("second-factor");
+    holdPendingSignIn({
+      secondFactors: [StepUpMethod.TOTP],
+      enrollableFactors: [],
+      browserCsrf: "csrf-1",
+    });
+    const page = browser();
+    await startUpstream(P1, RD, calls, page, issuer);
+    const factor = await callbackAt(
+      `${UPSTREAM_CALLBACK_PATH}?code=c1&state=s1&route=%2Fi%2Fother`,
+      calls,
+      page,
+    );
+    await factor.result.complete();
+    expect(factor.router.currentRoute.value.path).toBe(SECOND_FACTOR_PATH);
+    expect(factor.router.currentRoute.value.query).toEqual(kept);
+
+    await startUpstream(P1, RD, calls, page, issuer);
+    const refused = await callbackAt(
+      `${UPSTREAM_CALLBACK_PATH}?error=access_denied&state=s1`,
+      calls,
+      page,
+    );
+    await refused.result.complete();
+    expect(refused.result.failure.value).toBe("provider-error");
+    expect(refused.result.entry.value).toEqual(kept);
+    expect(refused.result.continued.value).toBe(RD);
   });
 
   // An account that needs linking is reported with its waiting request.
